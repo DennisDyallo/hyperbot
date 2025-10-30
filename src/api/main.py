@@ -2,12 +2,37 @@
 Minimal FastAPI application - starting small.
 """
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
+
+from src.config import logger, settings
+from src.services import hyperliquid_service
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan - startup and shutdown."""
+    # Startup
+    logger.info("Starting Hyperbot API...")
+    try:
+        hyperliquid_service.initialize()
+        logger.info("Hyperliquid service initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize Hyperliquid service: {e}")
+        logger.warning("API will start but Hyperliquid features may not work")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down Hyperbot API...")
+
 
 app = FastAPI(
     title="Hyperbot API",
     description="Trading bot API for Hyperliquid",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
+
 
 @app.get("/")
 async def root():
@@ -15,12 +40,36 @@ async def root():
     return {
         "name": "Hyperbot API",
         "version": "0.1.0",
-        "status": "online"
+        "status": "online",
+        "environment": settings.ENVIRONMENT
     }
+
 
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
-    return {
-        "status": "healthy"
+    """
+    Health check endpoint.
+    Returns overall API health and Hyperliquid service status.
+    """
+    health_data = {
+        "api": "healthy",
+        "environment": settings.ENVIRONMENT,
     }
+
+    # Check Hyperliquid service
+    try:
+        hl_health = hyperliquid_service.health_check()
+        health_data["hyperliquid"] = hl_health
+    except Exception as e:
+        logger.error(f"Hyperliquid health check failed: {e}")
+        health_data["hyperliquid"] = {
+            "status": "error",
+            "message": str(e)
+        }
+
+    # Determine overall status
+    hl_status = health_data.get("hyperliquid", {}).get("status", "error")
+    if hl_status == "unhealthy" or hl_status == "error":
+        health_data["api"] = "degraded"
+
+    return health_data
