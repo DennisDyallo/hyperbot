@@ -1,0 +1,24 @@
+# Core dependencies
+python-dotenv==1.0.0
+pydantic==2.5.0
+loguru==0.7.2
+
+# Hyperliquid SDK
+hyperliquid-python-sdk==0.5.1
+
+# FastAPI & Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# HTTP Client
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0
+mypy==1.7.1
+
+# Development
+black==23.12.1
