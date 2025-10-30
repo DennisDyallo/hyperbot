@@ -1,665 +1,798 @@
-# Telegram Bot API Reference (python-telegram-bot)
+# Telegram Bot API Reference
 
 ## Overview
 
-This reference covers the `python-telegram-bot` library (v20.x), which provides a pure Python interface for the Telegram Bot API with async/await support.
+The Telegram Bot API is an HTTP-based interface for developers building bots for Telegram. Bots operate through unique authentication tokens and communicate via HTTPS requests to `https://api.telegram.org/bot<token>/METHOD_NAME`.
 
-**Official Documentation**: https://docs.python-telegram-bot.org/
-
-## Installation
-
-```bash
-pip install python-telegram-bot==20.7
-```
-
-## Basic Setup
-
-### Creating a Bot
-
-```python
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command."""
-    await update.message.reply_text("Hello! I'm your bot.")
-
-def main():
-    # Create application
-    application = Application.builder().token("YOUR_BOT_TOKEN").build()
-
-    # Add handlers
-    application.add_handler(CommandHandler("start", start))
-
-    # Run bot
-    application.run_polling()
-
-if __name__ == "__main__":
-    main()
-```
+**Official Documentation**: https://core.telegram.org/bots/api
 
 ## Core Concepts
 
-### 1. Application
+### Authentication
 
-The `Application` class is the main entry point for your bot.
+- Bots use a unique token in the format: `123456:ABC-DEF...`
+- Tokens are obtained from [@BotFather](https://t.me/botfather)
+- Include the token in the URL: `https://api.telegram.org/bot<YOUR_TOKEN>/METHOD_NAME`
 
-```python
-from telegram.ext import Application
+### Request Methods
 
-# Build application
-application = (
-    Application.builder()
-    .token(bot_token)
-    .post_init(post_init_callback)
-    .post_shutdown(post_shutdown_callback)
-    .build()
-)
+The API accepts **GET** and **POST** requests through four parameter formats:
+- URL query strings
+- `application/x-www-form-urlencoded`
+- `application/json` (except file uploads)
+- `multipart/form-data` (for file uploads)
+
+### Response Structure
+
+All responses contain JSON objects with a Boolean `ok` field:
+
+```json
+{
+  "ok": true,
+  "result": { ... }
+}
 ```
 
-**Key Methods:**
-- `add_handler(handler)` - Register a handler
-- `run_polling()` - Start polling for updates
-- `run_webhook()` - Run with webhooks
-- `stop()` - Stop the bot gracefully
+Failed requests include error information:
 
-### 2. Update Object
-
-The `Update` object contains all information about an incoming update.
-
-```python
-update.message               # Message object
-update.effective_user        # User who sent the update
-update.effective_chat        # Chat where update occurred
-update.callback_query        # Callback query from inline button
-update.effective_message     # Message (works for both messages and edited messages)
+```json
+{
+  "ok": false,
+  "error_code": 400,
+  "description": "Bad Request: message text is empty"
+}
 ```
 
-### 3. Context Object
+## Update Handling
 
-The `ContextTypes.DEFAULT_TYPE` provides context for handlers.
+Two mutually exclusive mechanisms retrieve incoming updates:
+
+### 1. Long Polling (getUpdates)
+
+Retrieves updates with configurable offset and timeout:
 
 ```python
-context.bot                  # Bot instance
-context.user_data            # Per-user data storage (dict)
-context.chat_data            # Per-chat data storage (dict)
-context.bot_data             # Global bot data storage (dict)
-context.args                 # Command arguments
-context.error                # Error object (in error handlers)
-context.job_queue            # Job queue for scheduled tasks
+import requests
+
+url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+params = {
+    "offset": last_update_id + 1,
+    "timeout": 30,
+    "allowed_updates": ["message", "callback_query"]
+}
+response = requests.get(url, params=params)
 ```
 
-## Handlers
+### 2. Webhooks (setWebhook)
 
-### CommandHandler
-
-Handle commands like `/start`, `/help`, etc.
+Sends HTTPS POST requests to your specified URL:
 
 ```python
-from telegram.ext import CommandHandler
-
-async def command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Access command arguments
-    args = context.args  # /command arg1 arg2 -> ['arg1', 'arg2']
-    await update.message.reply_text(f"Arguments: {args}")
-
-application.add_handler(CommandHandler("command", command_handler))
+url = f"https://api.telegram.org/bot{TOKEN}/setWebhook"
+data = {
+    "url": "https://your-server.com/webhook",
+    "secret_token": "your_secret_token",
+    "max_connections": 40,
+    "allowed_updates": ["message", "callback_query"]
+}
+response = requests.post(url, json=data)
 ```
 
-### MessageHandler
+**Webhook Features:**
+- HTTPS required (HTTP only for local Bot API server)
+- Supports custom certificates
+- Fixed IP addresses
+- Connection limits (1-100)
+- Secret tokens for validation via `X-Telegram-Bot-Api-Secret-Token` header
 
-Handle text messages, photos, documents, etc.
+## Key Object Types
 
-```python
-from telegram.ext import MessageHandler, filters
+### User
 
-async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    await update.message.reply_text(f"You said: {text}")
+Represents a Telegram user or bot:
 
-# Handle all text messages
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
-
-# Handle photos
-async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    photo = update.message.photo[-1]  # Get highest resolution
-    file = await photo.get_file()
-    await file.download_to_drive("photo.jpg")
-
-application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
+```json
+{
+  "id": 123456789,
+  "is_bot": false,
+  "first_name": "John",
+  "last_name": "Doe",
+  "username": "johndoe",
+  "language_code": "en"
+}
 ```
 
-### CallbackQueryHandler
+### Chat
 
-Handle inline keyboard button presses.
+Represents conversations (private, group, supergroup, or channel):
 
-```python
-from telegram.ext import CallbackQueryHandler
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()  # Answer the callback query
-
-    # Get button data
-    button_data = query.data
-
-    # Edit the message
-    await query.edit_message_text(f"You clicked: {button_data}")
-
-application.add_handler(CallbackQueryHandler(button_handler))
+```json
+{
+  "id": -1001234567890,
+  "type": "supergroup",
+  "title": "My Group",
+  "username": "mygroup",
+  "permissions": { ... }
+}
 ```
 
-### ConversationHandler
+### Message
 
-Handle multi-step conversations.
+The primary data structure containing:
+- Sender information
+- Timestamps
+- Content (text, media, polls, checklists)
+- Entities (mentions, URLs, custom emoji)
+- Reply chains
+- Forwarding metadata
 
-```python
-from telegram.ext import ConversationHandler
-
-# Define states
-NAME, AGE, LOCATION = range(3)
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("What's your name?")
-    return NAME
-
-async def name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['name'] = update.message.text
-    await update.message.reply_text("How old are you?")
-    return AGE
-
-async def age(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['age'] = update.message.text
-    await update.message.reply_text("Where are you from?")
-    return LOCATION
-
-async def location(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['location'] = update.message.text
-    await update.message.reply_text("Thank you! Registration complete.")
-    return ConversationHandler.END
-
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Cancelled.")
-    return ConversationHandler.END
-
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler('register', start)],
-    states={
-        NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, name)],
-        AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, age)],
-        LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, location)],
-    },
-    fallbacks=[CommandHandler('cancel', cancel)]
-)
-
-application.add_handler(conv_handler)
+```json
+{
+  "message_id": 123,
+  "from": { ... },
+  "chat": { ... },
+  "date": 1640000000,
+  "text": "Hello, world!",
+  "entities": [
+    {
+      "type": "mention",
+      "offset": 0,
+      "length": 5
+    }
+  ]
+}
 ```
 
-## Inline Keyboards
+## Messaging Methods
 
-### Creating Inline Keyboards
+### sendMessage
+
+Send text messages:
 
 ```python
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
-# Create keyboard
-keyboard = [
-    [
-        InlineKeyboardButton("Option 1", callback_data="opt1"),
-        InlineKeyboardButton("Option 2", callback_data="opt2")
-    ],
-    [InlineKeyboardButton("Option 3", callback_data="opt3")]
-]
-reply_markup = InlineKeyboardMarkup(keyboard)
-
-# Send message with keyboard
-await update.message.reply_text(
-    "Choose an option:",
-    reply_markup=reply_markup
-)
+url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+data = {
+    "chat_id": chat_id,
+    "text": "Hello, world!",
+    "parse_mode": "HTML",  # or "Markdown", "MarkdownV2"
+    "disable_web_page_preview": False,
+    "reply_markup": {
+        "inline_keyboard": [[
+            {"text": "Button", "callback_data": "button_pressed"}
+        ]]
+    }
+}
+response = requests.post(url, json=data)
 ```
 
-### Handling Callbacks
+### Media Messages
+
+**sendPhoto**, **sendVideo**, **sendAudio**, **sendDocument**, **sendAnimation**:
 
 ```python
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()  # Always answer callback queries
+# Upload file
+with open('photo.jpg', 'rb') as photo:
+    files = {'photo': photo}
+    data = {
+        'chat_id': chat_id,
+        'caption': 'Photo caption'
+    }
+    response = requests.post(
+        f"https://api.telegram.org/bot{TOKEN}/sendPhoto",
+        files=files,
+        data=data
+    )
 
-    if query.data == "opt1":
-        await query.edit_message_text("You chose Option 1")
-    elif query.data == "opt2":
-        await query.edit_message_text("You chose Option 2")
-    elif query.data == "opt3":
-        await query.edit_message_text("You chose Option 3")
-
-application.add_handler(CallbackQueryHandler(button_callback))
+# Or use file_id for already uploaded files
+data = {
+    'chat_id': chat_id,
+    'photo': 'AgACAgIAAxkBAAI...',
+    'caption': 'Photo caption'
+}
 ```
 
-### Reply Keyboards
+### sendPoll
+
+Create polls or quizzes:
 
 ```python
-from telegram import ReplyKeyboardMarkup, KeyboardButton
+data = {
+    "chat_id": chat_id,
+    "question": "What's your favorite color?",
+    "options": ["Red", "Blue", "Green", "Yellow"],
+    "is_anonymous": True,
+    "allows_multiple_answers": False,
+    "type": "quiz",  # or "regular"
+    "correct_option_id": 1,  # For quizzes
+    "explanation": "Blue is the most popular!"
+}
+```
 
-# Create reply keyboard
-keyboard = [
-    [KeyboardButton("Button 1"), KeyboardButton("Button 2")],
-    [KeyboardButton("Button 3")]
-]
-reply_markup = ReplyKeyboardMarkup(
-    keyboard,
-    resize_keyboard=True,  # Optimize keyboard size
-    one_time_keyboard=True  # Hide after one use
-)
+### sendChecklist
 
-await update.message.reply_text(
-    "Choose a button:",
-    reply_markup=reply_markup
-)
+Send collaborative task lists (new feature as of August 2025):
+
+```python
+data = {
+    "chat_id": chat_id,
+    "checklist": [
+        {"text": "Task 1", "checked": False},
+        {"text": "Task 2", "checked": True},
+        {"text": "Task 3", "checked": False}
+    ]
+}
+```
+
+### sendLocation / sendVenue / sendContact
+
+Share location or contact information:
+
+```python
+# Location
+data = {
+    "chat_id": chat_id,
+    "latitude": 40.7128,
+    "longitude": -74.0060
+}
+
+# Venue
+data = {
+    "chat_id": chat_id,
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "title": "Empire State Building",
+    "address": "20 W 34th St, New York, NY 10001"
+}
+
+# Contact
+data = {
+    "chat_id": chat_id,
+    "phone_number": "+1234567890",
+    "first_name": "John",
+    "last_name": "Doe"
+}
+```
+
+### Advanced Messaging Features
+
+**copyMessage / forwardMessage** - Message replication:
+
+```python
+data = {
+    "chat_id": target_chat_id,
+    "from_chat_id": source_chat_id,
+    "message_id": message_id
+}
+```
+
+**editMessageText / editMessageMedia** - Post-send modifications:
+
+```python
+data = {
+    "chat_id": chat_id,
+    "message_id": message_id,
+    "text": "Updated text",
+    "parse_mode": "HTML"
+}
+```
+
+**sendPaidMedia** - Monetized content (up to 10,000 Telegram Stars):
+
+```python
+data = {
+    "chat_id": chat_id,
+    "star_count": 100,
+    "media": [
+        {"type": "photo", "media": "attach://photo1"},
+        {"type": "video", "media": "attach://video1"}
+    ]
+}
 ```
 
 ## Message Formatting
 
-### Markdown
-
-```python
-await update.message.reply_text(
-    "*bold* _italic_ `code` [link](http://example.com)",
-    parse_mode="Markdown"
-)
-```
-
-### MarkdownV2 (Recommended)
-
-```python
-from telegram.helpers import escape_markdown
-
-text = escape_markdown("Text with special chars!", version=2)
-await update.message.reply_text(
-    f"*Bold* _Italic_ ||Spoiler|| `Code`\n{text}",
-    parse_mode="MarkdownV2"
-)
-```
-
 ### HTML
 
-```python
-await update.message.reply_text(
-    "<b>Bold</b> <i>Italic</i> <code>Code</code> <a href='http://example.com'>Link</a>",
-    parse_mode="HTML"
-)
+```html
+<b>bold</b>
+<i>italic</i>
+<u>underline</u>
+<s>strikethrough</s>
+<code>code</code>
+<pre>pre-formatted</pre>
+<a href="http://example.com">link</a>
+<tg-spoiler>spoiler</tg-spoiler>
 ```
 
-## Sending Messages
+### Markdown
 
-### Text Messages
-
-```python
-# Simple message
-await context.bot.send_message(
-    chat_id=chat_id,
-    text="Hello!"
-)
-
-# With formatting
-await context.bot.send_message(
-    chat_id=chat_id,
-    text="*Bold text*",
-    parse_mode="Markdown"
-)
+```markdown
+*bold*
+_italic_
+`code`
+[link](http://example.com)
 ```
 
-### Photos
+### MarkdownV2
 
-```python
-# From file
-with open('photo.jpg', 'rb') as photo:
-    await context.bot.send_photo(
-        chat_id=chat_id,
-        photo=photo,
-        caption="Photo caption"
-    )
-
-# From URL
-await context.bot.send_photo(
-    chat_id=chat_id,
-    photo="https://example.com/photo.jpg"
-)
+```markdown
+*bold*
+_italic_
+__underline__
+~strikethrough~
+||spoiler||
+`code`
+[link](http://example.com)
 ```
 
-### Documents
+**Note:** Special characters must be escaped in MarkdownV2: `_`, `*`, `[`, `]`, `(`, `)`, `~`, `` ` ``, `>`, `#`, `+`, `-`, `=`, `|`, `{`, `}`, `.`, `!`
+
+## Inline Keyboards
+
+Create interactive buttons:
 
 ```python
-with open('document.pdf', 'rb') as doc:
-    await context.bot.send_document(
-        chat_id=chat_id,
-        document=doc,
-        caption="Document caption"
-    )
+reply_markup = {
+    "inline_keyboard": [
+        [
+            {"text": "Option 1", "callback_data": "opt1"},
+            {"text": "Option 2", "callback_data": "opt2"}
+        ],
+        [
+            {"text": "URL Button", "url": "https://example.com"}
+        ],
+        [
+            {"text": "Web App", "web_app": {"url": "https://webapp.com"}}
+        ]
+    ]
+}
 ```
 
-### Multiple Messages
+**Button Types:**
+- `callback_data` - Send data back to bot (up to 64 bytes)
+- `url` - Open URL
+- `web_app` - Open Telegram Web App
+- `login_url` - Telegram Login Widget
+- `switch_inline_query` - Switch to inline mode
+- `pay` - Payment button
+
+## Reply Keyboards
+
+Custom keyboard with buttons:
 
 ```python
-async def send_multiple(chat_id: int):
-    """Send multiple messages efficiently."""
-    messages = ["Message 1", "Message 2", "Message 3"]
-
-    for msg in messages:
-        await context.bot.send_message(chat_id=chat_id, text=msg)
-        await asyncio.sleep(0.1)  # Small delay to avoid rate limits
+reply_markup = {
+    "keyboard": [
+        [{"text": "Button 1"}, {"text": "Button 2"}],
+        [{"text": "Request Location", "request_location": True}],
+        [{"text": "Request Contact", "request_contact": True}]
+    ],
+    "resize_keyboard": True,
+    "one_time_keyboard": True,
+    "selective": False
+}
 ```
+
+## Business Account Management
+
+For bots connected to business accounts:
+
+### Account Operations
+
+```python
+# Set business account name
+data = {"name": "My Business"}
+requests.post(f"{url}/setBusinessAccountName", json=data)
+
+# Set username
+data = {"username": "mybusiness"}
+requests.post(f"{url}/setBusinessAccountUsername", json=data)
+
+# Set bio
+data = {"bio": "We sell amazing products"}
+requests.post(f"{url}/setBusinessAccountBio", json=data)
+
+# Set profile photo
+files = {'photo': open('profile.jpg', 'rb')}
+requests.post(f"{url}/setBusinessAccountProfilePhoto", files=files)
+```
+
+### Message Operations
+
+```python
+# Mark messages as read
+data = {"message_ids": [123, 456, 789]}
+requests.post(f"{url}/readBusinessMessage", json=data)
+
+# Delete messages
+data = {"chat_id": chat_id, "message_ids": [123, 456]}
+requests.post(f"{url}/deleteBusinessMessages", json=data)
+```
+
+### Star Balance & Gifts
+
+```python
+# Get star balance
+response = requests.get(f"{url}/getBusinessAccountStarBalance")
+
+# Convert gift to stars
+data = {"gift_id": "gift_123"}
+requests.post(f"{url}/convertGiftToStars", json=data)
+
+# Transfer gift
+data = {"gift_id": "gift_123", "user_id": 123456789}
+requests.post(f"{url}/transferGift", json=data)
+```
+
+## Stories
+
+Post and manage Telegram Stories:
+
+```python
+# Post story
+data = {
+    "media": {
+        "type": "photo",
+        "media": "attach://photo"
+    },
+    "areas": [
+        {
+            "type": "location",
+            "position": {"x": 0.5, "y": 0.5},
+            "radius": 0.1,
+            "location": {"latitude": 40.7128, "longitude": -74.0060}
+        }
+    ]
+}
+files = {'photo': open('story.jpg', 'rb')}
+requests.post(f"{url}/postStory", files=files, data=data)
+
+# Edit story
+data = {"story_id": 123, "caption": "Updated caption"}
+requests.post(f"{url}/editStory", json=data)
+
+# Delete story
+data = {"story_id": 123}
+requests.post(f"{url}/deleteStory", json=data)
+```
+
+**Story Area Types:**
+- `StoryAreaTypeLocation` - Location marker
+- `StoryAreaTypeLink` - Clickable link
+- `StoryAreaTypeWeather` - Weather widget
+- `StoryAreaTypeUniqueGift` - Gift display
+- `StoryAreaTypeReaction` - Reaction sticker
+
+## Financial Features
+
+### Payments & Invoices
+
+```python
+# Send invoice
+data = {
+    "chat_id": chat_id,
+    "title": "Product Name",
+    "description": "Product description",
+    "payload": "unique_invoice_payload",
+    "provider_token": "YOUR_PAYMENT_PROVIDER_TOKEN",
+    "currency": "USD",
+    "prices": [
+        {"label": "Product", "amount": 10000},  # $100.00 (in cents)
+        {"label": "Tax", "amount": 800}  # $8.00
+    ],
+    "max_tip_amount": 5000,
+    "suggested_tip_amounts": [100, 500, 1000, 2000]
+}
+requests.post(f"{url}/sendInvoice", json=data)
+
+# Answer pre-checkout query
+data = {
+    "pre_checkout_query_id": query_id,
+    "ok": True
+}
+requests.post(f"{url}/answerPreCheckoutQuery", json=data)
+```
+
+### Telegram Stars
+
+```python
+# Get bot star balance
+response = requests.get(f"{url}/getMyStarBalance")
+
+# Gift premium subscription
+data = {
+    "user_id": 123456789,
+    "duration": 30,  # days
+    "star_count": 100
+}
+requests.post(f"{url}/giftPremiumSubscription", json=data)
+```
+
+## Chat Administration
+
+### Promote/Restrict Members
+
+```python
+# Promote to administrator
+data = {
+    "chat_id": chat_id,
+    "user_id": user_id,
+    "can_manage_chat": True,
+    "can_post_messages": True,
+    "can_edit_messages": True,
+    "can_delete_messages": True,
+    "can_manage_direct_messages": True,  # New permission
+    "can_invite_users": True,
+    "can_restrict_members": True,
+    "can_pin_messages": True,
+    "can_promote_members": False
+}
+requests.post(f"{url}/promoteChatMember", json=data)
+
+# Restrict member
+data = {
+    "chat_id": chat_id,
+    "user_id": user_id,
+    "permissions": {
+        "can_send_messages": False,
+        "can_send_media_messages": False,
+        "can_send_polls": False,
+        "can_send_other_messages": False,
+        "can_add_web_page_previews": False,
+        "can_change_info": False,
+        "can_invite_users": False,
+        "can_pin_messages": False
+    },
+    "until_date": 0  # 0 = forever
+}
+requests.post(f"{url}/restrictChatMember", json=data)
+```
+
+### Chat Settings
+
+```python
+# Set chat title
+data = {"chat_id": chat_id, "title": "New Title"}
+requests.post(f"{url}/setChatTitle", json=data)
+
+# Set chat description
+data = {"chat_id": chat_id, "description": "New description"}
+requests.post(f"{url}/setChatDescription", json=data)
+
+# Set chat photo
+files = {'photo': open('photo.jpg', 'rb')}
+data = {"chat_id": chat_id}
+requests.post(f"{url}/setChatPhoto", files=files, data=data)
+
+# Pin message
+data = {
+    "chat_id": chat_id,
+    "message_id": message_id,
+    "disable_notification": False
+}
+requests.post(f"{url}/pinChatMessage", json=data)
+```
+
+### Member Management
+
+```python
+# Ban user
+data = {
+    "chat_id": chat_id,
+    "user_id": user_id,
+    "until_date": 0,  # Permanent ban
+    "revoke_messages": True  # Delete their messages
+}
+requests.post(f"{url}/banChatMember", json=data)
+
+# Unban user
+data = {"chat_id": chat_id, "user_id": user_id, "only_if_banned": True}
+requests.post(f"{url}/unbanChatMember", json=data)
+
+# Get chat member info
+data = {"chat_id": chat_id, "user_id": user_id}
+response = requests.post(f"{url}/getChatMember", json=data)
+```
+
+## Recent API Updates (August 2025)
+
+### Checklists
+
+Messages now support collaborative task tracking:
+
+```python
+# Send checklist
+data = {
+    "chat_id": chat_id,
+    "checklist": [
+        {"text": "Complete task 1", "checked": False},
+        {"text": "Complete task 2", "checked": False}
+    ]
+}
+
+# Edit checklist
+data = {
+    "chat_id": chat_id,
+    "message_id": message_id,
+    "checklist": [
+        {"text": "Complete task 1", "checked": True},
+        {"text": "Complete task 2", "checked": False}
+    ]
+}
+```
+
+### Direct Messages in Channels
+
+Channels can now receive direct messages:
+
+- `is_direct_messages` field identifies channel DM chats
+- `direct_messages_topic_id` parameter routes messages to specific topics
+- New `DirectMessagePriceChanged` service message for monetization
+
+### Suggested Posts
+
+Channels receive content suggestions:
+
+```python
+# Approve suggested post
+data = {"suggested_post_id": post_id}
+requests.post(f"{url}/approveSuggestedPost", json=data)
+
+# Decline suggested post
+data = {"suggested_post_id": post_id}
+requests.post(f"{url}/declineSuggestedPost", json=data)
+```
+
+### Enhanced Features
+
+- **Poll expansion**: Maximum options increased from 10 to 12
+- **Paid posts**: `is_paid_post` field, 24-hour deletion protection
+- **Gift tracking**: Unique gift IDs with backdrop colors, symbols, resale history
+- **Paid star tracking**: `paid_star_count` field logs star expenditure
+
+## Rate Limits
+
+**Official Limits:**
+- 30 messages per second to different chats
+- 20 messages per minute to the same group
+- 1 message per second to the same private chat
+
+**Best Practices:**
+- Implement exponential backoff on errors
+- Monitor `retry_after` field in error responses
+- Use webhook mode for better throughput
 
 ## Error Handling
 
-### Error Handler
+### Common Error Codes
 
-```python
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle errors."""
-    logger.error(f"Update {update} caused error {context.error}")
+- `400` - Bad Request (invalid parameters)
+- `401` - Unauthorized (invalid token)
+- `403` - Forbidden (bot blocked by user)
+- `404` - Not Found (chat/message doesn't exist)
+- `429` - Too Many Requests (rate limited)
 
-    # Notify user
-    if update and update.effective_message:
-        await update.effective_message.reply_text(
-            "An error occurred. Please try again."
-        )
+### Error Response Example
 
-application.add_error_handler(error_handler)
+```json
+{
+  "ok": false,
+  "error_code": 429,
+  "description": "Too Many Requests: retry after 30",
+  "parameters": {
+    "retry_after": 30
+  }
+}
 ```
 
-### Try-Except in Handlers
+### Handling Errors
 
 ```python
-async def safe_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        # Your code here
-        result = await risky_operation()
-        await update.message.reply_text(f"Success: {result}")
-    except Exception as e:
-        logger.exception("Handler error")
-        await update.message.reply_text(f"Error: {str(e)}")
+response = requests.post(url, json=data)
+result = response.json()
+
+if not result["ok"]:
+    error_code = result["error_code"]
+    description = result["description"]
+
+    if error_code == 429:
+        retry_after = result.get("parameters", {}).get("retry_after", 60)
+        time.sleep(retry_after)
+        # Retry request
+    elif error_code == 403:
+        # Bot was blocked by user
+        pass
+    else:
+        # Handle other errors
+        pass
 ```
 
-## Job Queue (Scheduled Tasks)
+## Local Bot API Server
 
-### One-Time Job
+Self-hosted deployment enables:
 
-```python
-async def alarm(context: ContextTypes.DEFAULT_TYPE):
-    """Send a message."""
-    await context.bot.send_message(
-        chat_id=context.job.chat_id,
-        text="Alarm!"
-    )
+- **Unlimited file downloads**
+- **2GB file uploads** (vs 50MB standard)
+- **Local file paths** and `file://` URIs
+- **HTTP webhooks** and any local IP
+- **Up to 100,000 webhook connections** (vs 100 standard)
 
-async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Set a timer."""
-    # Run after 60 seconds
-    context.job_queue.run_once(
-        alarm,
-        60,
-        chat_id=update.effective_chat.id,
-        name=str(update.effective_chat.id)
-    )
-    await update.message.reply_text("Timer set for 60 seconds!")
+### Setup
+
+```bash
+git clone https://github.com/tdlib/telegram-bot-api.git
+cd telegram-bot-api
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --target install
 ```
 
-### Repeating Job
+### Running
 
-```python
-async def repeating_task(context: ContextTypes.DEFAULT_TYPE):
-    """Task that runs periodically."""
-    await context.bot.send_message(
-        chat_id=context.job.chat_id,
-        text="Periodic update!"
-    )
-
-async def start_monitoring(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start periodic monitoring."""
-    context.job_queue.run_repeating(
-        repeating_task,
-        interval=300,  # Every 5 minutes
-        first=10,  # Start after 10 seconds
-        chat_id=update.effective_chat.id
-    )
-    await update.message.reply_text("Monitoring started!")
+```bash
+telegram-bot-api --api-id=YOUR_API_ID --api-hash=YOUR_API_HASH --local
 ```
 
-### Cancel Jobs
-
-```python
-async def stop_jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Stop all jobs for this chat."""
-    jobs = context.job_queue.get_jobs_by_name(str(update.effective_chat.id))
-    for job in jobs:
-        job.schedule_removal()
-    await update.message.reply_text("All jobs cancelled!")
-```
-
-## Persistence
-
-Save bot data between restarts:
-
-```python
-from telegram.ext import PicklePersistence
-
-# Create persistence
-persistence = PicklePersistence(filepath="bot_data.pkl")
-
-# Build application with persistence
-application = (
-    Application.builder()
-    .token(bot_token)
-    .persistence(persistence)
-    .build()
-)
-
-# Data persists automatically
-async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['count'] = context.user_data.get('count', 0) + 1
-    await update.message.reply_text(f"Count: {context.user_data['count']}")
-```
+Then use: `http://localhost:8081/bot<token>/METHOD_NAME`
 
 ## Best Practices
 
-### 1. Use Decorators for Authentication
+### 1. Security
 
-```python
-from functools import wraps
+- **Never expose your token** in public repositories
+- Use environment variables for tokens
+- Validate webhook secret tokens
+- Implement user authentication for sensitive commands
 
-AUTHORIZED_USERS = [123456789, 987654321]
+### 2. Performance
 
-def restricted(func):
-    """Restrict access to authorized users."""
-    @wraps(func)
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = update.effective_user.id
-        if user_id not in AUTHORIZED_USERS:
-            await update.message.reply_text("Unauthorized!")
-            return
-        return await func(update, context)
-    return wrapper
+- Use webhooks for production (better than polling)
+- Implement request queuing for rate limit compliance
+- Cache frequently accessed data
+- Use file_id to avoid re-uploading media
 
-@restricted
-async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Admin action executed!")
-```
+### 3. User Experience
 
-### 2. Rate Limiting
+- Always answer callback queries (avoid "loading" state)
+- Use inline keyboards for better UX
+- Provide clear error messages
+- Implement `/start` and `/help` commands
+- Use reply keyboards sparingly
 
-```python
-from collections import defaultdict
-import time
+### 4. Error Handling
 
-user_last_message = defaultdict(float)
-RATE_LIMIT = 1.0  # 1 second between messages
+- Implement retry logic with exponential backoff
+- Log all errors for debugging
+- Handle network timeouts gracefully
+- Monitor bot health and uptime
 
-async def rate_limited_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    current_time = time.time()
+### 5. Code Organization
 
-    if current_time - user_last_message[user_id] < RATE_LIMIT:
-        await update.message.reply_text("Please slow down!")
-        return
-
-    user_last_message[user_id] = current_time
-    # Handle message
-```
-
-### 3. Logging
-
-```python
-import logging
-
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(f"User {update.effective_user.id}: {update.message.text}")
-```
-
-### 4. Context Data Management
-
-```python
-async def store_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Per-user data
-    context.user_data['preference'] = 'dark_mode'
-
-    # Per-chat data
-    context.chat_data['settings'] = {'notifications': True}
-
-    # Global bot data
-    context.bot_data['total_users'] = context.bot_data.get('total_users', 0) + 1
-```
-
-### 5. Graceful Shutdown
-
-```python
-async def post_shutdown(application: Application):
-    """Cleanup before shutdown."""
-    logger.info("Bot shutting down...")
-    # Close connections, save data, etc.
-
-application = (
-    Application.builder()
-    .token(bot_token)
-    .post_shutdown(post_shutdown)
-    .build()
-)
-```
-
-## Common Patterns
-
-### Pattern 1: Menu System
-
-```python
-async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("📊 Account", callback_data="menu_account")],
-        [InlineKeyboardButton("💼 Positions", callback_data="menu_positions")],
-        [InlineKeyboardButton("⚙️ Settings", callback_data="menu_settings")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
-        "🏠 Main Menu",
-        reply_markup=reply_markup
-    )
-
-async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "menu_account":
-        await show_account(query)
-    elif query.data == "menu_positions":
-        await show_positions(query)
-    elif query.data == "menu_settings":
-        await show_settings(query)
-```
-
-### Pattern 2: Confirmation Dialog
-
-```python
-async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [
-            InlineKeyboardButton("✅ Yes", callback_data="confirm_delete"),
-            InlineKeyboardButton("❌ No", callback_data="cancel_delete")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
-        "⚠️ Are you sure you want to delete?",
-        reply_markup=reply_markup
-    )
-
-async def confirmation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "confirm_delete":
-        # Perform deletion
-        await query.edit_message_text("✅ Deleted successfully!")
-    else:
-        await query.edit_message_text("❌ Cancelled")
-```
-
-### Pattern 3: Pagination
-
-```python
-async def show_page(query, page: int, items: list):
-    """Show paginated results."""
-    items_per_page = 5
-    start = page * items_per_page
-    end = start + items_per_page
-
-    page_items = items[start:end]
-    total_pages = (len(items) - 1) // items_per_page + 1
-
-    text = "\n".join(page_items)
-
-    keyboard = []
-    nav_buttons = []
-
-    if page > 0:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"page_{page-1}"))
-    if page < total_pages - 1:
-        nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"page_{page+1}"))
-
-    if nav_buttons:
-        keyboard.append(nav_buttons)
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.edit_message_text(
-        f"📄 Page {page+1}/{total_pages}\n\n{text}",
-        reply_markup=reply_markup
-    )
-```
-
-## Limits and Restrictions
-
-- **Message length**: 4096 characters max
-- **Caption length**: 1024 characters max
-- **File size**: 50 MB for photos, 2 GB for other files
-- **Rate limits**: 30 messages/second to different chats
-- **Inline keyboard**: Up to 100 buttons
-- **Commands**: Must start with '/', 1-32 characters
+- Separate handlers by feature
+- Use dependency injection for services
+- Implement middleware for common tasks
+- Write unit tests for critical functions
 
 ## Resources
 
-- **Official Docs**: https://docs.python-telegram-bot.org/
-- **Examples**: https://github.com/python-telegram-bot/python-telegram-bot/tree/master/examples
-- **Telegram Bot API**: https://core.telegram.org/bots/api
-- **Community**: https://t.me/pythontelegrambotgroup
+- **Official API Docs**: https://core.telegram.org/bots/api
+- **Bot API Updates**: https://core.telegram.org/bots/api-changelog
+- **BotFather**: https://t.me/botfather
+- **Bot Support**: https://t.me/BotSupport
+- **Developer Community**: https://t.me/TelegramBotDevelopers
+
+## API Limits
+
+- **Message length**: 4096 characters
+- **Caption length**: 1024 characters
+- **File size**: 50 MB (photos), 2 GB (other files)
+- **Poll options**: 12 (increased from 10)
+- **Inline keyboard buttons**: 100 per message
+- **Command length**: 1-32 characters
+- **Callback data**: 1-64 bytes
+- **Username**: 5-32 characters
 
 ---
 
-**Version**: python-telegram-bot v20.7
 **Last Updated**: October 2025
+**API Version**: Bot API 8.0+
