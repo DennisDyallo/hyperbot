@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any
 from hyperliquid.info import Info
 from hyperliquid.exchange import Exchange
 from hyperliquid.utils import constants
+from eth_account import Account
 
 from src.config import logger, settings
 
@@ -49,8 +50,11 @@ class HyperliquidService:
             # Initialize Exchange API (requires wallet credentials)
             # Only initialize if we have credentials
             if settings.HYPERLIQUID_WALLET_ADDRESS and settings.HYPERLIQUID_SECRET_KEY:
+                # Create wallet from secret key
+                wallet = Account.from_key(settings.HYPERLIQUID_SECRET_KEY)
+
                 self.exchange = Exchange(
-                    wallet=None,  # Will use secret_key for signing
+                    wallet=wallet,
                     base_url=base_url,
                     account_address=settings.HYPERLIQUID_WALLET_ADDRESS,
                 )

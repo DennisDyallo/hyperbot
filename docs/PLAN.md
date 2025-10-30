@@ -44,6 +44,7 @@ Building a Python-based trading bot for Hyperliquid with multiple interfaces (We
 ### 🔄 Phase 1A: Core Services + API (In Progress)
 
 **Goal**: Working REST API with all bot functionality testable via Swagger UI
+**Note**: This phase implements **PERPS trading only**. Spot support will be added in Phase 2.
 
 **Sub-phases:**
 
@@ -138,6 +139,10 @@ Building a Python-based trading bot for Hyperliquid with multiple interfaces (We
 ### Phase 2: Advanced Features (Planned)
 
 **Features to implement:**
+- **Spot Trading Support** (Currently PERPS only)
+  - Add `is_spot` parameter to order/position services
+  - Handle spot asset naming (10000 + index convention)
+  - Separate spot orders from perps orders
 - Rebalancing engine
 - Scale order system
 - Performance analytics

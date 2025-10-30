@@ -101,3 +101,25 @@ class ClosePositionResponse(BaseModel):
     coin: str = Field(description="Trading pair that was closed")
     size_closed: float = Field(description="Size that was closed")
     result: Dict[str, Any] = Field(description="Raw result from exchange")
+
+
+class OrderResponse(BaseModel):
+    """Response from placing an order."""
+
+    status: str = Field(description="Status: 'success' or 'error'")
+    coin: str = Field(description="Trading pair")
+    side: str = Field(description="Order side: 'buy' or 'sell'")
+    size: float = Field(description="Order size")
+    order_type: str = Field(description="Order type: 'market' or 'limit'")
+    limit_price: Optional[float] = Field(None, description="Limit price (for limit orders)")
+    time_in_force: Optional[str] = Field(None, description="Time in force (for limit orders)")
+    result: Dict[str, Any] = Field(description="Raw result from exchange")
+
+
+class CancelOrderResponse(BaseModel):
+    """Response from canceling an order."""
+
+    status: str = Field(description="Status: 'success' or 'error'")
+    coin: Optional[str] = Field(None, description="Trading pair (if canceling specific order)")
+    order_id: Optional[int] = Field(None, description="Order ID (if canceling specific order)")
+    result: Dict[str, Any] = Field(description="Raw result from exchange")

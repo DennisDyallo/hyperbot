@@ -11,6 +11,8 @@ from src.api.models.responses import (
     PositionListItem,
     PositionSummary,
     ClosePositionResponse,
+    OrderResponse,
+    CancelOrderResponse,
 )
 
 __all__ = [
@@ -23,4 +25,6 @@ __all__ = [
     "PositionListItem",
     "PositionSummary",
     "ClosePositionResponse",
+    "OrderResponse",
+    "CancelOrderResponse",
 ]

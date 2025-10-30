@@ -1,7 +1,7 @@
 # Hyperbot TODO List
 
-**Last Updated**: 2025-10-30
-**Current Phase**: Phase 1A.5 - Order Service
+**Last Updated**: 2025-10-31
+**Current Phase**: Phase 1A.6 - Market Data Service
 
 ---
 
@@ -53,47 +53,39 @@
 - [x] Implement `close_position(coin, size)` method
 - [x] Implement `get_position_summary()` method
 - [x] Create position response models (PositionSummary, ClosePositionResponse)
-- [x] Create `src/api/routes/positions.py` with endpoints:
-  - [x] `GET /api/positions/` - List all positions
-  - [x] `GET /api/positions/summary` - Position summary
-  - [x] `GET /api/positions/{coin}` - Get specific position
-  - [x] `POST /api/positions/{coin}/close` - Close position
+- [x] Create `src/api/routes/positions.py` with endpoints
 - [x] Register position routes in main.py
 - [x] Test all position endpoints
 - [x] Commit position service
+
+### Phase 1A.5: Order Service
+- [x] Create `src/services/order_service.py` with OrderService class
+- [x] Implement `list_open_orders()` method
+- [x] Implement `place_market_order()` method
+- [x] Implement `place_limit_order()` method
+- [x] Implement `cancel_order()` method
+- [x] Implement `cancel_all_orders()` method
+- [x] Create order response models (OrderResponse, CancelOrderResponse)
+- [x] Create `src/api/routes/orders.py` with endpoints:
+  - [x] `GET /api/orders/` - List open orders
+  - [x] `POST /api/orders/market` - Place market order
+  - [x] `POST /api/orders/limit` - Place limit order
+  - [x] `DELETE /api/orders/{coin}/{order_id}` - Cancel order
+  - [x] `DELETE /api/orders/all` - Cancel all orders
+- [x] Register order routes in main.py
+- [x] Test all order endpoints
+- [x] Commit order service
 
 ---
 
 ## 🔄 In Progress
 
-### Phase 1A.5: Order Service
-- [ ] Create `src/services/order_service.py`
+### Phase 1A.6: Market Data Service
+- [ ] Create `src/services/market_data_service.py`
 
 ---
 
 ## 📋 Up Next
-  - [ ] `GET /api/positions/{symbol}`
-  - [ ] `POST /api/positions/close/{symbol}`
-- [ ] Test position operations on testnet
-- [ ] Write unit tests (especially for close validation)
-- [ ] Commit position service
-
-### Phase 1A.5: Order Service
-- [ ] Create `src/services/order_service.py`
-- [ ] Create `src/api/models/requests.py` for request types
-- [ ] Implement OrderService class
-  - [ ] `place_order()` method (market & limit)
-  - [ ] `get_open_orders()` method
-  - [ ] `cancel_order()` method
-  - [ ] `cancel_all_orders()` method
-- [ ] Create API routes: `src/api/routes/orders.py`
-  - [ ] `POST /api/orders/place`
-  - [ ] `GET /api/orders/list`
-  - [ ] `DELETE /api/orders/cancel/{symbol}/{order_id}`
-  - [ ] `DELETE /api/orders/cancel-all`
-- [ ] Test order placement on testnet
-- [ ] Write critical unit tests for order validation
-- [ ] Commit order service
 
 ### Phase 1A.6: Market Data Service
 - [ ] Create `src/services/market_data_service.py`
@@ -166,13 +158,13 @@ None
 ## 📊 Progress Summary
 
 - **Phase 0**: ✅ 100% Complete
-- **Phase 1A**: 🔄 57% Complete (4/7 sub-phases)
+- **Phase 1A**: 🔄 71% Complete (5/7 sub-phases)
   - 1A.1 Configuration: ✅ 100% (complete)
   - 1A.2 Hyperliquid Service: ✅ 100% (complete & tested)
   - 1A.3 Account Service: ✅ 100% (complete & tested)
   - 1A.4 Position Service: ✅ 100% (complete & tested)
-  - 1A.5 Order Service: 0% (next)
-  - 1A.6 Market Data: 0%
+  - 1A.5 Order Service: ✅ 100% (complete & tested)
+  - 1A.6 Market Data: 0% (next)
   - 1A.7 Testing: 0%
 
 ---
@@ -180,11 +172,15 @@ None
 ## 📝 Notes
 
 ### Known Issues
-- **Hyperliquid 403 Error**: Getting "Access denied" when connecting to testnet API. This could be due to:
-  - Missing valid wallet credentials (currently using empty defaults)
-  - IP whitelisting requirements
-  - Testnet API restrictions
-  - Need to investigate with actual testnet credentials
+- **Limit Order Tick Size**: Limit orders require prices to be divisible by the asset's tick size. Need to add price rounding utility.
+  - Discovered during testing: "Price must be divisible by tick size. asset=3"
+  - Affects limit orders placed programmatically
+  - Market orders work perfectly
+
+### Recent Fixes (Phase 1A.5)
+- **SDK Parameter Names**: Fixed `coin` → `name` for order(), market_open(), and cancel() methods
+- **Wallet Initialization**: Fixed Exchange client to use `Account.from_key()` for wallet creation
+- **Cancel All Orders**: Implemented using individual cancel() calls (no bulk cancel_all method in SDK)
 
 ### Testing Strategy
 - Write unit tests for critical operations (order validation, position management)
@@ -204,10 +200,7 @@ None
 
 ---
 
-**Next Action**: Investigate Hyperliquid 403 error with valid API credentials. May need to:
-- Add valid testnet wallet address and secret key to .env
-- Check if IP whitelisting is required
-- Test with mainnet credentials if testnet has restrictions
-- Contact Hyperliquid support if issue persists
-
-**Alternative**: Continue with Phase 1A.3-1A.7 using mocked Hyperliquid responses for now.
+**Next Action**:
+- Continue with Phase 1A.6: Market Data Service
+- Add price rounding utility for limit orders (tick size validation)
+- Consider adding bulk order placement support for Phase 2
