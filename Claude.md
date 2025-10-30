@@ -2,11 +2,20 @@
 
 This document provides comprehensive guidance for developing and maintaining the Hyperbot trading bot. Always reference the local documentation files when working on features.
 
+## 📋 Implementation Plan & Progress
+
+**IMPORTANT**: Before working on any feature, always check:
+- **Implementation Plan**: [docs/PLAN.md](docs/PLAN.md) - Overall architecture and phases
+- **Current TODO**: [docs/TODO.md](docs/TODO.md) - Detailed checklist and progress
+- **Current Phase**: Phase 1A - Core Services + API
+- **Next Task**: Phase 1A.1 - Configuration System
+
 ## Project Overview
 
 Hyperbot is a Python-based trading bot that integrates:
 - **Hyperliquid**: Decentralized exchange for crypto trading
-- **Telegram**: User interface for bot control and notifications
+- **Web Dashboard**: Primary UI for monitoring and trading (Phase 1B)
+- **Telegram**: Mobile interface for alerts and quick actions (Phase 3)
 - **TradingView**: Webhook-based trading signals
 
 ## Documentation Structure
@@ -15,6 +24,7 @@ All documentation is stored locally in the `/docs` directory:
 
 ```
 docs/
+├── PLAN.md                    # ⭐ Implementation plan and progress
 ├── hyperliquid/
 │   ├── python-sdk.md          # Official SDK documentation
 │   └── api-reference.md       # Complete API reference with examples
