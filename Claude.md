@@ -25,13 +25,15 @@ All documentation is stored locally in the `/docs` directory:
 ```
 docs/
 ├── PLAN.md                    # ⭐ Implementation plan and progress
+├── TODO.md                    # Detailed checklist and progress tracking
 ├── hyperliquid/
 │   ├── python-sdk.md          # Official SDK documentation
 │   └── api-reference.md       # Complete API reference with examples
 └── telegram/
-    ├── bot-api-reference.md   # python-telegram-bot library guide
+    ├── bot-api-reference.md   # Complete Telegram Bot API reference
     ├── best-practices.md      # Security, performance, patterns
-    └── features.md            # All Telegram bot features
+    ├── features.md            # All Telegram bot features
+    └── faq.md                 # Comprehensive FAQ and troubleshooting
 ```
 
 ## When to Reference Documentation
@@ -59,7 +61,7 @@ docs/
 
 ### For Telegram Bot Tasks
 
-**Always read**: `docs/telegram/bot-api-reference.md`, `docs/telegram/best-practices.md`, `docs/telegram/features.md`
+**Always read**: `docs/telegram/bot-api-reference.md`, `docs/telegram/best-practices.md`, `docs/telegram/features.md`, `docs/telegram/faq.md`
 
 **Read before:**
 - Creating new commands
@@ -70,15 +72,17 @@ docs/
 - Error handling
 - Authentication and security
 - Performance optimization
+- Troubleshooting bot issues
 
 **Key sections to reference:**
 - Handler types (Command, Message, Callback)
 - Inline keyboard creation
 - ConversationHandler for multi-step flows
 - Security patterns (authentication decorator)
-- Rate limiting
+- Rate limiting (30 msg/sec to different chats, 20/min to same group)
 - Error handling
 - Logging best practices
+- FAQ for common issues and solutions
 
 ## Development Workflow
 
@@ -303,36 +307,64 @@ async def monitor_positions():
 
 ### Hyperliquid
 
+**Rate Limits:**
+- Info API (read): 1200 requests/minute per IP
+- Exchange API (write): 60 requests/minute per account
+- WebSocket: 60 subscriptions per connection
+
+**Key Endpoints:**
+- Info API: `user_state()`, `open_orders()`, `user_fills()`, `all_mids()`, `l2_snapshot()`
+- Exchange API: `market_open()`, `order()`, `cancel()`, `update_leverage()`, `market_close()`
+
 **Always:**
 - Initialize service before use
-- Use testnet for development (`HYPERLIQUID_TESTNET=true`)
-- Handle rate limits (60 requests/minute)
+- Use testnet for development (`HYPERLIQUID_TESTNET=true` → `https://api.hyperliquid-testnet.xyz`)
+- Handle rate limits (60 requests/minute for trading)
 - Validate order sizes against minimums
-- Check slippage on market orders
+- Check slippage on market orders (default 2-5%)
 - Log all trading operations
+- Use API wallet for enhanced security
 
 **Never:**
 - Place orders without confirmation on mainnet
 - Ignore error responses
 - Bypass size validation
 - Skip health checks
+- Expose private keys in logs or error messages
 
 ### Telegram
 
+**Rate Limits:**
+- 30 messages/second to different chats
+- 20 messages/minute to same group
+- 1 message/second to same private chat
+
+**Message Limits:**
+- Text: 4096 characters max
+- Captions: 1024 characters max
+- File size: 50 MB (photos, videos, documents)
+- Inline keyboard: 100 buttons max, 64 bytes per callback_data
+
+**Update Methods:**
+- Long Polling (`getUpdates`): Good for development, easier setup
+- Webhooks (`setWebhook`): Better for production, requires HTTPS
+
 **Always:**
 - Use `@authorized_only` decorator for sensitive commands
-- Answer callback queries immediately
+- Answer callback queries immediately (avoids "loading" state)
 - Provide clear error messages
 - Show progress for long operations
 - Use markdown formatting for readability
 - Log user actions
+- Handle `Forbidden` error (user blocked bot)
 
 **Never:**
 - Expose API keys or private keys
 - Send messages without rate limiting
 - Forget to handle exceptions
 - Ignore user feedback
-- Use blocking operations
+- Use blocking operations (use `asyncio.sleep` not `time.sleep`)
+- Skip answering callback queries
 
 ## Security Checklist
 
@@ -432,37 +464,78 @@ Pydantic models go in `src/models/`:
 
 ## Troubleshooting
 
-### Issue: Hyperliquid Connection Fails
+**For comprehensive troubleshooting, always check `docs/telegram/faq.md` first!**
+
+### Common Issues
+
+#### Issue: Hyperliquid Connection Fails
 1. Check `docs/hyperliquid/python-sdk.md` for configuration
-2. Verify environment variables
+2. Verify environment variables (wallet address, private key, API URL)
 3. Test with `scripts/test_hyperliquid.py`
 4. Check network/firewall
+5. Verify testnet vs mainnet URL
 
-### Issue: Telegram Bot Not Responding
-1. Verify bot token
-2. Check authorized users list
+#### Issue: Telegram Bot Not Responding
+1. Verify bot token is correct
+2. Check authorized users list in `.env`
 3. Review logs in `logs/hyperbot.log`
 4. Test with `/start` command
+5. **Check `docs/telegram/faq.md`** - "Why isn't my bot responding?"
+6. If in group: Check privacy mode settings with @BotFather
+7. Verify bot not blocked by user
 
-### Issue: Orders Failing
+#### Issue: Orders Failing
 1. Check testnet vs mainnet setting
 2. Verify account has sufficient balance
-3. Check order size against minimums
-4. Review rate limits
+3. Check order size against minimums (see meta data)
+4. Review rate limits (60 req/min for Exchange API)
+5. Validate order parameters
+6. Check slippage settings
+
+#### Issue: Rate Limiting
+**Telegram:**
+- Implement exponential backoff on `429` errors
+- Check `retry_after` field in error response
+- See `docs/telegram/faq.md` - "What happens if I exceed rate limits?"
+
+**Hyperliquid:**
+- Implement request queuing
+- Monitor requests per minute
+- Use caching for frequently accessed data
+
+#### Issue: Messages Too Long
+- Split messages over 4096 characters
+- Use caption (1024 chars) + document for large content
+- Implement pagination for long lists
+
+#### Issue: Callback Queries Loading Forever
+- Always call `await query.answer()` immediately
+- See `docs/telegram/best-practices.md` - Common Pitfall #1
+
+### Additional Resources
+
+For more troubleshooting help:
+- **Telegram issues**: `docs/telegram/faq.md`
+- **Hyperliquid issues**: `docs/hyperliquid/api-reference.md` - Error Handling section
+- **Best practices**: `docs/telegram/best-practices.md` - Common Pitfalls
 
 ## Quick Reference Links
 
 **Within Project:**
-- Hyperliquid SDK: `docs/hyperliquid/python-sdk.md`
-- Hyperliquid API: `docs/hyperliquid/api-reference.md`
-- Telegram API: `docs/telegram/bot-api-reference.md`
-- Best Practices: `docs/telegram/best-practices.md`
-- Features: `docs/telegram/features.md`
+- **Implementation**: `docs/PLAN.md`, `docs/TODO.md`
+- **Hyperliquid**: `docs/hyperliquid/python-sdk.md`, `docs/hyperliquid/api-reference.md`
+- **Telegram**:
+  - `docs/telegram/bot-api-reference.md` - Complete API reference
+  - `docs/telegram/best-practices.md` - Security, performance, patterns
+  - `docs/telegram/features.md` - All bot features
+  - `docs/telegram/faq.md` - FAQ and troubleshooting
 
 **External (if needed):**
 - Hyperliquid Official: https://hyperliquid.gitbook.io/hyperliquid-docs
+- Hyperliquid SDK: https://github.com/hyperliquid-dex/hyperliquid-python-sdk
 - python-telegram-bot: https://docs.python-telegram-bot.org
 - Telegram Bot API: https://core.telegram.org/bots/api
+- Telegram BotFather: https://t.me/botfather
 
 ## Remember
 

@@ -24,7 +24,6 @@ class Settings:
     API_KEY: str = os.getenv("API_KEY", "dev-key-change-in-production")
 
     # Hyperliquid
-    HYPERLIQUID_API_KEY: str = os.getenv("HYPERLIQUID_API_KEY", "")
     HYPERLIQUID_SECRET_KEY: str = os.getenv("HYPERLIQUID_SECRET_KEY", "")
     HYPERLIQUID_WALLET_ADDRESS: str = os.getenv("HYPERLIQUID_WALLET_ADDRESS", "")
     HYPERLIQUID_TESTNET: bool = os.getenv("HYPERLIQUID_TESTNET", "true").lower() == "true"
@@ -39,7 +38,6 @@ class Settings:
         if not cls.HYPERLIQUID_TESTNET:
             # Only require these for mainnet
             required_fields = [
-                ("HYPERLIQUID_API_KEY", cls.HYPERLIQUID_API_KEY),
                 ("HYPERLIQUID_SECRET_KEY", cls.HYPERLIQUID_SECRET_KEY),
                 ("HYPERLIQUID_WALLET_ADDRESS", cls.HYPERLIQUID_WALLET_ADDRESS),
             ]
