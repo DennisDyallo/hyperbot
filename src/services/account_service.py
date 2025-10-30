@@ -1,0 +1,198 @@
+"""
+Account service for managing account information and balances.
+"""
+from typing import Dict, Any
+from src.services.hyperliquid_service import hyperliquid_service
+from src.config import logger, settings
+
+
+class AccountService:
+    """Service for account-related operations."""
+
+    def __init__(self):
+        """Initialize account service."""
+        self.hyperliquid = hyperliquid_service
+
+    def get_account_info(self) -> Dict[str, Any]:
+        """
+        Get complete account information including positions, margin, and spot balances.
+
+        Returns:
+            Dict with account info, positions, margin summary, and spot balances
+
+        Raises:
+            RuntimeError: If wallet address not configured
+            Exception: If API call fails
+        """
+        if not settings.HYPERLIQUID_WALLET_ADDRESS:
+            raise RuntimeError("Wallet address not configured")
+
+        try:
+            info_client = self.hyperliquid.get_info_client()
+
+            # Get perps (perpetuals) data
+            user_state = info_client.user_state(settings.HYPERLIQUID_WALLET_ADDRESS)
+
+            # Get spot data
+            spot_state = info_client.spot_user_state(settings.HYPERLIQUID_WALLET_ADDRESS)
+
+            # Extract margin summary (perps)
+            margin_data = user_state.get("marginSummary", {})
+            margin_summary = {
+                "account_value": float(margin_data.get("accountValue", 0)),
+                "total_margin_used": float(margin_data.get("totalMarginUsed", 0)),
+                "total_ntl_pos": float(margin_data.get("totalNtlPos", 0)),
+                "total_raw_usd": float(margin_data.get("totalRawUsd", 0)),
+            }
+
+            # Extract positions
+            positions = []
+            for asset_pos in user_state.get("assetPositions", []):
+                pos = asset_pos.get("position", {})
+                leverage = pos.get("leverage", {})
+
+                position_details = {
+                    "coin": pos.get("coin", ""),
+                    "size": float(pos.get("szi", 0)),
+                    "entry_price": float(pos.get("entryPx", 0)),
+                    "position_value": float(pos.get("positionValue", 0)),
+                    "unrealized_pnl": float(pos.get("unrealizedPnl", 0)),
+                    "return_on_equity": float(pos.get("returnOnEquity", 0)),
+                    "leverage_type": leverage.get("type", "cross"),
+                    "leverage_value": int(leverage.get("value", 1)),
+                    "liquidation_price": float(pos.get("liquidationPx", 0))
+                    if pos.get("liquidationPx")
+                    else None,
+                }
+                positions.append({"position": position_details})
+
+            # Withdrawable amount (perps)
+            withdrawable = float(user_state.get("withdrawable", 0))
+
+            # Extract spot balances
+            spot_balances = []
+            for balance in spot_state.get("balances", []):
+                spot_balances.append({
+                    "coin": balance.get("coin", ""),
+                    "total": float(balance.get("total", 0)),
+                    "hold": float(balance.get("hold", 0)),  # Amount locked in orders
+                })
+
+            # Calculate total spot value (USD equivalent)
+            total_spot_usd = sum(b["total"] for b in spot_balances)
+
+            result = {
+                "margin_summary": margin_summary,
+                "positions": positions,
+                "withdrawable": withdrawable,
+                "spot_balances": spot_balances,
+                "spot_total_usd": total_spot_usd,
+            }
+
+            logger.debug(
+                f"Account info fetched: {len(positions)} perp positions, "
+                f"{len(spot_balances)} spot balances, "
+                f"perp_value=${margin_summary['account_value']:.2f}, "
+                f"spot_value=${total_spot_usd:.2f}"
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get account info: {e}")
+            raise
+
+    def get_account_summary(self) -> Dict[str, Any]:
+        """
+        Get quick account summary for dashboard.
+
+        Returns:
+            Dict with summary stats
+
+        Raises:
+            RuntimeError: If wallet address not configured
+            Exception: If API call fails
+        """
+        if not settings.HYPERLIQUID_WALLET_ADDRESS:
+            raise RuntimeError("Wallet address not configured")
+
+        try:
+            account_info = self.get_account_info()
+            margin = account_info["margin_summary"]
+            positions = account_info["positions"]
+            spot_balances = account_info.get("spot_balances", [])
+            spot_total = account_info.get("spot_total_usd", 0)
+
+            # Calculate total unrealized PnL (perps only)
+            total_pnl = sum(
+                p["position"]["unrealized_pnl"] for p in positions
+            )
+
+            # Combined account value (perps + spot)
+            total_account_value = margin["account_value"] + spot_total
+
+            summary = {
+                "wallet_address": settings.HYPERLIQUID_WALLET_ADDRESS,
+                "total_account_value": total_account_value,  # Combined perps + spot
+                "perps_account_value": margin["account_value"],
+                "spot_account_value": spot_total,
+                "available_balance": margin["total_raw_usd"],  # Perps available
+                "margin_used": margin["total_margin_used"],
+                "num_perp_positions": len(positions),
+                "num_spot_balances": len(spot_balances),
+                "total_unrealized_pnl": total_pnl,  # Perps PnL only
+                "is_testnet": settings.HYPERLIQUID_TESTNET,
+            }
+
+            logger.debug(
+                f"Account summary: {summary['num_perp_positions']} perp positions, "
+                f"{summary['num_spot_balances']} spot balances, "
+                f"total=${total_account_value:.2f}, PnL=${total_pnl:.2f}"
+            )
+
+            return summary
+
+        except Exception as e:
+            logger.error(f"Failed to get account summary: {e}")
+            raise
+
+    def get_balance_details(self) -> Dict[str, Any]:
+        """
+        Get detailed balance breakdown.
+
+        Returns:
+            Dict with balance details including available, used, and locked amounts
+
+        Raises:
+            RuntimeError: If wallet address not configured
+            Exception: If API call fails
+        """
+        if not settings.HYPERLIQUID_WALLET_ADDRESS:
+            raise RuntimeError("Wallet address not configured")
+
+        try:
+            account_info = self.get_account_info()
+            margin = account_info["margin_summary"]
+
+            balance = {
+                "total_value": margin["account_value"],
+                "available": margin["total_raw_usd"],
+                "in_positions": margin["total_ntl_pos"],
+                "margin_used": margin["total_margin_used"],
+                "withdrawable": account_info["withdrawable"],
+            }
+
+            logger.debug(
+                f"Balance details: total=${balance['total_value']:.2f}, "
+                f"available=${balance['available']:.2f}"
+            )
+
+            return balance
+
+        except Exception as e:
+            logger.error(f"Failed to get balance details: {e}")
+            raise
+
+
+# Global service instance
+account_service = AccountService()

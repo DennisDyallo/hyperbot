@@ -1,11 +1,12 @@
 """
-Minimal FastAPI application - starting small.
+FastAPI application for Hyperbot.
 """
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
 from src.config import logger, settings
 from src.services import hyperliquid_service
+from src.api.routes import account_router
 
 
 @asynccontextmanager
@@ -32,6 +33,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan
 )
+
+# Register routers
+app.include_router(account_router)
 
 
 @app.get("/")

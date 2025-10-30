@@ -1,7 +1,7 @@
 # Hyperbot TODO List
 
 **Last Updated**: 2025-10-30
-**Current Phase**: Phase 1A.1 - Configuration System
+**Current Phase**: Phase 1A.4 - Position Service
 
 ---
 
@@ -32,32 +32,33 @@
 - [x] Update health endpoint to check Hyperliquid status
 - [x] Create manual test script: `scripts/test_hyperliquid.py`
 - [x] Commit Hyperliquid service
+- [x] ✅ Successfully tested with valid testnet credentials
 
-**Note**: Testnet connection returns 403 Access Denied. Needs investigation with actual credentials or mainnet testing.
+### Phase 1A.3: Account Service
+- [x] Create `src/api/models/` directory and response models (Pydantic)
+- [x] Create `src/services/account_service.py` with AccountService class
+- [x] Implement `get_account_info()` method
+- [x] Implement `get_account_summary()` method
+- [x] Implement `get_balance_details()` method
+- [x] Create `src/api/routes/` directory
+- [x] Create `src/api/routes/account.py` with endpoints:
+  - [x] `GET /api/account/` - Full account info
+  - [x] `GET /api/account/summary` - Quick summary
+  - [x] `GET /api/account/balance` - Balance details
+- [x] Register account routes in main.py with `/api` prefix
+- [x] Test all account endpoints
+- [x] Commit account service
 
 ---
 
 ## 🔄 In Progress
 
-### Phase 1A.3: Account Service
-- [ ] Investigate Hyperliquid API 403 error (requires valid credentials or IP whitelist)
-- [ ] Create `src/services/account_service.py`
+### Phase 1A.4: Position Service
+- [ ] Create `src/services/position_service.py`
 
 ---
 
 ## 📋 Up Next
-
-### Phase 1A.3: Account Service (continued)
-- [ ] Implement AccountService class
-  - [ ] `get_account_info()` method
-  - [ ] `get_balance_details()` method
-- [ ] Create API routes: `src/api/routes/account.py`
-  - [ ] `GET /api/account/info`
-  - [ ] `GET /api/account/balance`
-- [ ] Add authentication dependency
-- [ ] Test with real testnet
-- [ ] Write unit tests for account service
-- [ ] Commit account service
 
 ### Phase 1A.4: Position Service
 - [ ] Create `src/services/position_service.py`
@@ -161,11 +162,11 @@ None
 ## 📊 Progress Summary
 
 - **Phase 0**: ✅ 100% Complete
-- **Phase 1A**: 🔄 29% Complete (2/7 sub-phases)
+- **Phase 1A**: 🔄 43% Complete (3/7 sub-phases)
   - 1A.1 Configuration: ✅ 100% (complete)
-  - 1A.2 Hyperliquid Service: ✅ 100% (complete - pending credentials test)
-  - 1A.3 Account: 🔄 10% (investigating API access)
-  - 1A.4 Position: 0%
+  - 1A.2 Hyperliquid Service: ✅ 100% (complete & tested with credentials)
+  - 1A.3 Account Service: ✅ 100% (complete & tested)
+  - 1A.4 Position: 0% (next)
   - 1A.5 Order: 0%
   - 1A.6 Market Data: 0%
   - 1A.7 Testing: 0%
