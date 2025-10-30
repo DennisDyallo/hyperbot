@@ -1,6 +1,6 @@
 # Hyperbot
 
-A TypeScript-based trading bot for Hyperliquid that manages positions and responds to TradingView webhook alerts.
+A Python-based trading bot for Hyperliquid that manages positions and responds to TradingView webhook alerts.
 
 ## Features
 
@@ -8,11 +8,13 @@ A TypeScript-based trading bot for Hyperliquid that manages positions and respon
 - **Position Management**: Automated position entry, exit, and rebalancing
 - **TradingView Webhooks**: Receive and process POST webhook requests from TradingView alerts
 - **Account Monitoring**: View account information, balance, and current positions
+- **FastAPI REST API**: Interactive API with Swagger UI
+- **Modern Python**: Uses `uv` for fast, reliable dependency management
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
-- npm or yarn
+- Python 3.11 or higher
+- [uv](https://github.com/astral-sh/uv) package manager (recommended)
 - Hyperliquid API credentials
 - TradingView account (for webhook functionality)
 
@@ -24,43 +26,67 @@ git clone https://github.com/DennisDyallo/hyperbot.git
 cd hyperbot
 ```
 
-2. Install dependencies:
+2. Install dependencies with uv:
 ```bash
-npm install
+# Install uv if you haven't already
+pip install uv
+
+# Install dependencies (creates .venv automatically)
+uv sync
 ```
 
-3. Create a `.env` file in the root directory:
-```env
-HYPERLIQUID_API_KEY=your_api_key_here
-HYPERLIQUID_SECRET_KEY=your_secret_key_here
-WEBHOOK_PORT=3000
-WEBHOOK_SECRET=your_webhook_secret_here
+**Alternative (using pip):**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+3. Create a `.env` file (copy from `.env.example`):
+```bash
+cp .env.example .env
+# Edit .env with your credentials
 ```
 
 ## Usage
 
-### Development Mode
+### Start the API Server
 
-Run the bot in development mode with auto-reload:
 ```bash
-npm run dev
+# Using uv (recommended)
+uv run python run.py
+
+# Or activate venv first
+source .venv/bin/activate  # Linux/Mac
+python run.py
 ```
 
-### Production Mode
+The server will start on `http://localhost:8000`
 
-Build and run the bot:
+### API Documentation
+
+Once running, visit:
+- **Swagger UI**: http://localhost:8000/docs (interactive API docs)
+- **ReDoc**: http://localhost:8000/redoc (alternative docs)
+- **Health Check**: http://localhost:8000/health
+
+### Available Commands
+
 ```bash
-npm run build
-npm start
+# Install dependencies
+uv sync
+
+# Install with dev tools
+uv sync --extra dev
+
+# Run server
+uv run python run.py
+
+# Run tests (when available)
+uv run pytest
 ```
 
-### Available Scripts
-
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm run start` - Run the compiled application
-- `npm run dev` - Run in development mode with ts-node
-- `npm run watch` - Compile TypeScript in watch mode
-- `npm run clean` - Remove build artifacts
+For more details on using uv, see [README.uv.md](README.uv.md).
 
 ## Configuration
 
