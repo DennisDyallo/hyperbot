@@ -72,3 +72,32 @@ class AccountSummary(BaseModel):
     num_spot_balances: int = Field(description="Number of spot balances")
     total_unrealized_pnl: float = Field(description="Total unrealized PnL (perps only)")
     is_testnet: bool = Field(description="Whether connected to testnet")
+
+
+class PositionListItem(BaseModel):
+    """Simplified position info for listing."""
+
+    coin: str = Field(description="Trading pair symbol")
+    size: float = Field(description="Position size (positive = long, negative = short)")
+    value: float = Field(description="Position value in USD")
+    pnl: float = Field(description="Unrealized PnL in USD")
+
+
+class PositionSummary(BaseModel):
+    """Summary of all positions."""
+
+    total_positions: int = Field(description="Total number of open positions")
+    long_positions: int = Field(description="Number of long positions")
+    short_positions: int = Field(description="Number of short positions")
+    total_position_value: float = Field(description="Total value of all positions in USD")
+    total_unrealized_pnl: float = Field(description="Total unrealized PnL across all positions")
+    positions: List[PositionListItem] = Field(description="List of position summaries")
+
+
+class ClosePositionResponse(BaseModel):
+    """Response from closing a position."""
+
+    status: str = Field(description="Status: 'success' or 'error'")
+    coin: str = Field(description="Trading pair that was closed")
+    size_closed: float = Field(description="Size that was closed")
+    result: Dict[str, Any] = Field(description="Raw result from exchange")

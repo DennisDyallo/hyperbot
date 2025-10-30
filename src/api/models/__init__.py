@@ -8,6 +8,9 @@ from src.api.models.responses import (
     PositionDetails,
     AccountSummary,
     SpotBalance,
+    PositionListItem,
+    PositionSummary,
+    ClosePositionResponse,
 )
 
 __all__ = [
@@ -17,4 +20,7 @@ __all__ = [
     "PositionDetails",
     "AccountSummary",
     "SpotBalance",
+    "PositionListItem",
+    "PositionSummary",
+    "ClosePositionResponse",
 ]

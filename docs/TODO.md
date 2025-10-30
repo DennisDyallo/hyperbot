@@ -1,7 +1,7 @@
 # Hyperbot TODO List
 
 **Last Updated**: 2025-10-30
-**Current Phase**: Phase 1A.4 - Position Service
+**Current Phase**: Phase 1A.5 - Order Service
 
 ---
 
@@ -37,37 +37,41 @@
 ### Phase 1A.3: Account Service
 - [x] Create `src/api/models/` directory and response models (Pydantic)
 - [x] Create `src/services/account_service.py` with AccountService class
-- [x] Implement `get_account_info()` method
+- [x] Implement `get_account_info()` method with perps + spot
 - [x] Implement `get_account_summary()` method
 - [x] Implement `get_balance_details()` method
 - [x] Create `src/api/routes/` directory
-- [x] Create `src/api/routes/account.py` with endpoints:
-  - [x] `GET /api/account/` - Full account info
-  - [x] `GET /api/account/summary` - Quick summary
-  - [x] `GET /api/account/balance` - Balance details
+- [x] Create `src/api/routes/account.py` with endpoints
 - [x] Register account routes in main.py with `/api` prefix
 - [x] Test all account endpoints
 - [x] Commit account service
+
+### Phase 1A.4: Position Service
+- [x] Create `src/services/position_service.py` with PositionService class
+- [x] Implement `list_positions()` method
+- [x] Implement `get_position(coin)` method
+- [x] Implement `close_position(coin, size)` method
+- [x] Implement `get_position_summary()` method
+- [x] Create position response models (PositionSummary, ClosePositionResponse)
+- [x] Create `src/api/routes/positions.py` with endpoints:
+  - [x] `GET /api/positions/` - List all positions
+  - [x] `GET /api/positions/summary` - Position summary
+  - [x] `GET /api/positions/{coin}` - Get specific position
+  - [x] `POST /api/positions/{coin}/close` - Close position
+- [x] Register position routes in main.py
+- [x] Test all position endpoints
+- [x] Commit position service
 
 ---
 
 ## 🔄 In Progress
 
-### Phase 1A.4: Position Service
-- [ ] Create `src/services/position_service.py`
+### Phase 1A.5: Order Service
+- [ ] Create `src/services/order_service.py`
 
 ---
 
 ## 📋 Up Next
-
-### Phase 1A.4: Position Service
-- [ ] Create `src/services/position_service.py`
-- [ ] Implement PositionService class
-  - [ ] `get_all_positions()` method
-  - [ ] `get_position_by_symbol()` method
-  - [ ] `close_position()` method with percentage support
-- [ ] Create API routes: `src/api/routes/positions.py`
-  - [ ] `GET /api/positions/list`
   - [ ] `GET /api/positions/{symbol}`
   - [ ] `POST /api/positions/close/{symbol}`
 - [ ] Test position operations on testnet
@@ -162,12 +166,12 @@ None
 ## 📊 Progress Summary
 
 - **Phase 0**: ✅ 100% Complete
-- **Phase 1A**: 🔄 43% Complete (3/7 sub-phases)
+- **Phase 1A**: 🔄 57% Complete (4/7 sub-phases)
   - 1A.1 Configuration: ✅ 100% (complete)
-  - 1A.2 Hyperliquid Service: ✅ 100% (complete & tested with credentials)
+  - 1A.2 Hyperliquid Service: ✅ 100% (complete & tested)
   - 1A.3 Account Service: ✅ 100% (complete & tested)
-  - 1A.4 Position: 0% (next)
-  - 1A.5 Order: 0%
+  - 1A.4 Position Service: ✅ 100% (complete & tested)
+  - 1A.5 Order Service: 0% (next)
   - 1A.6 Market Data: 0%
   - 1A.7 Testing: 0%
 
