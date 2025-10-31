@@ -15,33 +15,30 @@
         </div>
     </div>
 
-    <!-- Bulk Actions (Coming in MVP.5) -->
+    <!-- Bulk Actions -->
     <div class="bg-white shadow rounded-lg p-4">
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-lg font-medium text-gray-900">Bulk Actions</h2>
-                <p class="text-sm text-gray-500">Close multiple positions at once</p>
+                <p class="text-sm text-gray-500">Reduce all positions by a percentage</p>
             </div>
             <div class="flex space-x-3">
                 <button
                     type="button"
                     class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
-                    disabled
-                    title="Coming in MVP.5">
+                    onclick="window.bulkClose(33)">
                     Close 33%
                 </button>
                 <button
                     type="button"
                     class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
-                    disabled
-                    title="Coming in MVP.5">
+                    onclick="window.bulkClose(66)">
                     Close 66%
                 </button>
                 <button
                     type="button"
                     class="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                    disabled
-                    title="Coming in MVP.5">
+                    onclick="window.bulkClose(100)">
                     Close 100%
                 </button>
             </div>
@@ -57,6 +54,7 @@
              hx-get="/api/positions/"
              hx-trigger="load, every 10s, refresh from:body"
              hx-swap="innerHTML"
+             hx-indicator="#htmx-indicator"
              class="min-h-[200px]">
             <!-- Loading skeleton -->
             <div class="animate-pulse p-6">
@@ -83,8 +81,8 @@
                     <ul class="list-disc list-inside space-y-1">
                         <li>Positions auto-refresh every 10 seconds</li>
                         <li>PnL is calculated in real-time based on current market prices</li>
-                        <li>Click "Close" to close individual positions (requires confirmation)</li>
-                        <li>Bulk close actions will be available in the next update</li>
+                        <li>Click "Close" to close individual positions completely</li>
+                        <li>Bulk actions reduce all positions by 33%, 66%, or 100% of their size</li>
                     </ul>
                 </div>
             </div>
@@ -155,6 +153,151 @@
                 }
             }
         }));
+    };
+
+    // Bulk close positions function
+    window.bulkClose = async function(percentage) {
+        try {
+            // Fetch current positions
+            const response = await fetch('/api/positions/');
+            if (!response.ok) {
+                throw new Error('Failed to fetch positions');
+            }
+
+            const positions = await response.json();
+
+            if (!positions || positions.length === 0) {
+                window.showToast('No positions to close', 'info');
+                return;
+            }
+
+            const totalPositions = positions.length;
+            const allPositions = positions.map(item => item.position);
+
+            // Calculate total PnL impact for the percentage being closed
+            const totalPnlRealized = allPositions.reduce((sum, pos) => {
+                // PnL is proportional to the size being closed
+                const pnlForPercentage = pos.unrealized_pnl * (percentage / 100);
+                return sum + pnlForPercentage;
+            }, 0);
+            const pnlSign = totalPnlRealized >= 0 ? '+' : '';
+
+            // Build list of positions for modal
+            const positionsList = allPositions
+                .map(pos => {
+                    const currentSize = Math.abs(pos.size);
+                    const closeSize = percentage === 100 ? currentSize : currentSize * (percentage / 100);
+                    const remainingSize = currentSize - closeSize;
+                    const pnlForThisClose = pos.unrealized_pnl * (percentage / 100);
+                    const pnlColor = pnlForThisClose >= 0 ? 'text-green-600' : 'text-red-600';
+                    const pnlText = pnlForThisClose >= 0 ? '+' : '';
+
+                    return `<tr>
+                        <td class="py-1 pr-3 text-sm font-medium">${pos.coin}</td>
+                        <td class="py-1 pr-3 text-sm text-right">${currentSize.toFixed(4)}</td>
+                        <td class="py-1 pr-3 text-sm text-right text-blue-600">-${closeSize.toFixed(4)}</td>
+                        <td class="py-1 pr-3 text-sm text-right text-gray-500">${remainingSize.toFixed(4)}</td>
+                        <td class="py-1 text-sm text-right ${pnlColor}">${pnlText}$${pnlForThisClose.toFixed(2)}</td>
+                    </tr>`;
+                })
+                .join('');
+
+            // Show confirmation modal
+            const warningClass = percentage === 100 ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200';
+            const warningTextClass = percentage === 100 ? 'text-red-800' : 'text-yellow-800';
+            const warningMessage = percentage === 100
+                ? '<p class="text-sm font-semibold text-red-900 mb-2">⚠️ WARNING: This will close ALL positions completely!</p>'
+                : '';
+
+            window.dispatchEvent(new CustomEvent('open-confirm-modal', {
+                detail: {
+                    title: `Close ${percentage}% of Each Position`,
+                    message: `<div class="text-left">
+                        ${warningMessage}
+                        <p class="text-sm text-gray-700 mb-3">
+                            This will reduce <span class="font-semibold">all ${totalPositions} positions</span> by ${percentage}%.
+                        </p>
+
+                        <div class="${warningClass} border rounded-lg p-3 mb-3">
+                            <p class="text-sm ${warningTextClass} font-medium mb-1">Estimated PnL Realized</p>
+                            <p class="text-lg font-semibold ${totalPnlRealized >= 0 ? 'text-green-700' : 'text-red-700'}">
+                                ${pnlSign}$${totalPnlRealized.toFixed(2)}
+                            </p>
+                        </div>
+
+                        <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left font-medium text-gray-600">Coin</th>
+                                        <th class="py-2 px-3 text-right font-medium text-gray-600">Current</th>
+                                        <th class="py-2 px-3 text-right font-medium text-gray-600">Close</th>
+                                        <th class="py-2 px-3 text-right font-medium text-gray-600">Remaining</th>
+                                        <th class="py-2 px-3 text-right font-medium text-gray-600">PnL</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-100">
+                                    ${positionsList}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <p class="mt-4 text-sm text-gray-600">
+                            Are you sure you want to continue?
+                        </p>
+                    </div>`,
+                    onConfirm: async () => {
+                        try {
+                            // Show progress toast
+                            window.showToast(`Closing ${percentage}% of ${totalPositions} positions...`, 'info');
+
+                            const bulkResponse = await fetch('/api/positions/bulk-close', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    percentage: percentage,
+                                    slippage: 0.05
+                                })
+                            });
+
+                            const result = await bulkResponse.json();
+
+                            if (!bulkResponse.ok) {
+                                throw new Error(result.detail || 'Bulk close operation failed');
+                            }
+
+                            // Show detailed results
+                            if (result.failed > 0) {
+                                // Partial success - some failed
+                                window.showToast(result.message, 'warning');
+                                if (result.errors && result.errors.length > 0) {
+                                    console.error('Failed positions:', result.errors);
+                                }
+                            } else if (result.success > 0) {
+                                // Full success
+                                window.showToast(result.message, 'success');
+                            } else {
+                                // Nothing happened
+                                window.showToast('No positions were affected', 'info');
+                            }
+
+                            // Trigger table refresh
+                            htmx.trigger('#positions-table', 'refresh');
+
+                        } catch (error) {
+                            console.error('Bulk close error:', error);
+                            window.showToast(error.message || 'Failed to close positions', 'error');
+                        }
+                    }
+                }
+            }));
+
+        } catch (error) {
+            console.error('Failed to prepare bulk close:', error);
+            window.showToast('Failed to load positions', 'error');
+        }
     };
 </script>
 {% endblock %}

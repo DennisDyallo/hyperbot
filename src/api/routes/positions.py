@@ -23,6 +23,13 @@ class ClosePositionRequest(BaseModel):
     slippage: float = Field(0.05, description="Maximum acceptable slippage (default 5%)")
 
 
+class BulkCloseRequest(BaseModel):
+    """Request body for bulk closing positions."""
+
+    percentage: int = Field(..., description="Percentage of positions to close (33, 66, or 100)", ge=1, le=100)
+    slippage: float = Field(0.05, description="Maximum acceptable slippage (default 5%)")
+
+
 @router.get("/")
 async def list_positions(request: Request):
     """
@@ -134,3 +141,84 @@ async def close_position(coin: str, request: ClosePositionRequest = Body(...)):
     except Exception as e:
         logger.error(f"Failed to close position for {coin}: {e}")
         raise HTTPException(status_code=500, detail="Failed to close position")
+
+
+@router.post("/bulk-close")
+async def bulk_close_positions(request: BulkCloseRequest = Body(...)):
+    """
+    Close a percentage of each open position.
+
+    Args:
+        request: Bulk close request with percentage and slippage
+
+    Returns:
+        Summary of close operations (success count, failed count, errors)
+
+    Raises:
+        500: Exchange API error
+    """
+    try:
+        # Get all positions
+        positions = position_service.list_positions()
+
+        if not positions:
+            return {
+                "success": 0,
+                "failed": 0,
+                "total": 0,
+                "errors": [],
+                "message": "No positions to close"
+            }
+
+        total_positions = len(positions)
+        success_count = 0
+        failed_count = 0
+        errors = []
+
+        # Close percentage of each position
+        for item in positions:
+            pos = item["position"]
+            coin = pos["coin"]
+            position_size = abs(pos["size"])
+
+            # Calculate size to close (percentage of current position)
+            if request.percentage == 100:
+                # Close full position
+                size_to_close = None
+            else:
+                # Close percentage of position
+                size_to_close = position_size * (request.percentage / 100)
+
+            try:
+                position_service.close_position(
+                    coin=coin,
+                    size=size_to_close,
+                    slippage=request.slippage
+                )
+                success_count += 1
+                logger.info(f"Successfully closed {request.percentage}% of {coin} position (bulk close)")
+
+            except Exception as e:
+                failed_count += 1
+                error_msg = f"{coin}: {str(e)}"
+                errors.append(error_msg)
+                logger.error(f"Failed to close {coin} in bulk operation: {e}")
+
+        # Build message based on results
+        message_parts = []
+        if success_count > 0:
+            message_parts.append(f"Closed {request.percentage}% of {success_count} position(s)")
+        if failed_count > 0:
+            message_parts.append(f"{failed_count} failed (too small or invalid)")
+
+        return {
+            "success": success_count,
+            "failed": failed_count,
+            "total": total_positions,
+            "errors": errors,
+            "message": ", ".join(message_parts) if message_parts else "No positions affected"
+        }
+
+    except Exception as e:
+        logger.error(f"Bulk close operation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Bulk close failed: {str(e)}")
