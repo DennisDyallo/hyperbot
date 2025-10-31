@@ -23,16 +23,26 @@ class ClosePositionRequest(BaseModel):
     slippage: float = Field(0.05, description="Maximum acceptable slippage (default 5%)")
 
 
-@router.get("/", response_model=List[Position])
-async def list_positions():
+@router.get("/")
+async def list_positions(request: Request):
     """
     List all open positions.
+    Returns HTML partial if requested by HTMX, otherwise JSON.
 
     Returns:
         List of open positions with details
     """
     try:
         positions = position_service.list_positions()
+
+        # Check if request is from HTMX
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "partials/positions_table.html",
+                {"request": request, "positions": positions},
+                headers={"Content-Type": "text/html"}
+            )
+
         return positions
     except Exception as e:
         logger.error(f"Failed to list positions: {e}")
