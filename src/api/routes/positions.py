@@ -3,7 +3,9 @@ Positions API routes.
 Handles position management and closing.
 """
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, Body
+from fastapi import APIRouter, HTTPException, Query, Body, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from src.services import position_service
@@ -11,6 +13,7 @@ from src.api.models import Position, PositionSummary, ClosePositionResponse
 from src.config import logger
 
 router = APIRouter(prefix="/api/positions", tags=["Positions"])
+templates = Jinja2Templates(directory="src/api/templates")
 
 
 class ClosePositionRequest(BaseModel):
@@ -36,16 +39,26 @@ async def list_positions():
         raise HTTPException(status_code=500, detail="Failed to fetch positions")
 
 
-@router.get("/summary", response_model=PositionSummary)
-async def get_position_summary():
+@router.get("/summary")
+async def get_position_summary(request: Request):
     """
     Get summary of all positions.
+    Returns HTML partial if requested by HTMX, otherwise JSON.
 
     Returns:
         Summary with position counts, values, and PnL
     """
     try:
         summary = position_service.get_position_summary()
+
+        # Check if request is from HTMX
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "partials/position_summary.html",
+                {"request": request, "summary": summary},
+                headers={"Content-Type": "text/html"}
+            )
+
         return summary
     except Exception as e:
         logger.error(f"Failed to get position summary: {e}")

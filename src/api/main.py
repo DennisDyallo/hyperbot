@@ -2,6 +2,7 @@
 FastAPI application for Hyperbot.
 """
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from src.config import logger, settings
@@ -11,6 +12,7 @@ from src.api.routes import (
     positions_router,
     orders_router,
     market_data_router,
+    web_router,
 )
 
 
@@ -39,25 +41,18 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
+
 # Register routers
+app.include_router(web_router)  # Web UI routes (no prefix, takes priority)
 app.include_router(account_router)
 app.include_router(positions_router)
 app.include_router(orders_router)
 app.include_router(market_data_router)
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "name": "Hyperbot API",
-        "version": "0.1.0",
-        "status": "online",
-        "environment": settings.ENVIRONMENT
-    }
-
-
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     """
     Health check endpoint.

@@ -2,12 +2,15 @@
 Account API routes.
 Handles account information, balances, and positions.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from src.services import account_service
 from src.api.models import AccountInfo, AccountSummary
 from src.config import logger
 
 router = APIRouter(prefix="/api/account", tags=["Account"])
+templates = Jinja2Templates(directory="src/api/templates")
 
 
 @router.get("/", response_model=AccountInfo)
@@ -29,16 +32,26 @@ async def get_account():
         raise HTTPException(status_code=500, detail="Failed to fetch account information")
 
 
-@router.get("/summary", response_model=AccountSummary)
-async def get_account_summary():
+@router.get("/summary")
+async def get_account_summary(request: Request):
     """
     Get quick account summary for dashboard.
+    Returns HTML partial if requested by HTMX, otherwise JSON.
 
     Returns:
         AccountSummary with key metrics (balance, positions count, PnL, etc.)
     """
     try:
         summary_data = account_service.get_account_summary()
+
+        # Check if request is from HTMX
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "partials/account_summary.html",
+                {"request": request, "summary": summary_data},
+                headers={"Content-Type": "text/html"}
+            )
+
         return summary_data
     except RuntimeError as e:
         logger.error(f"Account summary error: {e}")

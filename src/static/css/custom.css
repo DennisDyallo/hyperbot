@@ -1,0 +1,22 @@
+/* Custom CSS for Hyperbot Dashboard */
+
+/* Additional utility classes if needed */
+
+/* Smooth transitions for HTMX swaps */
+.htmx-settling {
+    opacity: 0;
+}
+
+.htmx-swapping {
+    opacity: 0;
+    transition: opacity 0.2s ease-in;
+}
+
+/* Loading indicator for HTMX requests */
+.htmx-request .htmx-indicator {
+    display: inline-block;
+}
+
+.htmx-indicator {
+    display: none;
+}
