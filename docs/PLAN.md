@@ -128,25 +128,291 @@ Building a Python-based trading bot for Hyperliquid with multiple interfaces (We
 
 ---
 
-### Phase 1B: Web Dashboard (Planned)
+### Phase 1B: Web Dashboard (Split: MVP Now / Later)
 
-**Goal**: Simple web UI for monitoring and control
+**Goal**: Functional web UI for account monitoring and position management
 
-**Features:**
-- Dashboard overview (account value, positions)
-- Position list with close buttons
-- Order list with cancel buttons
-- Simple order form (market orders)
-- Real-time updates with HTMX
+**Strategy**: Build MVP first (view + close positions), defer advanced features to post-MVP
 
-**Tech Stack:**
-- FastAPI (Jinja2 templates)
-- HTMX for dynamic updates
-- Alpine.js for interactivity
-- Tailwind CSS for styling
+---
 
-**Duration**: 3-4 days
-**Deliverable**: Web UI accessible at http://localhost:8000
+#### Tech Stack Decisions
+
+**Server-Side Rendering (SSR) - Monolithic Approach**
+- **Selected**: FastAPI + Jinja2 templates (same app as API)
+- **Reasoning**:
+  - Single deployment target (no separate frontend server)
+  - No CORS complications
+  - Faster initial page load (HTML rendered server-side)
+  - Simpler development workflow
+  - Progressive enhancement (works without JavaScript)
+- **Alternatives Considered**:
+  - Separate React/Vue SPA: More complex, requires build step, separate deployment
+  - Next.js: Overkill for simple dashboard, adds Node.js dependency
+
+**Styling - Tailwind CSS (CDN)**
+- **Selected**: Tailwind CSS via CDN
+- **Reasoning**:
+  - Utility-first approach (rapid prototyping)
+  - No build step required with CDN
+  - Modern, responsive by default
+  - Small bundle size with JIT mode
+- **Alternatives Considered**:
+  - Bootstrap: More opinionated, heavier, less modern
+  - Custom CSS: Slower development, more maintenance
+  - Tailwind with build: Unnecessary complexity for MVP
+
+**Dynamic Updates - HTMX**
+- **Selected**: HTMX for auto-refresh and partial updates
+- **Reasoning**:
+  - HTML-driven (declarative, minimal JavaScript)
+  - Perfect for server-side rendering
+  - Auto-refresh with polling (simple implementation)
+  - Small library size (~14KB)
+  - Progressive enhancement friendly
+- **Alternatives Considered**:
+  - WebSockets: More complex, overkill for 10-second polling
+  - React/Vue: Requires full SPA, separate build pipeline
+  - Vanilla JS fetch(): More boilerplate, manual DOM manipulation
+
+**Interactivity - Alpine.js**
+- **Selected**: Alpine.js for modals and UI state
+- **Reasoning**:
+  - Minimal footprint (~15KB)
+  - Declarative syntax (like Vue, but lighter)
+  - Perfect for modals, dropdowns, confirmations
+  - Works seamlessly with HTMX
+- **Alternatives Considered**:
+  - Vanilla JS: More verbose, harder to maintain
+  - jQuery: Outdated, larger bundle
+  - Full framework (React/Vue): Overkill for simple interactions
+
+**Dependencies to Add**:
+```toml
+jinja2 = ">=3.1.4"           # Template engine
+python-multipart = ">=0.0.9" # Form handling
+```
+
+**CDN Resources** (No build step needed):
+```html
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- HTMX -->
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+<!-- Alpine.js -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+```
+
+---
+
+#### MVP (Now) - Estimated: 5-6 hours
+
+**Goal**: View account/positions + Close positions (individual & bulk)
+
+**MVP.1: Foundation Setup** (30 min)
+- Add dependencies: `jinja2`, `python-multipart`
+- Create directory structure:
+  ```
+  src/api/templates/
+    - base.html
+    - dashboard.html
+    - positions.html
+  src/static/css/
+    - custom.css
+  ```
+- Configure static files in `main.py`:
+  ```python
+  from fastapi.staticfiles import StaticFiles
+  from fastapi.templating import Jinja2Templates
+
+  app.mount("/static", StaticFiles(directory="src/static"), name="static")
+  templates = Jinja2Templates(directory="src/api/templates")
+  ```
+- Create `base.html` with:
+  - Tailwind CSS CDN
+  - HTMX CDN
+  - Alpine.js CDN
+  - Basic navbar component
+  - Common layout structure
+- Create `src/api/routes/web.py` for HTML routes
+- Test: Render basic page at http://localhost:8000
+
+**MVP.2: Dashboard Page** (1 hour)
+- Create `dashboard.html` template
+- Add `GET /` route → renders dashboard
+- Implement cards:
+  - **Account Summary Card**:
+    - Total Balance (USDC)
+    - Account Equity
+    - Margin Used
+    - Available Margin
+  - **Positions Summary Widget**:
+    - Total Open Positions
+    - Long/Short breakdown
+    - Total Unrealized PnL (with color: green profit, red loss)
+- Use HTMX for auto-refresh every 10 seconds:
+  ```html
+  <div hx-get="/api/account/summary" hx-trigger="every 10s" hx-swap="innerHTML">
+    <!-- Content auto-refreshes -->
+  </div>
+  ```
+- Responsive grid layout (Tailwind grid classes)
+- Test: Dashboard shows live account data
+
+**MVP.3: Positions Table** (1.5 hours)
+- Create `positions.html` template
+- Add `GET /positions` route (renders HTML page)
+- Implement positions table with columns:
+  - Coin (symbol)
+  - Side (Long/Short with color badges)
+  - Size (amount)
+  - Entry Price
+  - Current Price
+  - Position Value (USDC)
+  - Unrealized PnL (USDC)
+  - Unrealized PnL% (percentage)
+  - Leverage (e.g., "5x")
+  - Actions (Close button)
+- Color coding:
+  - Green text for profit positions
+  - Red text for loss positions
+  - Green badge for Long, Red badge for Short
+- Empty state handling: "No open positions"
+- HTMX auto-refresh table every 10 seconds
+- Responsive: Horizontal scroll on mobile
+- Test: Table shows all positions with live updates
+
+**MVP.4: Close Individual Position** (45 min)
+- Create Alpine.js confirmation modal component in `base.html`:
+  ```html
+  <div x-data="{ open: false, coin: '', size: 0 }" x-show="open" @close-modal.window="open = false">
+    <!-- Modal content with confirmation -->
+  </div>
+  ```
+- Wire "Close" button to modal (Alpine.js `@click` directive)
+- Modal shows:
+  - Position details (coin, size, current PnL)
+  - Confirmation message: "Are you sure you want to close this position?"
+  - Estimated impact (current PnL realization)
+  - Buttons: "Cancel" and "Confirm Close"
+- HTMX POST to `/api/positions/{coin}/close` on confirm
+- Loading spinner on button during request
+- Success behavior:
+  - Remove row from table with fade animation
+  - Show success toast notification
+- Error behavior:
+  - Show error toast with message
+  - Keep row in table
+- Test: Close position, verify order placed on testnet
+
+**MVP.5: Bulk Close Positions** (1.5 hours)
+- Add bulk action buttons above positions table:
+  - "Close 33% of Positions"
+  - "Close 66% of Positions"
+  - "Close 100% of Positions"
+- Create bulk close confirmation modal (Alpine.js):
+  - Show list of affected positions (sorted by size or PnL)
+  - Display estimated total PnL impact
+  - Warning message for 100%: "This will close ALL positions"
+  - Buttons: "Cancel" and "Confirm Close {percentage}%"
+- Create service method in `position_service.py`:
+  ```python
+  def bulk_close_positions(
+      self,
+      percentage: int,  # 33, 66, or 100
+      coins: Optional[List[str]] = None  # If None, close all positions
+  ) -> Dict[str, Any]:
+      """
+      Close percentage of open positions.
+      Algorithm: Sort positions by size (descending), close top N% by count.
+      Returns: { "success": int, "failed": int, "errors": [...] }
+      """
+  ```
+- Create API endpoint in `positions.py`:
+  ```python
+  @router.post("/bulk-close", summary="Close percentage of all positions")
+  async def bulk_close_positions(request: BulkCloseRequest):
+      # request.percentage: 33, 66, or 100
+      # request.coins: Optional[List[str]]
+  ```
+- Wire buttons with HTMX:
+  ```html
+  <button hx-post="/api/positions/bulk-close"
+          hx-vals='{"percentage": 33}'
+          hx-trigger="click"
+          @click="showBulkModal(33)">
+    Close 33%
+  </button>
+  ```
+- Show progress indicator during bulk operation
+- Success: Show summary toast ("Closed 5 of 15 positions")
+- Test: Close 33% on testnet, verify orders
+
+**MVP.6: Navigation & Polish** (30 min)
+- Add navigation menu to `base.html`:
+  - Dashboard (/)
+  - Positions (/positions)
+  - Active state highlighting (Tailwind classes)
+- Page headers with titles
+- Loading states:
+  - Skeleton loaders for cards during initial load
+  - Spinner overlays for actions
+- Mobile responsive layout:
+  - Collapsible navbar on mobile
+  - Stacked cards on small screens
+  - Horizontal scroll for positions table
+- Error handling:
+  - Toast notifications for errors (Alpine.js + Tailwind)
+  - Inline error messages for failed actions
+- "Last Updated" timestamp on dashboard (with HTMX refresh)
+- Favicon and page titles
+- Test: Mobile responsive, all interactions work
+
+**MVP.7: Test & Commit**
+- Manual testing checklist:
+  - [ ] Dashboard loads with correct data
+  - [ ] Positions table shows all positions
+  - [ ] Individual close works (testnet)
+  - [ ] Bulk close 33% works (testnet)
+  - [ ] Bulk close 66% works (testnet)
+  - [ ] Bulk close 100% works (testnet)
+  - [ ] Auto-refresh updates data
+  - [ ] Mobile responsive
+  - [ ] Error handling works
+  - [ ] Loading states display correctly
+- Commit: "Phase 1B MVP Complete: Web Dashboard with Bulk Position Closing"
+
+**Duration**: 5-6 hours
+**Deliverable**: Functional web UI at http://localhost:8000
+
+---
+
+#### Later (Post-MVP)
+
+**Deferred Features** (Phase 1B.2):
+- Orders page (view open orders with filters)
+- Cancel orders functionality (individual + cancel all)
+- Market order form (place new market orders)
+- Limit order form (place limit orders with price input)
+- Dashboard: Market prices widget (top coins)
+- Dashboard: Recent activity feed (last 10 fills)
+- Performance charts (PnL over time, equity curve)
+- Dark mode toggle (persist in localStorage)
+- WebSocket live updates (replace HTMX polling)
+- Desktop notifications (browser Notification API)
+- Order history page (past 7 days)
+- Position history page (closed positions)
+- Export functionality (CSV download for positions/orders)
+- Advanced filters (filter by coin, side, PnL range)
+
+**Reasoning for Deferral**:
+- MVP focuses on core value: viewing and closing positions
+- Advanced features require additional complexity
+- Can iterate based on user feedback after MVP
+- WebSockets add deployment complexity (prefer polling for MVP)
+- Order placement available via API/Swagger UI for now
 
 ---
 
@@ -305,9 +571,19 @@ uv run pytest tests/ -m critical
 4. ✅ Build account service (Phase 1A.3)
 5. ✅ Build position service (Phase 1A.4)
 6. ✅ Build order service (Phase 1A.5)
-7. ⏭️ **NEXT**: Build market data service (Phase 1A.6)
-8. 🔜 Add testing infrastructure (Phase 1A.7)
-9. 🔜 Start Phase 1B: Web Dashboard
+7. ✅ Build market data service (Phase 1A.6)
+8. ⏭️ **NEXT**: Start Phase 1B: Web Dashboard MVP
+   - MVP.1: Foundation Setup
+   - MVP.2: Dashboard Page
+   - MVP.3: Positions Table
+   - MVP.4: Close Individual Position
+   - MVP.5: Bulk Close Positions (33%/66%/100%)
+   - MVP.6: Navigation & Polish
+   - MVP.7: Test & Commit
+9. 🔜 Add testing infrastructure (Phase 1A.7) - Optional, may defer
+10. 🔜 Phase 1B.2: Post-MVP Dashboard Features
+11. 🔜 Phase 2: Advanced Features (Rebalancing, Scale Orders, Spot Trading)
+12. 🔜 Phase 3: Telegram Bot
 
 ---
 
@@ -321,4 +597,4 @@ uv run pytest tests/ -m critical
 ---
 
 **Last Updated**: 2025-10-31
-**Current Phase**: Phase 1B (Web Dashboard) or Phase 1A.7 (Testing Infrastructure)
+**Current Phase**: Phase 1B MVP - Web Dashboard (Foundation Setup - MVP.1)

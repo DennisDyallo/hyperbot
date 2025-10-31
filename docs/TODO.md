@@ -128,15 +128,75 @@
 
 ## 🔮 Future Phases
 
-### Phase 1B: Web Dashboard
-- [ ] Setup Jinja2 templates
-- [ ] Create base template layout
-- [ ] Dashboard page with account overview
-- [ ] Positions page with close buttons
-- [ ] Orders page with cancel buttons
-- [ ] Simple order form
-- [ ] Real-time updates with HTMX
-- [ ] Styling with Tailwind CSS
+### Phase 1B: Web Dashboard (Split: MVP Now / Later)
+
+#### MVP (Now) - Estimated: 5-6 hours
+**Goal:** View account/positions + Close positions (individual & bulk)
+
+- [ ] **MVP.1: Foundation Setup** (30 min)
+  - [ ] Add dependencies: jinja2, python-multipart
+  - [ ] Create src/api/templates/ and src/static/css/
+  - [ ] Configure static files and Jinja2 in main.py
+  - [ ] Create base.html with Tailwind, HTMX, Alpine.js CDN
+  - [ ] Create basic navbar component
+  - [ ] Create src/api/routes/web.py for HTML routes
+
+- [ ] **MVP.2: Dashboard Page** (1 hour)
+  - [ ] Create dashboard.html template
+  - [ ] Add GET / route → renders dashboard
+  - [ ] Account Summary Card (balance, equity, margin, available)
+  - [ ] Positions Summary Widget (total, long/short, PnL)
+  - [ ] HTMX auto-refresh every 10s
+  - [ ] Responsive grid layout
+
+- [ ] **MVP.3: Positions Table** (1.5 hours)
+  - [ ] Create positions.html template
+  - [ ] Add GET /positions route
+  - [ ] Table: Coin | Side | Size | Entry | Current | Value | PnL | PnL% | Leverage | Actions
+  - [ ] Color coding: Green (profit), Red (loss)
+  - [ ] "Close" button per position
+  - [ ] Empty state handling
+  - [ ] HTMX auto-refresh table
+
+- [ ] **MVP.4: Close Individual Position** (45 min)
+  - [ ] Alpine.js confirmation modal component
+  - [ ] Wire "Close" button to modal
+  - [ ] HTMX POST to /api/positions/{coin}/close
+  - [ ] Loading spinner on button
+  - [ ] Success: Remove row with animation
+  - [ ] Error: Show toast notification
+
+- [ ] **MVP.5: Bulk Close Positions** (1.5 hours)
+  - [ ] Add bulk action buttons: "Close 33%", "Close 66%", "Close 100%"
+  - [ ] Create bulk close confirmation modal
+  - [ ] Show affected positions + estimated PnL impact
+  - [ ] Create POST /api/positions/bulk-close endpoint
+  - [ ] Implement bulk_close_positions() service method
+  - [ ] Wire buttons with HTMX
+  - [ ] Show progress indicator
+  - [ ] Success summary toast
+
+- [ ] **MVP.6: Navigation & Polish** (30 min)
+  - [ ] Navigation menu with active state
+  - [ ] Page headers/titles
+  - [ ] Loading states (skeletons, spinners)
+  - [ ] Mobile responsive layout
+  - [ ] Error handling (toasts, inline errors)
+  - [ ] "Last Updated" timestamp
+
+- [ ] **Test MVP and commit**
+
+#### Later (Post-MVP)
+- [ ] Orders page (view open orders)
+- [ ] Cancel orders functionality
+- [ ] Market order form
+- [ ] Limit order form
+- [ ] Dashboard: Market prices widget
+- [ ] Dashboard: Recent activity feed
+- [ ] Performance charts
+- [ ] Dark mode toggle
+- [ ] WebSocket live updates
+- [ ] Desktop notifications
 
 ### Phase 2: Advanced Features
 - [ ] Rebalancing service
