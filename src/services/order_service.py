@@ -6,6 +6,46 @@ from src.services.hyperliquid_service import hyperliquid_service
 from src.config import logger, settings
 
 
+def _parse_hyperliquid_response(result: Dict[str, Any], operation: str) -> None:
+    """
+    Parse Hyperliquid API response and raise exception if operation failed.
+
+    Hyperliquid returns 'status: ok' even when orders fail. The actual
+    success/failure is nested in response.data.statuses array.
+
+    Args:
+        result: The response from Hyperliquid API
+        operation: Description of the operation (for error messages)
+
+    Raises:
+        RuntimeError: If the operation failed according to Hyperliquid
+    """
+    # Check top-level status
+    if result.get("status") != "ok":
+        error_msg = result.get("error", "Unknown error")
+        raise RuntimeError(f"{operation} failed: {error_msg}")
+
+    # Check nested statuses for errors
+    response = result.get("response", {})
+    data = response.get("data", {})
+    statuses = data.get("statuses", [])
+
+    for status in statuses:
+        # Check for error field
+        if "error" in status:
+            raise ValueError(f"{operation} failed: {status['error']}")
+
+        # Check for resting field (order placed but not filled)
+        if "resting" in status:
+            # This is OK - limit orders will rest in the book
+            continue
+
+        # Check for filled field (success)
+        if "filled" in status:
+            # Success case
+            continue
+
+
 class OrderService:
     """Service for order-related operations."""
 
@@ -77,8 +117,11 @@ class OrderService:
 
             logger.info(f"Market order result: {result}")
 
+            # Parse response and raise exception if order failed
+            _parse_hyperliquid_response(result, f"Market {side} order for {coin}")
+
             return {
-                "status": "success" if result.get("status") == "ok" else "error",
+                "status": "success",
                 "coin": coin,
                 "side": side,
                 "size": size,
@@ -151,8 +194,11 @@ class OrderService:
 
             logger.info(f"Limit order result: {result}")
 
+            # Parse response and raise exception if order failed
+            _parse_hyperliquid_response(result, f"Limit {side} order for {coin}")
+
             return {
-                "status": "success" if result.get("status") == "ok" else "error",
+                "status": "success",
                 "coin": coin,
                 "side": side,
                 "size": size,
@@ -198,8 +244,11 @@ class OrderService:
 
             logger.info(f"Cancel order result: {result}")
 
+            # Parse response and raise exception if cancellation failed
+            _parse_hyperliquid_response(result, f"Cancel order {coin}#{order_id}")
+
             return {
-                "status": "success" if result.get("status") == "ok" else "error",
+                "status": "success",
                 "coin": coin,
                 "order_id": order_id,
                 "result": result,
@@ -243,12 +292,25 @@ class OrderService:
             # Cancel each order
             exchange = self.hyperliquid.get_exchange_client()
             results = []
+            failed_orders = []
+
             for order in open_orders:
                 coin = order.get("coin")
                 oid = order.get("oid")
-                result = exchange.cancel(name=coin, oid=oid)
-                results.append(result)
-                logger.debug(f"Canceled order {coin}#{oid}: {result}")
+                try:
+                    result = exchange.cancel(name=coin, oid=oid)
+                    _parse_hyperliquid_response(result, f"Cancel order {coin}#{oid}")
+                    results.append(result)
+                    logger.debug(f"Canceled order {coin}#{oid}: {result}")
+                except (ValueError, RuntimeError) as e:
+                    logger.warning(f"Failed to cancel order {coin}#{oid}: {e}")
+                    failed_orders.append({"coin": coin, "oid": oid, "error": str(e)})
+
+            # If any orders failed to cancel, raise exception
+            if failed_orders:
+                raise RuntimeError(
+                    f"Failed to cancel {len(failed_orders)} orders: {failed_orders}"
+                )
 
             logger.info(f"Canceled {len(results)} orders")
 
