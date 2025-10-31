@@ -13,6 +13,9 @@
                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">PnL (USD)</th>
                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">PnL %</th>
                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Leverage</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Liq Price</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Liq Distance</th>
+                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Risk</th>
                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
         </thead>
@@ -75,6 +78,62 @@
                         {{ pos['leverage_value'] }}x
                         <span class="text-xs text-gray-500">({{ pos['leverage_type'] }})</span>
                     </div>
+                </td>
+
+                <!-- Liquidation Price -->
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                    {% if item.get('risk') %}
+                        <div class="text-sm text-gray-900">${{ "%.2f"|format(item['risk']['liquidation_price']) }}</div>
+                    {% else %}
+                        <div class="text-sm text-gray-400">-</div>
+                    {% endif %}
+                </td>
+
+                <!-- Liquidation Distance % -->
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                    {% if item.get('risk') %}
+                        {% set liq_dist = item['risk']['liquidation_distance_pct'] %}
+                        <div class="text-sm font-semibold
+                            {% if liq_dist <= 5 %}text-red-700
+                            {% elif liq_dist <= 10 %}text-red-600
+                            {% elif liq_dist <= 20 %}text-orange-600
+                            {% elif liq_dist <= 30 %}text-yellow-600
+                            {% else %}text-green-600{% endif %}">
+                            {{ "%.1f"|format(liq_dist) }}%
+                        </div>
+                    {% else %}
+                        <div class="text-sm text-gray-400">-</div>
+                    {% endif %}
+                </td>
+
+                <!-- Risk Level -->
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    {% if item.get('risk') %}
+                        {% set risk_level = item['risk']['level'] %}
+                        {% if risk_level == 'CRITICAL' %}
+                            {% set badge_class = 'bg-red-100 text-red-800 border-red-300' %}
+                            {% set emoji = '🚨' %}
+                        {% elif risk_level == 'HIGH' %}
+                            {% set badge_class = 'bg-red-50 text-red-700 border-red-200' %}
+                            {% set emoji = '⚠️' %}
+                        {% elif risk_level == 'MODERATE' %}
+                            {% set badge_class = 'bg-orange-50 text-orange-700 border-orange-200' %}
+                            {% set emoji = '⚠️' %}
+                        {% elif risk_level == 'LOW' %}
+                            {% set badge_class = 'bg-yellow-50 text-yellow-700 border-yellow-200' %}
+                            {% set emoji = '⚡' %}
+                        {% else %}
+                            {% set badge_class = 'bg-green-50 text-green-700 border-green-200' %}
+                            {% set emoji = '✅' %}
+                        {% endif %}
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded border {{ badge_class }}">
+                            {{ emoji }} {{ risk_level }}
+                        </span>
+                    {% else %}
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded border bg-gray-50 text-gray-500 border-gray-200">
+                            -
+                        </span>
+                    {% endif %}
                 </td>
 
                 <!-- Actions -->

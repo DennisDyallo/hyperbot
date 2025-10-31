@@ -9,6 +9,9 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from src.services import position_service
+from src.services.risk_calculator import risk_calculator
+from src.services.market_data_service import market_data_service
+from src.services.account_service import account_service
 from src.api.models import Position, PositionSummary, ClosePositionResponse
 from src.config import logger
 
@@ -33,14 +36,63 @@ class BulkCloseRequest(BaseModel):
 @router.get("/")
 async def list_positions(request: Request):
     """
-    List all open positions.
+    List all open positions with risk indicators.
     Returns HTML partial if requested by HTMX, otherwise JSON.
 
     Returns:
-        List of open positions with details
+        List of open positions with details and risk assessment
     """
     try:
         positions = position_service.list_positions()
+
+        # Calculate risk for each position if we have positions
+        if positions:
+            try:
+                # Get current prices and account data for risk calculation
+                prices = market_data_service.get_all_prices()
+                account_info = account_service.get_account_info()
+                margin_summary = account_info["margin_summary"]
+
+                # Calculate overall margin utilization percentage
+                margin_util_pct = (
+                    (margin_summary["total_margin_used"] / margin_summary["account_value"] * 100)
+                    if margin_summary["account_value"] > 0 else 0
+                )
+
+                # Assess risk for each position
+                for pos_item in positions:
+                    pos = pos_item["position"]
+                    coin = pos["coin"]
+
+                    # Get current price (fallback to entry price if not available)
+                    current_price = prices.get(coin, pos["entry_price"])
+
+                    # Calculate risk assessment
+                    risk = risk_calculator.assess_position_risk(
+                        position_data=pos,
+                        current_price=current_price,
+                        margin_utilization_pct=margin_util_pct
+                    )
+
+                    # Add risk data to position item
+                    pos_item["risk"] = {
+                        "level": risk.risk_level.value,
+                        "health_score": risk.health_score,
+                        "liquidation_price": risk.liquidation_price,
+                        "liquidation_distance_pct": risk.liquidation_distance_pct,
+                        "warnings": risk.warnings
+                    }
+
+                    logger.debug(
+                        f"{coin} risk: {risk.risk_level.value}, "
+                        f"liq price: ${risk.liquidation_price:.2f}, "
+                        f"distance: {risk.liquidation_distance_pct:.1f}%"
+                    )
+
+            except Exception as e:
+                # Log error but don't fail the whole request
+                logger.error(f"Failed to calculate risk for positions: {e}")
+                # Risk data won't be available in template
 
         # Check if request is from HTMX
         if request.headers.get("HX-Request"):

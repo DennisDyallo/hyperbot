@@ -38,11 +38,33 @@ class AccountService:
 
             # Extract margin summary (perps)
             margin_data = user_state.get("marginSummary", {})
+            cross_margin_data = user_state.get("crossMarginSummary", {})
+            cross_maintenance_margin = float(user_state.get("crossMaintenanceMarginUsed", 0))
+
+            account_value = float(margin_data.get("accountValue", 0))
+            total_ntl_pos = float(margin_data.get("totalNtlPos", 0))
+
+            # Calculate Hyperliquid GUI metrics
+            # Cross Margin Ratio = Maintenance Margin / Account Value * 100
+            # When this reaches 100%, liquidation occurs!
+            cross_margin_ratio_pct = (
+                (cross_maintenance_margin / account_value * 100) if account_value > 0 else 0
+            )
+
+            # Cross Account Leverage = Total Position Value / Account Value
+            cross_account_leverage = (
+                (total_ntl_pos / account_value) if account_value > 0 else 0
+            )
+
             margin_summary = {
-                "account_value": float(margin_data.get("accountValue", 0)),
+                "account_value": account_value,
                 "total_margin_used": float(margin_data.get("totalMarginUsed", 0)),
-                "total_ntl_pos": float(margin_data.get("totalNtlPos", 0)),
+                "total_ntl_pos": total_ntl_pos,
                 "total_raw_usd": float(margin_data.get("totalRawUsd", 0)),
+                # Cross margin metrics (matches Hyperliquid GUI)
+                "cross_maintenance_margin": cross_maintenance_margin,
+                "cross_margin_ratio_pct": cross_margin_ratio_pct,
+                "cross_account_leverage": cross_account_leverage,
             }
 
             # Extract positions
@@ -141,6 +163,10 @@ class AccountService:
                 "num_perp_positions": len(positions),
                 "num_spot_balances": len(spot_balances),
                 "total_unrealized_pnl": total_pnl,  # Perps PnL only
+                # Cross margin metrics (Hyperliquid GUI format)
+                "cross_maintenance_margin": margin["cross_maintenance_margin"],
+                "cross_margin_ratio_pct": margin["cross_margin_ratio_pct"],
+                "cross_account_leverage": margin["cross_account_leverage"],
                 "is_testnet": settings.HYPERLIQUID_TESTNET,
             }
 

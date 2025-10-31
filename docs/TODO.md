@@ -1,7 +1,7 @@
 # Hyperbot TODO List
 
 **Last Updated**: 2025-10-31
-**Current Phase**: ✅ Phase 1B MVP Complete - Deciding Next Phase
+**Current Phase**: ✅ Phase 2A Complete - Rebalancing Engine with Risk Management
 
 ---
 
@@ -103,21 +103,69 @@
 - [x] Test all dashboard functionality
 - [x] Commit: "Phase 1B Complete: Web Dashboard MVP"
 
+### Phase 2A: Rebalancing Engine with Risk Management
+- [x] **Phase 2A.1**: Create Risk Calculator Service + Research Docs
+  - [x] Created `docs/research/` directory for technical documentation
+  - [x] Documented liquidation price calculation from Hyperliquid docs
+  - [x] Created `src/services/risk_calculator.py` with RiskCalculator class
+  - [x] Implemented position risk assessment (liquidation price, distance, health score)
+  - [x] Implemented portfolio risk assessment (overall risk level, warnings)
+  - [x] Added risk level enum (SAFE, LOW, MODERATE, HIGH, CRITICAL)
+  - [x] Created comprehensive unit tests
+
+- [x] **Phase 2A.2**: Create Rebalancing Service with Risk Integration
+  - [x] Created `src/services/rebalance_service.py` with RebalanceService class
+  - [x] Implemented portfolio rebalancing algorithm
+  - [x] Integrated risk assessment into rebalancing decisions
+  - [x] Added support for both percentage and target value rebalancing
+  - [x] Implemented preview functionality (dry-run mode)
+  - [x] Added risk-aware thresholds for small positions
+
+- [x] **Phase 2A.3**: Create Rebalance API Endpoints
+  - [x] Created `src/api/routes/rebalance.py` with endpoints
+  - [x] `POST /api/rebalance/preview` - Preview rebalance plan
+  - [x] `POST /api/rebalance/execute` - Execute rebalance
+  - [x] Added comprehensive request/response models
+  - [x] Integrated risk warnings in API responses
+  - [x] Tested all endpoints on testnet
+
+- [x] **Phase 2A.4**: Risk Visualization UI
+  - [x] Updated `account_service.py` to fetch Cross Margin Ratio data
+  - [x] Updated `risk_calculator.py` to use Margin Ratio as primary metric
+  - [x] Added Hyperliquid GUI-style "Perps Overview" section to dashboard
+  - [x] Displayed Cross Margin Ratio with progress bar (0-100%)
+  - [x] Added Maintenance Margin and Cross Account Leverage metrics
+  - [x] Updated positions table with risk indicators:
+    - [x] Liquidation Price column
+    - [x] Liquidation Distance % column (color-coded)
+    - [x] Risk Level badge column (SAFE/LOW/MODERATE/HIGH/CRITICAL)
+  - [x] Updated positions route to calculate risk for each position
+
+- [x] **Phase 2A.5**: Testing & Documentation
+  - [x] Tested risk calculator with live positions
+  - [x] Tested rebalance API endpoints (preview & execute)
+  - [x] Tested dashboard UI with Hyperliquid metrics
+  - [x] Verified Cross Margin Ratio matches Hyperliquid GUI (3.63%)
+  - [x] Verified positions table shows risk indicators correctly
+  - [x] All tests passing with no errors
+  - [x] Updated documentation
+
 ---
 
 ## 🔄 In Progress
 
-_No active tasks - Choose next phase_
+_No active tasks - Phase 2A Complete!_
 
 ---
 
 ## 📋 Up Next
 
 ### Choose Next Phase
-**Option A**: Phase 1B.2 - Post-MVP Dashboard Features
-**Option B**: Phase 2 - Advanced Features (Rebalancing, Scale Orders, Spot Trading)
-**Option C**: Phase 3 - Telegram Bot
-**Option D**: Phase 1A.7 - Testing Infrastructure
+**Option A**: Phase 2B - Scale Orders & Advanced Trading
+**Option B**: Phase 2C - Spot Trading Integration
+**Option C**: Phase 3 - Telegram Bot Integration
+**Option D**: Phase 1B.2 - Post-MVP Dashboard Features
+**Option E**: Phase 1A.7 - Testing Infrastructure
 
 ### Phase 1A.7: Testing Infrastructure (Optional - May Defer)
 - [ ] Create `pytest.ini`
@@ -238,15 +286,22 @@ None
 
 ## 📊 Progress Summary
 
-- **Phase 0**: ✅ 100% Complete
-- **Phase 1A**: 🔄 100% Complete (7/7 sub-phases) 🎉
-  - 1A.1 Configuration: ✅ 100% (complete)
-  - 1A.2 Hyperliquid Service: ✅ 100% (complete & tested)
-  - 1A.3 Account Service: ✅ 100% (complete & tested)
-  - 1A.4 Position Service: ✅ 100% (complete & tested)
-  - 1A.5 Order Service: ✅ 100% (complete & tested + error handling fixed)
-  - 1A.6 Market Data: ✅ 100% (complete & tested)
-  - 1A.7 Testing: ⏭️ **NEXT** (Phase 1B might be prioritized)
+- **Phase 0**: ✅ 100% Complete (Foundation)
+- **Phase 1A**: ✅ 100% Complete (Core Services + API)
+  - 1A.1 Configuration: ✅ Complete
+  - 1A.2 Hyperliquid Service: ✅ Complete & Tested
+  - 1A.3 Account Service: ✅ Complete & Tested
+  - 1A.4 Position Service: ✅ Complete & Tested
+  - 1A.5 Order Service: ✅ Complete & Tested
+  - 1A.6 Market Data: ✅ Complete & Tested
+  - 1A.7 Testing: ⏭️ Deferred
+- **Phase 1B**: ✅ 100% Complete (Web Dashboard MVP)
+- **Phase 2A**: ✅ 100% Complete (Rebalancing Engine with Risk Management) 🎉
+  - 2A.1 Risk Calculator Service: ✅ Complete
+  - 2A.2 Rebalancing Service: ✅ Complete
+  - 2A.3 Rebalance API Endpoints: ✅ Complete & Tested
+  - 2A.4 Risk Visualization UI: ✅ Complete
+  - 2A.5 Testing & Documentation: ✅ Complete
 
 ---
 
