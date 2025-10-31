@@ -5,6 +5,7 @@ from src.services.hyperliquid_service import hyperliquid_service, HyperliquidSer
 from src.services.account_service import account_service, AccountService
 from src.services.position_service import position_service, PositionService
 from src.services.order_service import order_service, OrderService
+from src.services.market_data_service import market_data_service, MarketDataService
 
 __all__ = [
     "hyperliquid_service",
@@ -15,4 +16,6 @@ __all__ = [
     "PositionService",
     "order_service",
     "OrderService",
+    "market_data_service",
+    "MarketDataService",
 ]

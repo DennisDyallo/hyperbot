@@ -80,25 +80,29 @@
 
 ## 🔄 In Progress
 
-### Phase 1A.6: Market Data Service
-- [ ] Create `src/services/market_data_service.py`
+### Phase 1A.7: Testing Infrastructure
+- [ ] Create `pytest.ini`
 
 ---
 
 ## 📋 Up Next
 
 ### Phase 1A.6: Market Data Service
-- [ ] Create `src/services/market_data_service.py`
-- [ ] Implement MarketDataService class
-  - [ ] `get_all_prices()` method
-  - [ ] `get_price(symbol)` method
-  - [ ] `get_market_info()` method
-- [ ] Create API routes: `src/api/routes/market_data.py`
-  - [ ] `GET /api/market/prices`
-  - [ ] `GET /api/market/price/{symbol}`
-  - [ ] `GET /api/market/info`
-- [ ] Test market data fetching
-- [ ] Commit market data service
+- [x] Create `src/services/market_data_service.py`
+- [x] Implement MarketDataService class
+  - [x] `get_all_prices()` method
+  - [x] `get_price(symbol)` method
+  - [x] `get_market_info()` method
+  - [x] `get_order_book(coin)` method
+  - [x] `get_asset_metadata(coin)` method
+- [x] Create API routes: `src/api/routes/market_data.py`
+  - [x] `GET /api/market/prices`
+  - [x] `GET /api/market/price/{symbol}`
+  - [x] `GET /api/market/info`
+  - [x] `GET /api/market/orderbook/{coin}`
+  - [x] `GET /api/market/asset/{coin}`
+- [x] Test market data fetching
+- [x] Commit market data service
 
 ### Phase 1A.7: Testing Infrastructure
 - [ ] Create `pytest.ini`
@@ -158,14 +162,14 @@ None
 ## 📊 Progress Summary
 
 - **Phase 0**: ✅ 100% Complete
-- **Phase 1A**: 🔄 86% Complete (6/7 sub-phases)
+- **Phase 1A**: 🔄 100% Complete (7/7 sub-phases) 🎉
   - 1A.1 Configuration: ✅ 100% (complete)
   - 1A.2 Hyperliquid Service: ✅ 100% (complete & tested)
   - 1A.3 Account Service: ✅ 100% (complete & tested)
   - 1A.4 Position Service: ✅ 100% (complete & tested)
   - 1A.5 Order Service: ✅ 100% (complete & tested + error handling fixed)
-  - 1A.6 Market Data: 0% ⏭️ **NEXT**
-  - 1A.7 Testing: 0%
+  - 1A.6 Market Data: ✅ 100% (complete & tested)
+  - 1A.7 Testing: ⏭️ **NEXT** (Phase 1B might be prioritized)
 
 ---
 
@@ -215,5 +219,12 @@ None
 - ✅ Completed Phase 1A.5 (Order Service)
 - ✅ Fixed critical error handling bug
 - ✅ Created comprehensive test suites
+- ✅ Completed Phase 1A.6 (Market Data Service)
 - ✅ All tests passing on testnet
-- 📊 Phase 1A Progress: 71% → 86%
+- 📊 Phase 1A Progress: 71% → 100% 🎉
+
+**Phase 1A.6 Details**:
+- Implemented MarketDataService with 5 methods
+- Created 5 API endpoints for market data
+- Successfully tested: prices (1547 pairs), order books, metadata
+- BTC price fetched: $111,724.50 on testnet

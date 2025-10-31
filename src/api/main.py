@@ -6,7 +6,12 @@ from contextlib import asynccontextmanager
 
 from src.config import logger, settings
 from src.services import hyperliquid_service
-from src.api.routes import account_router, positions_router, orders_router
+from src.api.routes import (
+    account_router,
+    positions_router,
+    orders_router,
+    market_data_router,
+)
 
 
 @asynccontextmanager
@@ -38,6 +43,7 @@ app = FastAPI(
 app.include_router(account_router)
 app.include_router(positions_router)
 app.include_router(orders_router)
+app.include_router(market_data_router)
 
 
 @app.get("/")
