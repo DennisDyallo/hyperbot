@@ -55,7 +55,7 @@
         </div>
         <div id="positions-table"
              hx-get="/api/positions/"
-             hx-trigger="load, every 10s"
+             hx-trigger="load, every 10s, refresh from:body"
              hx-swap="innerHTML"
              class="min-h-[200px]">
             <!-- Loading skeleton -->
@@ -101,5 +101,60 @@
             document.getElementById('positions-last-updated').textContent = `Last updated: ${timeStr}`;
         }
     });
+
+    // Close position function (Alpine.js compatible)
+    window.closePosition = function(button) {
+        const coin = button.dataset.coin;
+        const size = parseFloat(button.dataset.size);
+        const pnl = parseFloat(button.dataset.pnl);
+        const pnlSign = pnl >= 0 ? '+' : '';
+
+        window.dispatchEvent(new CustomEvent('open-confirm-modal', {
+            detail: {
+                title: 'Close Position',
+                message: `<div class="text-left">
+                    <p class="font-semibold text-lg mb-2">${coin}</p>
+                    <p class="text-sm text-gray-600">Size: ${size.toFixed(4)}</p>
+                    <p class="text-sm ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}">
+                        Current PnL: ${pnlSign}$${pnl.toFixed(2)}
+                    </p>
+                    <p class="mt-4 text-sm text-gray-700">Are you sure you want to close this position?</p>
+                </div>`,
+                onConfirm: async () => {
+                    try {
+                        button.disabled = true;
+
+                        const response = await fetch(`/api/positions/${coin}/close`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                size: null,  // null = close full position
+                                slippage: 0.05
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(data.detail || 'Failed to close position');
+                        }
+
+                        // Show success message
+                        window.showToast(`Successfully closed ${coin} position`, 'success');
+
+                        // Trigger table refresh
+                        htmx.trigger('#positions-table', 'refresh');
+
+                    } catch (error) {
+                        console.error('Close position error:', error);
+                        window.showToast(error.message || 'Failed to close position', 'error');
+                        button.disabled = false;
+                    }
+                }
+            }
+        }));
+    };
 </script>
 {% endblock %}

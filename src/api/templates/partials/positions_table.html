@@ -81,15 +81,11 @@
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                         type="button"
-                        class="text-red-600 hover:text-red-900 focus:outline-none"
-                        @click="$dispatch('open-confirm-modal', {
-                            title: 'Close Position',
-                            message: '<strong>{{ pos['coin'] }}</strong><br>Size: {{ "%.4f"|format(pos['size']|abs) }}<br>Current PnL: {% if pos['unrealized_pnl'] >= 0 %}+{% endif %}${{ "%.2f"|format(pos['unrealized_pnl']) }}<br><br>Are you sure you want to close this position?',
-                            onConfirm: async () => {
-                                // TODO: Implement close position (MVP.4)
-                                window.showToast('Close position functionality coming in MVP.4', 'info');
-                            }
-                        })">
+                        class="text-red-600 hover:text-red-900 focus:outline-none disabled:opacity-50"
+                        data-coin="{{ pos['coin'] }}"
+                        data-size="{{ pos['size']|abs }}"
+                        data-pnl="{{ pos['unrealized_pnl'] }}"
+                        @click="closePosition($event.target)">
                         Close
                     </button>
                 </td>
