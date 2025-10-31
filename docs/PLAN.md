@@ -128,11 +128,13 @@ Building a Python-based trading bot for Hyperliquid with multiple interfaces (We
 
 ---
 
-### Phase 1B: Web Dashboard (Split: MVP Now / Later)
+### ✅ Phase 1B: Web Dashboard MVP (COMPLETE)
 
 **Goal**: Functional web UI for account monitoring and position management
 
-**Strategy**: Build MVP first (view + close positions), defer advanced features to post-MVP
+**Status**: MVP Complete - Dashboard with real-time position monitoring and bulk close functionality
+
+**Strategy**: Build MVP first (view + close positions), defer advanced features to Phase 1B.2
 
 ---
 
@@ -572,15 +574,19 @@ uv run pytest tests/ -m critical
 5. ✅ Build position service (Phase 1A.4)
 6. ✅ Build order service (Phase 1A.5)
 7. ✅ Build market data service (Phase 1A.6)
-8. ⏭️ **NEXT**: Start Phase 1B: Web Dashboard MVP
-   - MVP.1: Foundation Setup
-   - MVP.2: Dashboard Page
-   - MVP.3: Positions Table
-   - MVP.4: Close Individual Position
-   - MVP.5: Bulk Close Positions (33%/66%/100%)
-   - MVP.6: Navigation & Polish
-   - MVP.7: Test & Commit
-9. 🔜 Add testing infrastructure (Phase 1A.7) - Optional, may defer
+8. ✅ Phase 1B MVP: Web Dashboard Complete
+   - ✅ MVP.1: Foundation Setup
+   - ✅ MVP.2: Dashboard Page (account + position summaries)
+   - ✅ MVP.3: Positions Table (real-time updates)
+   - ✅ MVP.4: Close Individual Position
+   - ✅ MVP.5: Bulk Close Positions (33%/66%/100%)
+   - ✅ MVP.6: Navigation & Polish (favicon, loading indicators)
+   - ✅ Committed: "Phase 1B Complete: Web Dashboard MVP"
+9. ⏭️ **NEXT**: Choose next phase
+   - Option A: Phase 1B.2 - Post-MVP Dashboard Features (orders, market data)
+   - Option B: Phase 2 - Advanced Features (Rebalancing, Scale Orders, Spot Trading)
+   - Option C: Phase 3 - Telegram Bot
+   - Option D: Phase 1A.7 - Testing Infrastructure
 10. 🔜 Phase 1B.2: Post-MVP Dashboard Features
 11. 🔜 Phase 2: Advanced Features (Rebalancing, Scale Orders, Spot Trading)
 12. 🔜 Phase 3: Telegram Bot

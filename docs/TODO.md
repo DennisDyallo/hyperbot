@@ -1,7 +1,7 @@
 # Hyperbot TODO List
 
 **Last Updated**: 2025-10-31
-**Current Phase**: Phase 1A.6 - Market Data Service
+**Current Phase**: ✅ Phase 1B MVP Complete - Deciding Next Phase
 
 ---
 
@@ -76,17 +76,6 @@
 - [x] Test all order endpoints
 - [x] Commit order service
 
----
-
-## 🔄 In Progress
-
-### Phase 1A.7: Testing Infrastructure
-- [ ] Create `pytest.ini`
-
----
-
-## 📋 Up Next
-
 ### Phase 1A.6: Market Data Service
 - [x] Create `src/services/market_data_service.py`
 - [x] Implement MarketDataService class
@@ -104,8 +93,36 @@
 - [x] Test market data fetching
 - [x] Commit market data service
 
-### Phase 1A.7: Testing Infrastructure
+### Phase 1B: Web Dashboard MVP
+- [x] MVP.1: Foundation Setup (dependencies, Jinja2, static files)
+- [x] MVP.2: Dashboard Page (account + position summaries)
+- [x] MVP.3: Positions Table (real-time updates with HTMX)
+- [x] MVP.4: Close Individual Position (with confirmation modal)
+- [x] MVP.5: Bulk Close Positions (33%/66%/100% buttons)
+- [x] MVP.6: Navigation & Polish (favicon, loading indicators, responsive design)
+- [x] Test all dashboard functionality
+- [x] Commit: "Phase 1B Complete: Web Dashboard MVP"
+
+---
+
+## 🔄 In Progress
+
+_No active tasks - Choose next phase_
+
+---
+
+## 📋 Up Next
+
+### Choose Next Phase
+**Option A**: Phase 1B.2 - Post-MVP Dashboard Features
+**Option B**: Phase 2 - Advanced Features (Rebalancing, Scale Orders, Spot Trading)
+**Option C**: Phase 3 - Telegram Bot
+**Option D**: Phase 1A.7 - Testing Infrastructure
+
+### Phase 1A.7: Testing Infrastructure (Optional - May Defer)
 - [ ] Create `pytest.ini`
+- [ ] Write unit tests for services
+- [ ] Write integration tests for API endpoints
 - [ ] Create `tests/conftest.py` with fixtures
 - [ ] Create mock Hyperliquid fixture
 - [ ] Write unit tests:
