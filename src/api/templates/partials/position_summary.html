@@ -54,8 +54,9 @@
                     <p class="text-2xl font-semibold {% if summary['total_unrealized_pnl'] >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
                         {% if summary['total_unrealized_pnl'] >= 0 %}+{% endif %}${{ "%.2f"|format(summary['total_unrealized_pnl']) }}
                     </p>
+                    {% set pnl_percentage = (summary['total_unrealized_pnl'] / (summary['total_position_value'] - summary['total_unrealized_pnl']) * 100) if (summary['total_position_value'] - summary['total_unrealized_pnl']) > 0 else 0 %}
                     <p class="text-xs {% if summary['total_unrealized_pnl'] >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
-                        {% if summary['total_unrealized_pnl'] >= 0 %}+{% endif %}{{ "%.2f"|format(summary['total_unrealized_pnl_percentage']) }}%
+                        {% if summary['total_unrealized_pnl'] >= 0 %}+{% endif %}{{ "%.2f"|format(pnl_percentage) }}%
                     </p>
                 </div>
             </div>
