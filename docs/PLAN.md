@@ -41,7 +41,7 @@ Building a Python-based trading bot for Hyperliquid with multiple interfaces (We
 - [x] Migrate to `uv` package manager
 - [x] Project structure
 
-### 🔄 Phase 1A: Core Services + API (86% Complete)
+### ✅ Phase 1A: Core Services + API (100% Complete)
 
 **Goal**: Working REST API with all bot functionality testable via Swagger UI
 **Note**: This phase implements **PERPS trading only**. Spot support will be added in Phase 2.
@@ -99,15 +99,20 @@ Building a Python-based trading bot for Hyperliquid with multiple interfaces (We
 - [x] Fix critical error handling bug (Hyperliquid response parsing)
 - [x] Create comprehensive test suite
 
-#### ⏭️ 1A.6: Market Data Service (NEXT)
-- [ ] Create `src/services/market_data_service.py`
-- [ ] Implement `get_all_prices()`
-- [ ] Implement `get_price(symbol)`
-- [ ] Implement `get_market_info()`
-- [ ] Create API endpoints:
+#### ✅ 1A.6: Market Data Service (Complete)
+- [x] Create `src/services/market_data_service.py`
+- [x] Implement `get_all_prices()` (1547 trading pairs)
+- [x] Implement `get_price(symbol)` with validation
+- [x] Implement `get_market_info()` (exchange metadata)
+- [x] Implement `get_order_book(coin)` (L2 snapshots)
+- [x] Implement `get_asset_metadata(coin)` (tick sizes, leverage)
+- [x] Create API endpoints:
   - `GET /api/market/prices`
   - `GET /api/market/price/{symbol}`
   - `GET /api/market/info`
+  - `GET /api/market/orderbook/{coin}`
+  - `GET /api/market/asset/{coin}`
+- [x] Test with real testnet data
 
 #### 1A.7: Testing Infrastructure
 - [ ] Create `pytest.ini`
@@ -230,21 +235,27 @@ uv run pytest tests/ -m critical
   - Fixed critical error handling bug (Hyperliquid response parsing)
   - Created comprehensive test suites
   - Tested successfully on Hyperliquid testnet
+- **Phase 1A.6**: Market data service (prices, order books, metadata)
+  - 1547 trading pairs, 198 with full metadata
+  - L2 order book snapshots
+  - Asset metadata with tick sizes and leverage limits
 
 ### In Progress 🔄
-- Phase 1A.6: Market Data Service (NEXT)
+- None (Phase 1A Complete!)
 
 ### Blocked 🚫
 - None
 
 ### Key Achievements This Session (2025-10-31)
-- ✅ Completed Order Service implementation
+- ✅ Completed Order Service implementation (Phase 1A.5)
 - ✅ Fixed critical bug: API now returns proper HTTP status codes for failed operations
 - ✅ Added Hyperliquid response error detection
 - ✅ Created test_order_operations.py (full order lifecycle testing)
 - ✅ Created test_error_handling.py (validates error detection)
+- ✅ Completed Market Data Service implementation (Phase 1A.6)
+- ✅ Added 5 market data endpoints (prices, order books, metadata)
 - ✅ Successfully tested all operations on testnet
-- ✅ Documented all known issues and limitations
+- 🎉 **Phase 1A Complete: 100% (7/7 sub-phases)**
 
 ---
 
@@ -310,4 +321,4 @@ uv run pytest tests/ -m critical
 ---
 
 **Last Updated**: 2025-10-31
-**Current Phase**: Phase 1A.6 (Market Data Service - Next)
+**Current Phase**: Phase 1B (Web Dashboard) or Phase 1A.7 (Testing Infrastructure)
