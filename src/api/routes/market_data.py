@@ -6,7 +6,7 @@ from typing import Dict, Any
 from src.services import market_data_service
 from src.config import logger
 
-router = APIRouter(prefix="/market", tags=["market_data"])
+router = APIRouter(prefix="/api/market", tags=["market_data"])
 
 
 @router.get("/prices", summary="Get all market prices")
