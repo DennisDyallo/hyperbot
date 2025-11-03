@@ -22,7 +22,7 @@ class RebalanceRequest(BaseModel):
     target_weights: Dict[str, float] = Field(
         description="Target allocation percentages (e.g., {'BTC': 50, 'ETH': 30, 'SOL': 20})"
     )
-    leverage: int = Field(5, ge=1, le=50, description="Leverage multiplier (default 5x)")
+    leverage: int = Field(3, ge=1, le=50, description="Leverage multiplier (default 3x, conservative)")
     dry_run: bool = Field(True, description="Preview only, don't execute (default True)")
     min_trade_usd: float = Field(10.0, ge=0, description="Minimum trade size in USD (default $10)")
     max_slippage: float = Field(0.05, ge=0, le=0.5, description="Maximum acceptable slippage (default 5%)")

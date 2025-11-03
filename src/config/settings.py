@@ -28,6 +28,9 @@ class Settings:
     HYPERLIQUID_WALLET_ADDRESS: str = os.getenv("HYPERLIQUID_WALLET_ADDRESS", "")
     HYPERLIQUID_TESTNET: bool = os.getenv("HYPERLIQUID_TESTNET", "true").lower() == "true"
 
+    # Trading defaults
+    DEFAULT_LEVERAGE: int = int(os.getenv("DEFAULT_LEVERAGE", "3"))  # Conservative default (3x)
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = os.getenv("LOG_FILE", "logs/hyperbot.log")

@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+
+{% block title %}Rebalance - Hyperbot{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="rebalanceApp()">
+    <!-- Header -->
+    <div class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Portfolio Rebalancing</h1>
+                    <p class="text-sm text-gray-600 mt-1">Adjust your portfolio allocations to match target percentages</p>
+                </div>
+                <a href="/" class="text-primary hover:text-blue-700 text-sm font-medium">
+                    ← Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- Left Column: Current Allocations & Form -->
+            <div class="space-y-6">
+
+                <!-- Current Portfolio -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Current Allocations</h2>
+
+                    <div id="current-allocations"
+                         hx-get="/api/positions/"
+                         hx-trigger="load, every 10s"
+                         hx-swap="innerHTML">
+                        <div class="animate-pulse">
+                            <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                            <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Target Allocations Form -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Set Target Allocations</h2>
+
+                    <form id="rebalance-form" @submit.prevent="previewRebalance">
+                        <div id="allocation-inputs" class="space-y-4 mb-4">
+                            <!-- Dynamically populated -->
+                        </div>
+
+                        <!-- Add Coin -->
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Add Coin to Target</label>
+                            <div class="flex gap-2">
+                                <input type="text"
+                                       x-model="newCoin"
+                                       @keyup.enter="addCoin"
+                                       placeholder="e.g., ETH, SOL, DOGE"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary uppercase">
+                                <button type="button"
+                                        @click="addCoin"
+                                        class="px-4 py-2 bg-primary hover:bg-blue-600 text-white font-medium rounded transition">
+                                    Add
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Enter any coin symbol to include in your target allocation</p>
+                        </div>
+
+                        <!-- Quick Presets -->
+                        <div class="pt-4 border-t border-gray-200">
+                            <p class="text-sm font-medium text-gray-700 mb-3">Quick Presets:</p>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button"
+                                        @click="setEqualWeight"
+                                        class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border border-gray-300 transition">
+                                    Equal Weight
+                                </button>
+                                <button type="button"
+                                        @click="resetToCurrent"
+                                        class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border border-gray-300 transition">
+                                    Reset to Current
+                                </button>
+                                <button type="button"
+                                        @click="clearAll"
+                                        class="px-3 py-1.5 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded border border-red-300 transition">
+                                    Clear All
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Leverage Setting -->
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Leverage
+                                <span class="text-xs text-gray-500 font-normal ml-1">(1-50x, conservative: 2-3x)</span>
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <input type="number"
+                                       x-model.number="leverage"
+                                       min="1"
+                                       max="50"
+                                       class="w-24 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary">
+                                <span class="text-sm text-gray-600" x-text="`${leverage}x`"></span>
+                                <div class="flex-1 flex gap-2">
+                                    <button type="button" @click="leverage = 2" class="px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded border border-green-300">2x</button>
+                                    <button type="button" @click="leverage = 3" class="px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded border border-green-300">3x</button>
+                                    <button type="button" @click="leverage = 5" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded border border-yellow-300">5x</button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                ⚠️ Higher leverage = higher risk of liquidation. Cannot be changed on existing positions.
+                            </p>
+                        </div>
+
+                        <!-- Total Validation -->
+                        <div class="mt-4 p-3 rounded"
+                             :class="totalAllocation === 100 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium"
+                                      :class="totalAllocation === 100 ? 'text-green-800' : 'text-red-800'">
+                                    Total Allocation:
+                                </span>
+                                <span class="text-lg font-bold"
+                                      :class="totalAllocation === 100 ? 'text-green-600' : 'text-red-600'"
+                                      x-text="totalAllocation.toFixed(1) + '%'"></span>
+                            </div>
+                            <p class="text-xs mt-1"
+                               :class="totalAllocation === 100 ? 'text-green-600' : 'text-red-600'"
+                               x-text="totalAllocation === 100 ? 'Valid allocation ✓' : 'Must equal 100%'"></p>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="mt-6 flex gap-3">
+                            <button type="submit"
+                                    :disabled="totalAllocation !== 100 || previewing"
+                                    class="flex-1 bg-primary hover:bg-blue-600 text-white font-medium py-2.5 px-4 rounded transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span x-show="!previewing">Preview Rebalance</span>
+                                <span x-show="previewing" class="flex items-center justify-center">
+                                    <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Calculating...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Preview & Results -->
+            <div class="space-y-6">
+
+                <!-- Preview Results -->
+                <div id="preview-results" class="hidden bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Rebalance Preview</h2>
+                    <div id="preview-content">
+                        <!-- Populated by HTMX -->
+                    </div>
+                </div>
+
+                <!-- Execution Results -->
+                <div id="execution-results" class="hidden bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Execution Results</h2>
+                    <div id="execution-content">
+                        <!-- Populated after execution -->
+                    </div>
+                </div>
+
+                <!-- Info Panel -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <div class="flex">
+                        <svg class="h-6 w-6 text-blue-600 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                            <h3 class="text-sm font-semibold text-blue-900 mb-2">How Rebalancing Works</h3>
+                            <ul class="text-sm text-blue-800 space-y-1">
+                                <li>• Set target allocation percentages for each position</li>
+                                <li>• Total must equal 100%</li>
+                                <li>• Preview shows required trades before execution</li>
+                                <li>• Risk warnings will be displayed if detected</li>
+                                <li>• Small trades may be skipped to avoid fees</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function rebalanceApp() {
+    return {
+        positions: [],
+        allocations: {},
+        leverage: 3,  // Default to conservative 3x leverage
+        totalAllocation: 0,
+        previewing: false,
+        executing: false,
+        previewResult: null,
+        newCoin: '',
+
+        init() {
+            // Fetch initial positions
+            this.fetchPositions();
+        },
+
+        async fetchPositions() {
+            try {
+                const response = await fetch('/api/positions/');
+                const data = await response.json();
+                this.positions = data;
+
+                // Initialize allocations with current values
+                const totalValue = data.reduce((sum, item) => sum + Math.abs(item.position.position_value), 0);
+
+                data.forEach(item => {
+                    const coin = item.position.coin;
+                    const currentPct = totalValue > 0
+                        ? (Math.abs(item.position.position_value) / totalValue * 100)
+                        : 0;
+                    this.allocations[coin] = parseFloat(currentPct.toFixed(2));
+                });
+
+                this.updateTotal();
+                this.renderAllocationInputs();
+                this.renderCurrentAllocations();
+            } catch (error) {
+                console.error('Failed to fetch positions:', error);
+            }
+        },
+
+        renderCurrentAllocations() {
+            const container = document.getElementById('current-allocations');
+            if (!this.positions.length) {
+                container.innerHTML = '<p class="text-gray-500 text-sm">No positions found</p>';
+                return;
+            }
+
+            const totalValue = this.positions.reduce((sum, item) => sum + Math.abs(item.position.position_value), 0);
+
+            let html = '<div class="space-y-3">';
+            this.positions.forEach(item => {
+                const pos = item.position;
+                const pct = totalValue > 0 ? (Math.abs(pos.position_value) / totalValue * 100) : 0;
+
+                html += `
+                    <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+                        <div>
+                            <span class="font-medium text-gray-900">${pos.coin}</span>
+                            <span class="text-xs text-gray-500 ml-2">$${Math.abs(pos.position_value).toFixed(2)}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-lg font-semibold text-gray-900">${pct.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+        },
+
+        renderAllocationInputs() {
+            const container = document.getElementById('allocation-inputs');
+            let html = '';
+
+            Object.keys(this.allocations).forEach(coin => {
+                html += `
+                    <div class="flex items-start gap-2">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${coin}</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number"
+                                       step="0.1"
+                                       min="0"
+                                       max="100"
+                                       x-model.number="allocations['${coin}']"
+                                       @input="updateTotal"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary"
+                                       placeholder="0.0">
+                                <span class="text-gray-600 font-medium">%</span>
+                            </div>
+                        </div>
+                        <button type="button"
+                                @click="removeCoin('${coin}')"
+                                class="mt-6 p-2 text-red-600 hover:bg-red-50 rounded transition"
+                                title="Remove ${coin}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        },
+
+        updateTotal() {
+            this.totalAllocation = Object.values(this.allocations).reduce((sum, val) => sum + (val || 0), 0);
+        },
+
+        addCoin() {
+            const coin = this.newCoin.trim().toUpperCase();
+
+            if (!coin) {
+                alert('Please enter a coin symbol');
+                return;
+            }
+
+            if (this.allocations.hasOwnProperty(coin)) {
+                alert(`${coin} is already in your allocation list`);
+                return;
+            }
+
+            // Add coin with 0% allocation
+            this.allocations[coin] = 0;
+            this.newCoin = '';
+            this.renderAllocationInputs();
+            this.updateTotal();
+        },
+
+        removeCoin(coin) {
+            if (confirm(`Remove ${coin} from target allocation?`)) {
+                delete this.allocations[coin];
+                this.renderAllocationInputs();
+                this.updateTotal();
+            }
+        },
+
+        clearAll() {
+            if (confirm('Clear all target allocations?')) {
+                this.allocations = {};
+                this.renderAllocationInputs();
+                this.updateTotal();
+            }
+        },
+
+        setEqualWeight() {
+            const numPositions = Object.keys(this.allocations).length;
+
+            if (numPositions === 0) {
+                alert('Add some coins first');
+                return;
+            }
+
+            const equalWeight = parseFloat((100 / numPositions).toFixed(2));
+
+            Object.keys(this.allocations).forEach(coin => {
+                this.allocations[coin] = equalWeight;
+            });
+
+            this.updateTotal();
+        },
+
+        resetToCurrent() {
+            this.fetchPositions();
+        },
+
+        async previewRebalance() {
+            if (this.totalAllocation !== 100) {
+                alert('Total allocation must equal 100%');
+                return;
+            }
+
+            this.previewing = true;
+
+            try {
+                const response = await fetch('/api/rebalance/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target_weights: this.allocations, leverage: this.leverage })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Preview failed');
+                }
+
+                const result = await response.json();
+                this.previewResult = result;
+                this.showPreview(result);
+
+            } catch (error) {
+                alert('Failed to preview rebalance: ' + error.message);
+                console.error(error);
+            } finally {
+                this.previewing = false;
+            }
+        },
+
+        showPreview(result) {
+            const container = document.getElementById('preview-content');
+            const panel = document.getElementById('preview-results');
+
+            let html = '';
+
+            // Status message
+            html += `<div class="mb-4 p-3 rounded ${result.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">`;
+            html += `<p class="text-sm font-medium ${result.success ? 'text-green-800' : 'text-red-800'}">${result.message}</p>`;
+            html += '</div>';
+
+            // Warnings
+            if (result.warnings && result.warnings.length > 0) {
+                html += '<div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">';
+                html += '<p class="text-sm font-semibold text-yellow-900 mb-2">⚠️ Warnings:</p>';
+                html += '<ul class="text-sm text-yellow-800 space-y-1">';
+                result.warnings.forEach(warning => {
+                    html += `<li>• ${warning}</li>`;
+                });
+                html += '</ul></div>';
+            }
+
+            // High risk coins
+            if (result.high_risk_coins && result.high_risk_coins.length > 0) {
+                html += '<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded">';
+                html += '<p class="text-sm font-semibold text-red-900 mb-2">⚠️ High Risk Coins:</p>';
+                html += '<p class="text-sm text-red-800">' + result.high_risk_coins.join(', ') + '</p>';
+                html += '</div>';
+            }
+
+            // Planned trades
+            if (result.planned_trades && result.planned_trades.length > 0) {
+                html += `<h3 class="text-md font-semibold text-gray-900 mb-3">Planned Trades (${result.actionable_trades || 0})</h3>`;
+
+                if (result.actionable_trades > 0) {
+                    html += '<div class="overflow-x-auto mb-4">';
+                    html += '<table class="min-w-full divide-y divide-gray-200">';
+                    html += '<thead class="bg-gray-50">';
+                    html += '<tr>';
+                    html += '<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Coin</th>';
+                    html += '<th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Current</th>';
+                    html += '<th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Target</th>';
+                    html += '<th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Action</th>';
+                    html += '</tr></thead><tbody class="divide-y divide-gray-200">';
+
+                    result.planned_trades.forEach(trade => {
+                        if (trade.action === 'SKIP') return;
+
+                        const actionColor = trade.action === 'BUY' ? 'text-green-600' : 'text-red-600';
+                        html += '<tr>';
+                        html += `<td class="px-3 py-2 text-sm font-medium">${trade.coin}</td>`;
+                        html += `<td class="px-3 py-2 text-sm text-right">${trade.current_allocation_pct}%</td>`;
+                        html += `<td class="px-3 py-2 text-sm text-right">${trade.target_allocation_pct}%</td>`;
+                        html += `<td class="px-3 py-2 text-sm text-right ${actionColor} font-medium">${trade.action} $${Math.abs(trade.trade_usd_value).toFixed(2)}</td>`;
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table></div>';
+
+                    // Execute button
+                    html += '<div class="mt-4 pt-4 border-t border-gray-200">';
+                    html += '<button @click="executeRebalance" :disabled="executing" ';
+                    html += 'class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded transition disabled:opacity-50">';
+                    html += '<span x-show="!executing">Execute Rebalance</span>';
+                    html += '<span x-show="executing">Executing...</span>';
+                    html += '</button></div>';
+                } else {
+                    html += '<p class="text-sm text-gray-600">No trades needed - portfolio already balanced</p>';
+                }
+            }
+
+            container.innerHTML = html;
+            panel.classList.remove('hidden');
+        },
+
+        async executeRebalance() {
+            if (!confirm('Are you sure you want to execute this rebalance? This will place real trades.')) {
+                return;
+            }
+
+            this.executing = true;
+
+            try {
+                const response = await fetch('/api/rebalance/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target_weights: this.allocations, leverage: this.leverage, dry_run: false })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Execution failed');
+                }
+
+                const result = await response.json();
+                this.showExecutionResults(result);
+
+                // Refresh positions
+                setTimeout(() => this.fetchPositions(), 2000);
+
+            } catch (error) {
+                alert('Failed to execute rebalance: ' + error.message);
+                console.error(error);
+            } finally {
+                this.executing = false;
+            }
+        },
+
+        showExecutionResults(result) {
+            const container = document.getElementById('execution-content');
+            const panel = document.getElementById('execution-results');
+
+            let html = '';
+
+            // Status
+            html += `<div class="mb-4 p-3 rounded ${result.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">`;
+            html += `<p class="text-sm font-medium ${result.success ? 'text-green-800' : 'text-red-800'}">${result.message}</p>`;
+            html += '</div>';
+
+            // Trade summary
+            const summary = result.summary || {};
+            html += '<div class="grid grid-cols-3 gap-4 mb-4">';
+            html += `<div class="text-center"><div class="text-2xl font-bold text-green-600">${summary.successful || 0}</div><div class="text-xs text-gray-600">Successful</div></div>`;
+            html += `<div class="text-center"><div class="text-2xl font-bold text-red-600">${summary.failed || 0}</div><div class="text-xs text-gray-600">Failed</div></div>`;
+            html += `<div class="text-center"><div class="text-2xl font-bold text-gray-600">${summary.skipped || 0}</div><div class="text-xs text-gray-600">Skipped</div></div>`;
+            html += '</div>';
+
+            // Errors
+            if (result.errors && result.errors.length > 0) {
+                html += '<div class="mt-4 p-3 bg-red-50 border border-red-200 rounded">';
+                html += '<p class="text-sm font-semibold text-red-900 mb-2">Errors:</p>';
+                html += '<ul class="text-sm text-red-800 space-y-1">';
+                result.errors.forEach(error => {
+                    html += `<li>• ${error}</li>`;
+                });
+                html += '</ul></div>';
+            }
+
+            container.innerHTML = html;
+            panel.classList.remove('hidden');
+
+            // Hide preview panel
+            document.getElementById('preview-results').classList.add('hidden');
+        }
+    }
+}
+</script>
+{% endblock %}

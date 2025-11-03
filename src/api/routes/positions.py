@@ -83,10 +83,12 @@ async def list_positions(request: Request):
                         "warnings": risk.warnings
                     }
 
+                    liq_price_str = f"${risk.liquidation_price:.2f}" if risk.liquidation_price is not None else "N/A"
+                    liq_dist_str = f"{risk.liquidation_distance_pct:.1f}%" if risk.liquidation_distance_pct is not None else "N/A"
                     logger.debug(
                         f"{coin} risk: {risk.risk_level.value}, "
-                        f"liq price: ${risk.liquidation_price:.2f}, "
-                        f"distance: {risk.liquidation_distance_pct:.1f}%"
+                        f"liq price: {liq_price_str}, "
+                        f"distance: {liq_dist_str}"
                     )
 
             except Exception as e:

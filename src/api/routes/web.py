@@ -39,3 +39,17 @@ async def positions_page(request: Request):
             "environment": settings.ENVIRONMENT,
         }
     )
+
+
+@router.get("/rebalance", response_class=HTMLResponse, summary="Rebalance page")
+async def rebalance_page(request: Request):
+    """
+    Render the portfolio rebalancing page.
+    """
+    return templates.TemplateResponse(
+        "rebalance.html",
+        {
+            "request": request,
+            "environment": settings.ENVIRONMENT,
+        }
+    )

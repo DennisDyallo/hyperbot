@@ -43,6 +43,7 @@ class RebalanceTrade:
     target_usd_value: float        # Target position value in USD
     trade_usd_value: float         # USD value to trade (+ buy, - sell)
     trade_size: Optional[float]    # Size in coin units (calculated later)
+    target_leverage: Optional[int] = None  # Target leverage for OPEN actions
 
     # Execution
     executed: bool = False
@@ -99,13 +100,13 @@ class RebalanceService:
         # Preview
         preview = service.preview_rebalance(
             target_weights={"BTC": 50, "ETH": 30, "SOL": 20},
-            leverage=5
+            leverage=3
         )
 
         # Execute
         result = service.execute_rebalance(
             target_weights={"BTC": 50, "ETH": 30, "SOL": 20},
-            leverage=5,
+            leverage=3,
             dry_run=False
         )
     """
@@ -206,7 +207,7 @@ class RebalanceService:
     def calculate_required_trades(
         self,
         target_weights: Dict[str, float],
-        leverage: int = 5,
+        leverage: int = 3,
         min_trade_usd: float = 10.0,
         tolerance_pct: float = 1.0
     ) -> List[RebalanceTrade]:
@@ -215,7 +216,7 @@ class RebalanceService:
 
         Args:
             target_weights: Target allocation percentages
-            leverage: Leverage to use for positions (default 5x)
+            leverage: Leverage to use for positions (default 3x, conservative)
             min_trade_usd: Minimum trade size in USD (skip smaller trades)
             tolerance_pct: Tolerance for considering positions "balanced" (default 1%)
 
@@ -225,10 +226,11 @@ class RebalanceService:
         try:
             current = self.calculate_current_allocation()
             account_info = self.account_service.get_account_info()
-            total_value = float(account_info["margin_summary"]["account_value"])
+            # Use total notional position value (leveraged), not account value (margin)
+            total_value = float(account_info["margin_summary"]["total_ntl_pos"])
 
             if total_value == 0:
-                raise ValueError("Account value is 0 - cannot rebalance")
+                raise ValueError("Total position value is 0 - cannot rebalance")
 
             # Get current prices
             prices = self.market_data_service.get_all_prices()
@@ -296,49 +298,72 @@ class RebalanceService:
             logger.error(f"Failed to calculate required trades: {e}")
             raise
 
-    def set_leverage_for_coins(
-        self,
-        coins: List[str],
-        leverage: int,
-        is_cross: bool = True
-    ) -> Dict[str, bool]:
+    def get_position_leverage(self, coin: str) -> Optional[int]:
         """
-        Set leverage for multiple coins.
+        Get current leverage for a position.
 
         Args:
-            coins: List of coin symbols
+            coin: Coin symbol
+
+        Returns:
+            Current leverage value, or None if no position exists
+        """
+        try:
+            positions = self.position_service.list_positions()
+            for item in positions:
+                pos = item["position"]
+                if pos["coin"] == coin:
+                    return int(pos["leverage_value"])
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get leverage for {coin}: {e}")
+            return None
+
+    def set_leverage_for_coin(
+        self,
+        coin: str,
+        leverage: int,
+        is_cross: bool = True
+    ) -> bool:
+        """
+        Set leverage for a single coin.
+
+        IMPORTANT: Can only be called when NO position exists for this coin.
+        Hyperliquid does not allow changing leverage on open positions.
+
+        Args:
+            coin: Coin symbol
             leverage: Leverage value to set
             is_cross: Use cross margin (default True)
 
         Returns:
-            Dict of {coin: success} results
+            Success status
         """
-        results = {}
-
-        for coin in coins:
-            try:
-                logger.info(f"Setting leverage for {coin}: {leverage}x (cross={is_cross})")
-
-                exchange = self.hyperliquid.get_exchange_client()
-                result = exchange.update_leverage(
-                    leverage=leverage,
-                    coin=coin,
-                    is_cross=is_cross
+        try:
+            # Check if position exists
+            current_leverage = self.get_position_leverage(coin)
+            if current_leverage is not None:
+                logger.warning(
+                    f"Cannot set leverage for {coin} - position already exists "
+                    f"with {current_leverage}x leverage. Must close position first."
                 )
+                return False
 
-                logger.debug(f"Leverage update result for {coin}: {result}")
-                results[coin] = True
+            logger.info(f"Setting leverage for {coin}: {leverage}x (cross={is_cross})")
 
-            except Exception as e:
-                logger.error(f"Failed to set leverage for {coin}: {e}")
-                results[coin] = False
+            exchange = self.hyperliquid.get_exchange_client()
+            result = exchange.update_leverage(
+                leverage=leverage,
+                name=coin,  # SDK parameter is 'name', not 'coin'
+                is_cross=is_cross
+            )
 
-        success_count = sum(1 for v in results.values() if v)
-        logger.info(
-            f"Leverage set for {success_count}/{len(coins)} coins at {leverage}x"
-        )
+            logger.debug(f"Leverage update result for {coin}: {result}")
+            return True
 
-        return results
+        except Exception as e:
+            logger.error(f"Failed to set leverage for {coin}: {e}")
+            return False
 
     def execute_trade(
         self,
@@ -364,6 +389,14 @@ class RebalanceService:
             # Get current price for size calculation
             price = self.market_data_service.get_price(trade.coin)
             trade_size = abs(trade.trade_usd_value) / price
+
+            # Round to correct precision based on coin metadata
+            metadata = self.market_data_service.get_asset_metadata(trade.coin)
+            if metadata and "szDecimals" in metadata:
+                sz_decimals = metadata["szDecimals"]
+                trade_size = round(trade_size, sz_decimals)
+                logger.debug(f"Rounded trade size for {trade.coin}: {trade_size} ({sz_decimals} decimals)")
+
             trade.trade_size = trade_size
 
             if trade.action == TradeAction.CLOSE:
@@ -378,6 +411,18 @@ class RebalanceService:
 
             elif trade.action in [TradeAction.OPEN, TradeAction.INCREASE]:
                 # Buy (open or increase)
+                # For OPEN actions, set leverage first (can only set when no position exists)
+                if trade.action == TradeAction.OPEN and hasattr(trade, 'target_leverage'):
+                    leverage_set = self.set_leverage_for_coin(
+                        trade.coin,
+                        trade.target_leverage
+                    )
+                    if not leverage_set:
+                        logger.warning(
+                            f"Failed to set leverage for {trade.coin} - "
+                            f"continuing with existing leverage"
+                        )
+
                 logger.info(f"Opening/increasing position: {trade.coin} size={trade_size:.4f}")
                 result = self.order_service.place_market_order(
                     coin=trade.coin,
@@ -411,7 +456,7 @@ class RebalanceService:
     def preview_rebalance(
         self,
         target_weights: Dict[str, float],
-        leverage: int = 5,
+        leverage: int = 3,
         min_trade_usd: float = 10.0
     ) -> RebalanceResult:
         """
@@ -476,7 +521,7 @@ class RebalanceService:
     def execute_rebalance(
         self,
         target_weights: Dict[str, float],
-        leverage: int = 5,
+        leverage: int = 3,
         dry_run: bool = True,
         min_trade_usd: float = 10.0,
         max_slippage: float = 0.05
@@ -525,13 +570,54 @@ class RebalanceService:
                 logger.info("Dry run mode - returning preview")
                 return self.preview_rebalance(target_weights, leverage, min_trade_usd)
 
-            # Set leverage for all coins
-            all_coins = list(target_weights.keys())
-            leverage_results = self.set_leverage_for_coins(all_coins, leverage)
+            # Handle leverage mismatches:
+            # If a position exists with wrong leverage and needs modification,
+            # we must close it first, then reopen with correct leverage
+            adjusted_trades = []
+            for trade in trades:
+                if trade.action in [TradeAction.INCREASE, TradeAction.DECREASE]:
+                    current_leverage = self.get_position_leverage(trade.coin)
+                    if current_leverage is not None and current_leverage != leverage:
+                        logger.warning(
+                            f"{trade.coin} has {current_leverage}x leverage but target is {leverage}x. "
+                            f"Will close and reopen with correct leverage."
+                        )
+                        # Replace with CLOSE + OPEN
+                        close_trade = RebalanceTrade(
+                            coin=trade.coin,
+                            action=TradeAction.CLOSE,
+                            current_allocation_pct=trade.current_allocation_pct,
+                            target_allocation_pct=0.0,
+                            diff_pct=-trade.current_allocation_pct,
+                            current_usd_value=trade.current_usd_value,
+                            target_usd_value=0.0,
+                            trade_usd_value=-trade.current_usd_value,
+                            trade_size=None
+                        )
+                        open_trade = RebalanceTrade(
+                            coin=trade.coin,
+                            action=TradeAction.OPEN,
+                            current_allocation_pct=0.0,
+                            target_allocation_pct=trade.target_allocation_pct,
+                            diff_pct=trade.target_allocation_pct,
+                            current_usd_value=0.0,
+                            target_usd_value=trade.target_usd_value,
+                            trade_usd_value=trade.target_usd_value,
+                            trade_size=None,
+                            target_leverage=leverage
+                        )
+                        adjusted_trades.append(close_trade)
+                        adjusted_trades.append(open_trade)
+                        continue
 
-            failed_leverage = [coin for coin, success in leverage_results.items() if not success]
-            if failed_leverage:
-                logger.warning(f"Failed to set leverage for: {failed_leverage}")
+                # Set target leverage for OPEN trades
+                if trade.action == TradeAction.OPEN:
+                    trade.target_leverage = leverage
+
+                adjusted_trades.append(trade)
+
+            trades = adjusted_trades
+            logger.info(f"Adjusted trades for leverage: {len(trades)} total trades")
 
             # Separate trades into phases:
             # Phase 1: Close and decrease positions (free up margin)
@@ -555,6 +641,64 @@ class RebalanceService:
             # Phase 1: Close/decrease positions
             for trade in close_trades:
                 self.execute_trade(trade, max_slippage)
+
+            # Wait for exchange to update margin after closes
+            if close_trades:
+                import time
+                logger.info("Waiting 2 seconds for margin to be freed after closes...")
+                time.sleep(2)
+
+                # Recalculate trade sizes based on actual available margin
+                # When reducing leverage, we need MORE margin for same position size!
+                account_info = self.account_service.get_account_info()
+                account_value = float(account_info["margin_summary"]["account_value"])
+
+                # Calculate maximum position value we can support with target leverage
+                max_position_value = account_value * leverage
+                current_total_target = sum(abs(t.target_usd_value) for t in open_trades if t.action == TradeAction.OPEN)
+
+                if current_total_target > max_position_value:
+                    scale_factor = max_position_value / current_total_target
+                    logger.warning(
+                        f"Account value (${account_value:.2f}) at {leverage}x can only support "
+                        f"${max_position_value:.2f} in positions, but target is ${current_total_target:.2f}. "
+                        f"Scaling down by {scale_factor:.1%}"
+                    )
+
+                    # Scale down all OPEN trades proportionally
+                    for trade in open_trades:
+                        if trade.action == TradeAction.OPEN:
+                            trade.target_usd_value *= scale_factor
+                            trade.trade_usd_value *= scale_factor
+                            logger.info(f"Adjusted {trade.coin} target to ${trade.target_usd_value:.2f}")
+
+            # Check if any CLOSE trades failed - must abort if so
+            failed_closes = [t for t in close_trades if t.action == TradeAction.CLOSE and not t.success]
+            if failed_closes:
+                failed_coins = [t.coin for t in failed_closes]
+                error_msg = f"CRITICAL: Failed to close positions for {failed_coins}. Cannot continue with leverage change."
+                logger.error(error_msg)
+
+                # Mark remaining trades as skipped
+                for trade in open_trades:
+                    trade.executed = False
+                    trade.success = False
+                    trade.error = "Aborted due to failed close trades"
+
+                # Return early with error
+                final_allocation = self.calculate_current_allocation()
+                return RebalanceResult(
+                    success=False,
+                    message=f"Rebalance aborted: {len(failed_closes)} close trades failed",
+                    planned_trades=trades,
+                    executed_trades=len(close_trades),
+                    successful_trades=len([t for t in close_trades if t.success]),
+                    failed_trades=len(failed_closes),
+                    skipped_trades=len(open_trades) + len(skip_trades),
+                    initial_allocation=initial_allocation,
+                    final_allocation=final_allocation,
+                    errors=[error_msg] + [t.error for t in failed_closes if t.error]
+                )
 
             # Phase 2: Open/increase positions
             for trade in open_trades:
