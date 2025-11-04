@@ -31,6 +31,14 @@ class Settings:
     # Trading defaults
     DEFAULT_LEVERAGE: int = int(os.getenv("DEFAULT_LEVERAGE", "3"))  # Conservative default (3x)
 
+    # Telegram Bot
+    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_AUTHORIZED_USERS: List[int] = [
+        int(user_id.strip())
+        for user_id in os.getenv("TELEGRAM_AUTHORIZED_USERS", "").split(",")
+        if user_id.strip()
+    ]
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = os.getenv("LOG_FILE", "logs/hyperbot.log")
