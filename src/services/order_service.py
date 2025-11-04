@@ -1,9 +1,23 @@
 """
 Order service for managing trading orders.
+
+Integrates with LeverageService to ensure leverage transparency
+before every order placement.
 """
 from typing import Dict, Any, List, Optional
 from src.services.hyperliquid_service import hyperliquid_service
 from src.config import logger, settings
+
+# Import leverage service (imported after declaration to avoid circular imports)
+_leverage_service = None
+
+def get_leverage_service():
+    """Lazy import to avoid circular dependency."""
+    global _leverage_service
+    if _leverage_service is None:
+        from src.services.leverage_service import leverage_service
+        _leverage_service = leverage_service
+    return _leverage_service
 
 
 def _parse_hyperliquid_response(result: Dict[str, Any], operation: str) -> None:

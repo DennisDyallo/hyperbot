@@ -14,6 +14,7 @@ from src.api.routes import (
     market_data_router,
     rebalance_router,
     scale_orders_router,
+    leverage_router,
     web_router,
 )
 
@@ -54,6 +55,7 @@ app.include_router(orders_router)
 app.include_router(market_data_router)
 app.include_router(rebalance_router)
 app.include_router(scale_orders_router)
+app.include_router(leverage_router)
 
 
 @app.get("/api/health")

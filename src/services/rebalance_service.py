@@ -15,6 +15,7 @@ from src.services.order_service import order_service
 from src.services.market_data_service import market_data_service
 from src.services.risk_calculator import risk_calculator, RiskLevel
 from src.services.hyperliquid_service import hyperliquid_service
+from src.services.leverage_service import leverage_service
 from src.config import logger
 
 
@@ -302,22 +303,15 @@ class RebalanceService:
         """
         Get current leverage for a position.
 
+        Delegates to leverage_service for centralized leverage management.
+
         Args:
             coin: Coin symbol
 
         Returns:
             Current leverage value, or None if no position exists
         """
-        try:
-            positions = self.position_service.list_positions()
-            for item in positions:
-                pos = item["position"]
-                if pos["coin"] == coin:
-                    return int(pos["leverage_value"])
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get leverage for {coin}: {e}")
-            return None
+        return leverage_service.get_coin_leverage(coin)
 
     def set_leverage_for_coin(
         self,
@@ -327,6 +321,9 @@ class RebalanceService:
     ) -> bool:
         """
         Set leverage for a single coin.
+
+        Delegates to leverage_service for centralized leverage management
+        with validation and warnings.
 
         IMPORTANT: Can only be called when NO position exists for this coin.
         Hyperliquid does not allow changing leverage on open positions.
@@ -339,31 +336,18 @@ class RebalanceService:
         Returns:
             Success status
         """
-        try:
-            # Check if position exists
-            current_leverage = self.get_position_leverage(coin)
-            if current_leverage is not None:
-                logger.warning(
-                    f"Cannot set leverage for {coin} - position already exists "
-                    f"with {current_leverage}x leverage. Must close position first."
-                )
-                return False
+        success, message = leverage_service.set_coin_leverage(
+            coin=coin,
+            leverage=leverage,
+            is_cross=is_cross
+        )
 
-            logger.info(f"Setting leverage for {coin}: {leverage}x (cross={is_cross})")
+        if not success:
+            logger.warning(f"Failed to set leverage for {coin}: {message}")
+        else:
+            logger.info(f"Successfully set leverage for {coin}: {message}")
 
-            exchange = self.hyperliquid.get_exchange_client()
-            result = exchange.update_leverage(
-                leverage=leverage,
-                name=coin,  # SDK parameter is 'name', not 'coin'
-                is_cross=is_cross
-            )
-
-            logger.debug(f"Leverage update result for {coin}: {result}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to set leverage for {coin}: {e}")
-            return False
+        return success
 
     def execute_trade(
         self,

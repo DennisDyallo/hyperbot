@@ -30,6 +30,7 @@ class Settings:
 
     # Trading defaults
     DEFAULT_LEVERAGE: int = int(os.getenv("DEFAULT_LEVERAGE", "3"))  # Conservative default (3x)
+    MAX_LEVERAGE_WARNING: int = int(os.getenv("MAX_LEVERAGE_WARNING", "5"))  # Soft limit for warnings (5x recommended)
 
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")

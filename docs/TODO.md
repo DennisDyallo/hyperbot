@@ -241,11 +241,62 @@ curl -X POST '/api/scale-orders/place' -d '{
 }'
 ```
 
+### Phase 2D: Leverage Management Service (2025-11-04)
+- [x] **Phase 2D.1**: Create Leverage Service
+  - [x] Created `src/services/leverage_service.py` with LeverageService class
+  - [x] Implemented `get_coin_leverage()` - Get current leverage for any coin
+  - [x] Implemented `set_coin_leverage()` - Set leverage (only when no position exists)
+  - [x] Implemented `validate_leverage()` - Validate with soft limits (5x warning, 10x+ extreme)
+  - [x] Implemented `estimate_liquidation_price()` - Calculate liq price for planned positions
+  - [x] Implemented `get_all_leverage_settings()` - Get leverage for all positions
+  - [x] Risk assessment: LOW/MODERATE/HIGH/EXTREME based on distance to liquidation
+
+- [x] **Phase 2D.2**: Integrate with Existing Services
+  - [x] Integrated leverage_service into rebalance_service
+  - [x] Removed duplicate leverage code from rebalance_service
+  - [x] Added leverage configuration to settings.py (DEFAULT_LEVERAGE, MAX_LEVERAGE_WARNING)
+  - [x] Lazy import pattern in order_service for future integration
+
+- [x] **Phase 2D.3**: Create Leverage API Endpoints
+  - [x] Created `src/api/routes/leverage.py` with comprehensive endpoints
+  - [x] `GET /api/leverage/{coin}` - Get leverage for specific coin
+  - [x] `GET /api/leverage/` - Get all leverage settings
+  - [x] `POST /api/leverage/set` - Set leverage with validation
+  - [x] `POST /api/leverage/validate` - Validate leverage value
+  - [x] `POST /api/leverage/estimate-liquidation` - Estimate liq price
+  - [x] Registered leverage routes in main.py
+
+**Features Delivered**:
+- Centralized leverage management with validation
+- Soft limit warnings (5x recommended, 6-10x warning, 10x+ extreme)
+- Liquidation price estimation for planned positions
+- Risk assessment (LOW/MODERATE/HIGH/EXTREME)
+- Integration with rebalancing service
+- Complete REST API for leverage operations
+- Hyperliquid limitation handling (can only set leverage when no position exists)
+
+**Example Usage**:
+```bash
+# Get leverage for BTC
+curl GET '/api/leverage/BTC'
+
+# Set leverage to 3x for ETH (only works if no position exists)
+curl -X POST '/api/leverage/set' -d '{
+  "coin":"ETH", "leverage":3, "is_cross":true
+}'
+
+# Estimate liquidation price before opening position
+curl -X POST '/api/leverage/estimate-liquidation' -d '{
+  "coin":"BTC", "entry_price":50000, "size":0.5,
+  "leverage":3, "is_long":true
+}'
+```
+
 ---
 
 ## 🔄 In Progress
 
-_No active tasks - Phase 2B Complete!_
+_No active tasks - Phase 2D Complete!_
 
 ---
 
@@ -392,6 +443,16 @@ None
   - 2A.3 Rebalance API Endpoints: ✅ Complete & Tested
   - 2A.4 Risk Visualization UI: ✅ Complete
   - 2A.5 Testing & Documentation: ✅ Complete
+- **Phase 2B**: ✅ 100% Complete (Scale Orders & Advanced Trading) 🎉
+  - 2B.1 Scale Order Models: ✅ Complete
+  - 2B.2 Scale Order Service: ✅ Complete
+  - 2B.3 Hyperliquid Enhancements: ✅ Complete
+  - 2B.4 Scale Order API: ✅ Complete & Tested
+  - 2B.5 Testnet Testing: ✅ Complete
+- **Phase 2D**: ✅ 100% Complete (Leverage Management Service) 🎉
+  - 2D.1 Leverage Service: ✅ Complete
+  - 2D.2 Service Integration: ✅ Complete
+  - 2D.3 Leverage API: ✅ Complete
 
 ---
 
