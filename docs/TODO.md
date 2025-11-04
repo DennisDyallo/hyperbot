@@ -1,7 +1,7 @@
 # Hyperbot TODO List
 
-**Last Updated**: 2025-10-31
-**Current Phase**: ✅ Phase 2A Complete - Rebalancing Engine with Risk Management
+**Last Updated**: 2025-11-04
+**Current Phase**: ✅ Phase 2B Complete - Scale Orders & Advanced Trading
 
 ---
 
@@ -175,22 +175,87 @@
   - [x] Improved visual hierarchy with color-coded border accents
   - [x] Tested with live data - working perfectly
 
+### Phase 2B: Scale Orders & Advanced Trading (2025-11-04)
+- [x] **Phase 2B.1**: Scale Order Models & Configuration
+  - [x] Created `src/models/scale_order.py` with Pydantic models
+  - [x] ScaleOrderConfig: Configuration for placing scale orders
+  - [x] ScaleOrderPreview: Preview before placement
+  - [x] ScaleOrderResult: Placement results tracking
+  - [x] ScaleOrder: Database model for tracking scale order groups
+  - [x] ScaleOrderStatus: Status with fill tracking
+  - [x] Validation: num_orders (2-20), price range, geometric_ratio (1.0-3.0)
+
+- [x] **Phase 2B.2**: Scale Order Service Implementation
+  - [x] Created `src/services/scale_order_service.py` with ScaleOrderService class
+  - [x] Calculate price levels (linear distribution across range)
+  - [x] Calculate sizes:
+    - [x] Linear distribution (equal sizes)
+    - [x] Geometric distribution (weighted with configurable ratio)
+  - [x] Price and size rounding (tick size compliance)
+  - [x] Place multiple limit orders as atomic group
+  - [x] Track scale order groups with unique IDs
+  - [x] Cancel all orders in a scale order group
+  - [x] Get fill status with percentage tracking
+
+- [x] **Phase 2B.3**: Hyperliquid Service Enhancements
+  - [x] Added `place_limit_order()` method to hyperliquid_service
+  - [x] Added `cancel_order()` method
+  - [x] Added `get_open_orders()` method
+  - [x] Added `is_initialized()` check method
+  - [x] Fixed SDK parameter names (coin → name) to match Hyperliquid SDK
+
+- [x] **Phase 2B.4**: Scale Order API Endpoints
+  - [x] Created `src/api/routes/scale_orders.py` with comprehensive endpoints
+  - [x] `POST /api/scale-orders/preview` - Preview scale order before placement
+  - [x] `POST /api/scale-orders/place` - Place scale order (2-20 limit orders)
+  - [x] `GET /api/scale-orders/` - List all scale order groups
+  - [x] `GET /api/scale-orders/{id}` - Get detailed status with fills
+  - [x] `DELETE /api/scale-orders/{id}` - Cancel all orders in group
+  - [x] Complete error handling and validation
+
+- [x] **Phase 2B.5**: Testing on Testnet
+  - [x] Tested scale order preview (5 orders, $107k-$105k range)
+  - [x] Successfully placed 3-order BTC scale order on testnet
+  - [x] Orders: $108k, $107k, $106k (0.002 BTC each)
+  - [x] All orders placed successfully (100% success rate)
+  - [x] Tested geometric distribution with ratio=2.0 (sizes: 0.0007→0.0013→0.0027→0.0053)
+  - [x] Verified scale order tracking and listing
+  - [x] API endpoints fully functional
+
+**Features Delivered**:
+- Multiple limit orders placed as coordinated group (ladder strategy)
+- Linear and geometric size distribution with configurable ratio
+- Preview functionality to see orders before placement
+- Group tracking with unique scale_order_id
+- Fill percentage monitoring
+- Atomic cancellation of all orders in group
+- Price/size rounding for tick size compliance
+
+**Example Usage**:
+```bash
+# Place 5 BTC buy orders from $108k down to $106k
+curl -X POST '/api/scale-orders/place' -d '{
+  "coin":"BTC", "is_buy":true, "total_size":0.01,
+  "num_orders":5, "start_price":108000, "end_price":106000,
+  "distribution_type":"geometric", "geometric_ratio":2.0
+}'
+```
+
 ---
 
 ## 🔄 In Progress
 
-_No active tasks - Phase 2A Complete and Dashboard Improved!_
+_No active tasks - Phase 2B Complete!_
 
 ---
 
 ## 📋 Up Next
 
 ### Choose Next Phase
-**Option A**: Phase 2B - Scale Orders & Advanced Trading
-**Option B**: Phase 2C - Spot Trading Integration
-**Option C**: Phase 3 - Telegram Bot Integration
-**Option D**: Phase 1B.2 - Post-MVP Dashboard Features
-**Option E**: Phase 1A.7 - Testing Infrastructure
+**Option A**: Phase 2C - Spot Trading Integration
+**Option B**: Phase 3 - Telegram Bot Integration
+**Option C**: Phase 1B.3 - Post-MVP Dashboard Features (orders, market data)
+**Option D**: Phase 1A.7 - Testing Infrastructure
 
 ### Phase 1A.7: Testing Infrastructure (Optional - May Defer)
 - [ ] Create `pytest.ini`
