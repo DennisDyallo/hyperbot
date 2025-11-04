@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 from src.config import logger, settings
 from src.services.hyperliquid_service import hyperliquid_service
-from src.bot.handlers import basic
+from src.bot.handlers import basic, trading, advanced, wizards
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -72,6 +72,9 @@ def create_application() -> Application:
     # Create application
     application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
 
+    # Register ConversationHandlers first (they have priority over simple callbacks)
+    application.add_handler(wizards.get_market_wizard_handler())
+
     # Register command handlers
     # Basic commands
     application.add_handler(CommandHandler("start", basic.start))
@@ -79,6 +82,28 @@ def create_application() -> Application:
     application.add_handler(CommandHandler("account", basic.account_command))
     application.add_handler(CommandHandler("positions", basic.positions_command))
     application.add_handler(CommandHandler("status", basic.status_command))
+
+    # Trading commands (legacy - kept for backward compatibility)
+    application.add_handler(CommandHandler("close", trading.close_command))
+    application.add_handler(CommandHandler("market", trading.market_command))
+
+    # Advanced commands (legacy - kept for backward compatibility)
+    application.add_handler(CommandHandler("rebalance", advanced.rebalance_command))
+    application.add_handler(CommandHandler("scale", advanced.scale_command))
+
+    # Register menu navigation callback handlers
+    for handler in basic.get_menu_callback_handlers():
+        application.add_handler(handler)
+
+    # Register close position handlers
+    for handler in wizards.get_close_position_handlers():
+        application.add_handler(handler)
+
+    # Register trading callback query handlers (legacy)
+    for handler in trading.get_callback_handlers():
+        application.add_handler(handler)
+    for handler in advanced.get_callback_handlers():
+        application.add_handler(handler)
 
     # Unknown command handler (must be last)
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))

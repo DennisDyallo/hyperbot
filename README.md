@@ -28,18 +28,11 @@ cd hyperbot
 
 2. Install dependencies with uv:
 ```bash
-# Install uv if you haven't already
-pip install uv
+# Install uv if you haven't already (see https://docs.astral.sh/uv/getting-started/installation/)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies (creates .venv automatically)
 uv sync
-```
-
-**Alternative (using pip):**
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
 ```
 
 3. Create a `.env` file (copy from `.env.example`):

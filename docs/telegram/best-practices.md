@@ -645,14 +645,20 @@ WantedBy=multi-user.target
 # Dockerfile
 FROM python:3.11-slim
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+RUN uv sync --frozen --no-dev
 
 COPY . .
 
-CMD ["python", "main.py"]
+CMD ["uv", "run", "python", "main.py"]
 ```
 
 ---

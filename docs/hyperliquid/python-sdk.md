@@ -6,10 +6,10 @@ The Hyperliquid Python SDK is a Python library designed to facilitate trading on
 
 ## Installation
 
-Install the SDK using pip:
+Install the SDK using uv:
 
 ```bash
-pip install hyperliquid-python-sdk
+uv add hyperliquid-python-sdk
 ```
 
 ## Configuration
