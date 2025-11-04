@@ -434,6 +434,198 @@ async def get_user_positions(user_address: str) -> List[Dict[str, Any]]:
         raise
 ```
 
+## Testing Best Practices
+
+### Critical Testing Patterns (MUST READ)
+
+**⚠️ IMPORTANT**: These patterns were learned through extensive debugging. Follow them to avoid common testing pitfalls.
+
+#### 1. Service Singleton Mocking Pattern
+
+**Problem**: Services are created at module import time as singletons. Simply patching the module won't work because the service instance already holds a reference to the real dependency.
+
+**❌ WRONG - This will fail**:
+```python
+@pytest.fixture
+def service(self, mock_hyperliquid_service):
+    # Patching alone is not enough!
+    with patch('src.services.position_service.hyperliquid_service', mock_hyperliquid_service):
+        return PositionService()  # Still holds reference to real service
+```
+
+**✅ CORRECT - Explicit attribute assignment**:
+```python
+@pytest.fixture
+def service(self, mock_hyperliquid_service, mock_account_service):
+    """Create PositionService instance with mocked dependencies."""
+    with patch('src.services.position_service.hyperliquid_service', mock_hyperliquid_service):
+        with patch('src.services.position_service.account_service', mock_account_service):
+            svc = PositionService()
+            # CRITICAL: Explicitly assign mocked dependencies
+            svc.hyperliquid = mock_hyperliquid_service
+            svc.account = mock_account_service
+            return svc
+```
+
+**Why it matters**: Without explicit assignment, you'll get "HyperliquidService not initialized" errors even with proper mocking.
+
+#### 2. Mock Data Structure Must Match API Response Exactly
+
+**Problem**: Hyperliquid API returns nested structures. Mock data must match this exactly.
+
+**❌ WRONG - Flat structure**:
+```python
+mock_position_service.list_positions.return_value = [
+    {
+        "coin": "BTC",
+        "size": 1.26,
+        "leverage_value": 3
+    }
+]
+```
+
+**✅ CORRECT - Nested structure matching API**:
+```python
+mock_position_service.list_positions.return_value = [
+    {
+        "position": {
+            "coin": "BTC",
+            "size": 1.26,
+            "leverage_value": 3,
+            "leverage": {"value": 3, "type": "cross"},
+            "position_value": 10000.0
+        }
+    }
+]
+```
+
+**Why it matters**: Production code accesses `item["position"]["coin"]`, not `item["coin"]`. Mismatched structure causes KeyError.
+
+#### 3. Mock Return Values Must Be Python Types, Not Mock Objects
+
+**Problem**: When code iterates over return values, Mock objects cause `TypeError: 'Mock' object is not iterable`.
+
+**❌ WRONG - Returns Mock object**:
+```python
+mock_info.spot_user_state.return_value = Mock()  # Will fail when iterated
+```
+
+**✅ CORRECT - Returns actual Python types**:
+```python
+mock_info.spot_user_state.return_value = {
+    "balances": []  # Real list that can be iterated
+}
+```
+
+**Why it matters**: Code like `for item in spot_state.get("balances", [])` requires real Python types.
+
+#### 4. Verify Function Return Types and Unpack Correctly
+
+**Problem**: Tests fail when expecting single value but function returns tuple.
+
+**❌ WRONG - Assumes single return value**:
+```python
+leverage = service.get_leverage_for_order("BTC", default_leverage=3)
+assert leverage == 3  # Fails! Function returns (3, True)
+```
+
+**✅ CORRECT - Unpack tuple based on function signature**:
+```python
+# Check function signature first:
+# def get_leverage_for_order(...) -> Tuple[Optional[int], bool]:
+
+leverage, needs_setting = service.get_leverage_for_order("BTC", default_leverage=3)
+assert leverage == 3
+assert needs_setting is True
+```
+
+**Why it matters**: Always check function signatures and type hints before writing tests.
+
+#### 5. Test Expectations Must Match Actual Implementation
+
+**Problem**: Tests fail when expectations are based on incorrect assumptions about formulas or behavior.
+
+**❌ WRONG - Assumptions without verification**:
+```python
+# Assumed liquidation formula without checking implementation
+assert 65000 < result.estimated_liquidation_price < 70000
+```
+
+**✅ CORRECT - Verify actual formula first**:
+```python
+# After checking actual liquidation price formula in implementation:
+# liq_price = entry_price * (1 - 1/leverage + maintenance_margin_rate)
+# For 3x leverage: 100000 * (1 - 1/3 + 0.05) ≈ 71,667
+assert 70000 < result.estimated_liquidation_price < 73000
+```
+
+**Why it matters**: Tests should validate correct behavior, not enforce incorrect expectations.
+
+### Bot Handler Testing Synchronization
+
+**⚠️ CRITICAL**: Wizard tests need to stay in sync with code changes.
+
+**When to check wizard tests**:
+- Changing service imports in bot handlers
+- Modifying handler message flows (adding progress messages)
+- Updating callback data formats
+- Changing field names in service responses
+
+**Current skipped tests** (see `tests/bot/test_wizards.py`):
+1. `test_market_amount_selected_parsing` - Import path changed
+2. `test_close_position_execute_uses_size_closed` - Handler calls `edit_message_text` twice
+
+**Action**: Before committing bot handler changes, run wizard tests:
+```bash
+uv run pytest tests/bot/test_wizards.py -v
+```
+
+### Testing Checklist
+
+Before writing tests:
+- [ ] Check service dependencies and plan mocking strategy
+- [ ] Verify API response structure in actual code
+- [ ] Check function signatures and return types
+- [ ] Identify if function returns single value or tuple
+- [ ] Review actual implementation formulas/logic
+
+Before committing tests:
+- [ ] All tests passing locally
+- [ ] Mock data structures match API responses
+- [ ] Function return types properly unpacked
+- [ ] Service singletons mocked with explicit assignment
+- [ ] Bot handler tests in sync with code changes
+
+### Test Coverage Guidelines
+
+**Target coverage by service type**:
+- Core services (Account, Position, Order): >80%
+- Advanced services (Leverage, Risk, Rebalance): >60%
+- Utility functions: >90%
+- Bot handlers: >50% (focus on critical paths)
+
+**Current coverage** (reference):
+- LeverageService: 86% ✅
+- PositionService: 53%
+- AccountService: 61%
+- OrderService: 11% ⚠️ Priority for improvement
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest tests/ -v
+
+# Run specific service tests
+uv run pytest tests/services/test_leverage_service.py -v
+
+# Run with coverage report
+uv run pytest tests/ --cov=src --cov-report=term-missing
+
+# Run only failing tests
+uv run pytest tests/ --lf
+```
+
 ## Project-Specific Patterns
 
 ### Service Layer Pattern
@@ -545,7 +737,8 @@ For more troubleshooting help:
 4. **User experience matters** - Clear messages, progress indicators, good errors
 5. **Log everything** - Debugging is easier with good logs
 6. **Handle errors gracefully** - Users should never see stack traces
-7. **Reference this file** - When in doubt, check Claude.md
+7. **Follow testing best practices** - Use service singleton mocking pattern, match API response structures exactly
+8. **Reference this file** - When in doubt, check Claude.md
 
 ---
 
