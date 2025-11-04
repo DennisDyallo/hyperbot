@@ -156,6 +156,138 @@ class HyperliquidService:
             raise RuntimeError("Exchange API not available. Check wallet credentials.")
         return self.exchange
 
+    def is_initialized(self) -> bool:
+        """
+        Check if service is initialized.
+
+        Returns:
+            True if initialized, False otherwise
+        """
+        return self._initialized
+
+    async def place_limit_order(
+        self,
+        coin: str,
+        is_buy: bool,
+        size: float,
+        price: float,
+        reduce_only: bool = False,
+        time_in_force: str = "Gtc"
+    ) -> Dict[str, Any]:
+        """
+        Place a limit order.
+
+        Args:
+            coin: Asset symbol (e.g., 'BTC', 'ETH')
+            is_buy: True for buy, False for sell
+            size: Order size
+            price: Limit price
+            reduce_only: Only reduce existing position
+            time_in_force: Time in force ('Gtc', 'Ioc', 'Alo')
+
+        Returns:
+            Order result from API
+
+        Raises:
+            RuntimeError: If exchange not initialized
+
+        Example:
+            >>> result = await service.place_limit_order(
+            ...     coin="BTC",
+            ...     is_buy=True,
+            ...     size=0.1,
+            ...     price=50000.0
+            ... )
+        """
+        if not self._initialized or not self.exchange:
+            raise RuntimeError("Exchange API not initialized")
+
+        logger.info(
+            f"Placing limit order: {coin} {'BUY' if is_buy else 'SELL'} "
+            f"{size} @ ${price:.2f} (TIF={time_in_force}, reduce_only={reduce_only})"
+        )
+
+        try:
+            result = self.exchange.order(
+                coin=coin,
+                is_buy=is_buy,
+                sz=size,
+                limit_px=price,
+                order_type={"limit": {"tif": time_in_force}},
+                reduce_only=reduce_only
+            )
+
+            logger.debug(f"Limit order result: {result}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to place limit order: {e}")
+            raise
+
+    async def cancel_order(self, coin: str, order_id: int) -> Dict[str, Any]:
+        """
+        Cancel an order.
+
+        Args:
+            coin: Asset symbol
+            order_id: Order ID to cancel
+
+        Returns:
+            Cancellation result from API
+
+        Raises:
+            RuntimeError: If exchange not initialized
+
+        Example:
+            >>> result = await service.cancel_order(coin="BTC", order_id=12345)
+        """
+        if not self._initialized or not self.exchange:
+            raise RuntimeError("Exchange API not initialized")
+
+        logger.info(f"Cancelling order: {coin} order_id={order_id}")
+
+        try:
+            result = self.exchange.cancel(coin=coin, oid=order_id)
+
+            logger.debug(f"Cancel result: {result}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to cancel order: {e}")
+            raise
+
+    async def get_open_orders(self) -> list:
+        """
+        Get all open orders for the user.
+
+        Returns:
+            List of open orders
+
+        Raises:
+            RuntimeError: If service not initialized
+
+        Example:
+            >>> orders = await service.get_open_orders()
+            >>> print(f"Found {len(orders)} open orders")
+        """
+        if not self._initialized or not self.info:
+            raise RuntimeError("Service not initialized")
+
+        if not settings.HYPERLIQUID_WALLET_ADDRESS:
+            raise RuntimeError("Wallet address not configured")
+
+        logger.debug(f"Fetching open orders for {settings.HYPERLIQUID_WALLET_ADDRESS}")
+
+        try:
+            orders = self.info.open_orders(settings.HYPERLIQUID_WALLET_ADDRESS)
+
+            logger.debug(f"Retrieved {len(orders)} open orders")
+            return orders
+
+        except Exception as e:
+            logger.error(f"Failed to get open orders: {e}")
+            raise
+
 
 # Global service instance
 hyperliquid_service = HyperliquidService()
