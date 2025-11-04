@@ -6,6 +6,13 @@ from src.services.hyperliquid_service import hyperliquid_service
 from src.config import logger, settings
 
 
+# Import market_data_service for pricing spot tokens
+def get_market_data_service():
+    """Lazy import to avoid circular dependency."""
+    from src.services.market_data_service import market_data_service
+    return market_data_service
+
+
 class AccountService:
     """Service for account-related operations."""
 
@@ -101,7 +108,31 @@ class AccountService:
                 })
 
             # Calculate total spot value (USD equivalent)
-            total_spot_usd = sum(b["total"] for b in spot_balances)
+            # Need to price each token at market value
+            total_spot_usd = 0
+            market_data = get_market_data_service()
+
+            for balance in spot_balances:
+                coin = balance["coin"]
+                amount = balance["total"]
+
+                if amount == 0:
+                    continue
+
+                # USDC and other stablecoins are already in USD
+                if coin in ["USDC", "USDT", "DAI", "USDEEE", "USDZZ", "USDH"]:
+                    total_spot_usd += amount
+                else:
+                    # Get market price for other tokens
+                    try:
+                        price = market_data.get_price(coin)
+                        token_value = amount * price
+                        total_spot_usd += token_value
+                        logger.debug(f"Spot token {coin}: {amount} × ${price} = ${token_value:.2f}")
+                    except Exception as e:
+                        # If price not available, skip (but warn)
+                        logger.warning(f"Could not get price for spot token {coin} ({amount} tokens), excluding from total: {e}")
+                        continue
 
             result = {
                 "margin_summary": margin_summary,

@@ -167,22 +167,23 @@
     - [x] Portfolio value preserved (99.96%) ✅
   - [x] Documented test results: `SUCCESSFUL_REBALANCE_TEST.md`
 
+- [x] **Phase 1B.2**: Dashboard Improvements - Clarify Spot vs Perps Balance (2025-11-04)
+  - [x] Updated Account Equity section to match Hyperliquid UI layout
+  - [x] Separated Spot and Perps into distinct cards (2-column layout)
+  - [x] Perps Overview now clearly shows Balance ($223.80)
+  - [x] Matches user expectations from Hyperliquid screenshot
+  - [x] Improved visual hierarchy with color-coded border accents
+  - [x] Tested with live data - working perfectly
+
 ---
 
 ## 🔄 In Progress
 
-_No active tasks - Phase 2A Complete and Fully Tested!_
+_No active tasks - Phase 2A Complete and Dashboard Improved!_
 
 ---
 
 ## 📋 Up Next
-
-### Dashboard Improvements (Post Phase 2A)
-- [ ] Clarify Spot vs Perp balance distinction on dashboard
-  - [ ] Show "Perp Account Balance" separately from "Spot Balance"
-  - [ ] Display available margin for perp trading prominently
-  - [ ] Add tooltips explaining the difference
-  - [ ] Show total account value (perp + spot combined)
 
 ### Choose Next Phase
 **Option A**: Phase 2B - Scale Orders & Advanced Trading
