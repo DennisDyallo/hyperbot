@@ -27,6 +27,12 @@ class ScaleOrderConfig(BaseModel):
         default="linear",
         description="How to distribute sizes: 'linear' (equal) or 'geometric' (weighted)"
     )
+    geometric_ratio: float = Field(
+        default=1.5,
+        gt=1.0,
+        le=3.0,
+        description="Geometric ratio for size distribution (1.5 = each order 1.5x previous, range: 1.0-3.0)"
+    )
 
     # Order settings
     reduce_only: bool = Field(default=False, description="Only reduce existing position")

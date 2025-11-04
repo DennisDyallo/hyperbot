@@ -171,7 +171,11 @@ class ScaleOrderService:
 
         # Calculate sizes
         if config.distribution_type == "geometric":
-            sizes = self._calculate_geometric_sizes(config.total_size, config.num_orders)
+            sizes = self._calculate_geometric_sizes(
+                config.total_size,
+                config.num_orders,
+                config.geometric_ratio
+            )
         else:
             sizes = self._calculate_linear_sizes(config.total_size, config.num_orders)
 

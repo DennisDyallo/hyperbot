@@ -209,7 +209,7 @@ class HyperliquidService:
 
         try:
             result = self.exchange.order(
-                coin=coin,
+                name=coin,
                 is_buy=is_buy,
                 sz=size,
                 limit_px=price,
@@ -247,7 +247,7 @@ class HyperliquidService:
         logger.info(f"Cancelling order: {coin} order_id={order_id}")
 
         try:
-            result = self.exchange.cancel(coin=coin, oid=order_id)
+            result = self.exchange.cancel(name=coin, oid=order_id)
 
             logger.debug(f"Cancel result: {result}")
             return result
