@@ -221,3 +221,19 @@ def mock_hyperliquid_exchange():
         }
     })
     return exchange
+
+
+@pytest.fixture
+def mock_hyperliquid_service(mock_hyperliquid_info, mock_hyperliquid_exchange):
+    """Mock HyperliquidService singleton."""
+    service = Mock()
+    service.is_initialized = Mock(return_value=True)
+    service.get_info_client = Mock(return_value=mock_hyperliquid_info)
+    service.get_exchange_client = Mock(return_value=mock_hyperliquid_exchange)
+    service.initialize = Mock()
+    service.health_check = Mock(return_value={"status": "healthy"})
+    return service
+
+
+# Note: Removed autouse fixture for hyperliquid_service patching
+# Tests should use mock_hyperliquid_service fixture directly and patch as needed

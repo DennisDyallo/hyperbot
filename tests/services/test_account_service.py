@@ -28,7 +28,9 @@ class TestAccountService:
             "marginSummary": {
                 "accountValue": "10942.576720",
                 "totalMarginUsed": "2442.576720",
-                "withdrawable": "8500.000000"
+                "withdrawable": "8500.000000",
+                "totalRawUsd": "8500.000000",  # Used for available_balance
+                "totalNtlPos": "2442.576720"   # Total notional position value
             },
             "crossMarginSummary": {
                 "accountValue": "10942.576720",
@@ -72,6 +74,9 @@ class TestAccountService:
         """
         mock_info = Mock()
         mock_info.user_state.return_value = mock_user_state
+        mock_info.spot_user_state.return_value = {
+            "balances": []  # No spot balances for this test
+        }
         service.hyperliquid.get_info_client.return_value = mock_info
 
         summary = service.get_account_summary()
@@ -94,6 +99,9 @@ class TestAccountService:
         """Test that account summary calculates values correctly."""
         mock_info = Mock()
         mock_info.user_state.return_value = mock_user_state
+        mock_info.spot_user_state.return_value = {
+            "balances": []  # No spot balances for this test
+        }
         service.hyperliquid.get_info_client.return_value = mock_info
 
         summary = service.get_account_summary()
@@ -123,6 +131,9 @@ class TestAccountService:
 
         mock_info = Mock()
         mock_info.user_state.return_value = mock_user_state_no_pos
+        mock_info.spot_user_state.return_value = {
+            "balances": []  # No spot balances for this test
+        }
         service.hyperliquid.get_info_client.return_value = mock_info
 
         summary = service.get_account_summary()

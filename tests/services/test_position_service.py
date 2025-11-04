@@ -4,7 +4,7 @@ Unit tests for PositionService.
 Tests position closing to catch bugs like the 'size' vs 'size_closed' KeyError.
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 from src.services.position_service import PositionService
 
 
@@ -12,13 +12,27 @@ class TestPositionService:
     """Test PositionService methods."""
 
     @pytest.fixture
-    def service(self):
-        """Create PositionService instance with mocked hyperliquid_service."""
-        from unittest.mock import Mock
-        svc = PositionService()
-        svc.hyperliquid = Mock()
-        svc.hyperliquid.is_initialized.return_value = True
-        return svc
+    def mock_hyperliquid_service(self):
+        """Mock HyperliquidService."""
+        mock_hl = Mock()
+        mock_hl.is_initialized.return_value = True
+        return mock_hl
+
+    @pytest.fixture
+    def mock_account_service(self):
+        """Mock AccountService."""
+        return Mock()
+
+    @pytest.fixture
+    def service(self, mock_hyperliquid_service, mock_account_service):
+        """Create PositionService instance with mocked dependencies."""
+        with patch('src.services.position_service.hyperliquid_service', mock_hyperliquid_service):
+            with patch('src.services.position_service.account_service', mock_account_service):
+                svc = PositionService()
+                # Explicitly set the mocked dependencies
+                svc.hyperliquid = mock_hyperliquid_service
+                svc.account = mock_account_service
+                return svc
 
     @pytest.fixture
     def mock_close_position_response(self):
@@ -42,16 +56,25 @@ class TestPositionService:
         }
 
     def test_close_position_returns_size_closed_field(
-        self, service, mock_close_position_response
+        self, service, mock_hyperliquid_service, mock_close_position_response
     ):
         """
         Test that close_position returns 'size_closed' field, not 'size'.
 
         Bug Fix: Previously returned 'size' which caused KeyError in bot handler.
         """
+        # Setup mocks
         mock_exchange = Mock()
         mock_exchange.market_close.return_value = mock_close_position_response
-        service.hyperliquid.get_exchange_client.return_value = mock_exchange
+        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
+
+        # Mock get_position to return a position with nested structure
+        service.get_position = Mock(return_value={
+            "position": {
+                "coin": "SOL",
+                "size": 1.26
+            }
+        })
 
         result = service.close_position("SOL")
 
@@ -62,17 +85,21 @@ class TestPositionService:
         # Verify value
         assert result["size_closed"] == pytest.approx(1.26, abs=0.01)
 
-    @patch('src.services.position_service.hyperliquid_service')
     def test_close_position_success_fields(
-        self, mock_hl_service, service, mock_close_position_response
+        self, service, mock_hyperliquid_service, mock_close_position_response
     ):
         """Test that close_position returns all required fields."""
-        # Mock initialization check
-        mock_hl_service.is_initialized.return_value = True
-
         mock_exchange = Mock()
         mock_exchange.market_close.return_value = mock_close_position_response
-        mock_hl_service.get_exchange_client.return_value = mock_exchange
+        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
+
+        # Mock get_position
+        service.get_position = Mock(return_value={
+            "position": {
+                "coin": "SOL",
+                "size": 1.26
+            }
+        })
 
         result = service.close_position("SOL")
 
@@ -82,14 +109,10 @@ class TestPositionService:
         assert "size_closed" in result
         assert "result" in result
 
-    @patch('src.services.position_service.hyperliquid_service')
     def test_close_position_negative_size(
-        self, mock_hl_service, service
+        self, service, mock_hyperliquid_service
     ):
         """Test closing short positions (negative size)."""
-        # Mock initialization check
-        mock_hl_service.is_initialized.return_value = True
-
         response = {
             "status": "ok",
             "response": {
@@ -110,24 +133,36 @@ class TestPositionService:
 
         mock_exchange = Mock()
         mock_exchange.market_close.return_value = response
-        mock_hl_service.get_exchange_client.return_value = mock_exchange
+        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
+
+        # Mock get_position
+        service.get_position = Mock(return_value={
+            "position": {
+                "coin": "SOL",
+                "size": -0.5
+            }
+        })
 
         result = service.close_position("SOL")
 
-        # Should return absolute value
-        assert result["size_closed"] == pytest.approx(-0.5, abs=0.01)
+        # Should return the absolute value (position_service converts to positive)
+        assert result["size_closed"] == pytest.approx(0.5, abs=0.01)
 
-    @patch('src.services.position_service.hyperliquid_service')
     def test_close_position_with_slippage(
-        self, mock_hl_service, service, mock_close_position_response
+        self, service, mock_hyperliquid_service, mock_close_position_response
     ):
         """Test closing position with custom slippage."""
-        # Mock initialization check
-        mock_hl_service.is_initialized.return_value = True
-
         mock_exchange = Mock()
         mock_exchange.market_close.return_value = mock_close_position_response
-        mock_hl_service.get_exchange_client.return_value = mock_exchange
+        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
+
+        # Mock get_position
+        service.get_position = Mock(return_value={
+            "position": {
+                "coin": "SOL",
+                "size": 1.26
+            }
+        })
 
         result = service.close_position("SOL", slippage=10.0)
 
@@ -138,42 +173,38 @@ class TestPositionService:
 
         assert result["status"] == "success"
 
-    @patch('src.services.position_service.hyperliquid_service')
-    def test_close_position_api_error(self, mock_hl_service, service):
+    def test_close_position_api_error(self, service, mock_hyperliquid_service):
         """Test close_position handles API errors."""
-        # Mock initialization check
-        mock_hl_service.is_initialized.return_value = True
-
         mock_exchange = Mock()
         mock_exchange.market_close.side_effect = Exception("API Error")
-        mock_hl_service.get_exchange_client.return_value = mock_exchange
+        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
+
+        # Mock get_position
+        service.get_position = Mock(return_value={
+            "position": {
+                "coin": "SOL",
+                "size": 1.26
+            }
+        })
 
         with pytest.raises(Exception):
             service.close_position("SOL")
 
-    @patch('src.services.position_service.hyperliquid_service')
-    def test_list_positions_returns_correct_format(self, mock_hl_service, service):
+    def test_list_positions_returns_correct_format(self, service, mock_account_service):
         """Test that list_positions returns positions in correct format."""
-        # Mock initialization check
-        mock_hl_service.is_initialized.return_value = True
-
-        mock_user_state = {
-            "assetPositions": [
+        # Mock account service - list_positions looks for "positions" key
+        mock_account_service.get_account_info.return_value = {
+            "perps_account_value": 10000,
+            "positions": [
                 {
-                    "position": {
-                        "coin": "BTC",
-                        "szi": "0.00432",
-                        "entryPx": "104088.0",
-                        "positionValue": "449.660416",
-                        "unrealizedPnl": "5.25"
-                    }
+                    "coin": "BTC",
+                    "size": 0.00432,
+                    "entry_price": 104088.0,
+                    "position_value": 449.66,
+                    "unrealized_pnl": 5.25
                 }
             ]
         }
-
-        mock_info = Mock()
-        mock_info.user_state.return_value = mock_user_state
-        mock_hl_service.get_info_client.return_value = mock_info
 
         positions = service.list_positions()
 
