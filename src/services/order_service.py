@@ -6,6 +6,7 @@ before every order placement.
 """
 from typing import Dict, Any, List, Optional
 from src.services.hyperliquid_service import hyperliquid_service
+from src.use_cases.common.response_parser import parse_hyperliquid_response
 from src.config import logger, settings
 
 # Import leverage service (imported after declaration to avoid circular imports)
@@ -18,46 +19,6 @@ def get_leverage_service():
         from src.services.leverage_service import leverage_service
         _leverage_service = leverage_service
     return _leverage_service
-
-
-def _parse_hyperliquid_response(result: Dict[str, Any], operation: str) -> None:
-    """
-    Parse Hyperliquid API response and raise exception if operation failed.
-
-    Hyperliquid returns 'status: ok' even when orders fail. The actual
-    success/failure is nested in response.data.statuses array.
-
-    Args:
-        result: The response from Hyperliquid API
-        operation: Description of the operation (for error messages)
-
-    Raises:
-        RuntimeError: If the operation failed according to Hyperliquid
-    """
-    # Check top-level status
-    if result.get("status") != "ok":
-        error_msg = result.get("error", "Unknown error")
-        raise RuntimeError(f"{operation} failed: {error_msg}")
-
-    # Check nested statuses for errors
-    response = result.get("response", {})
-    data = response.get("data", {})
-    statuses = data.get("statuses", [])
-
-    for status in statuses:
-        # Check for error field
-        if "error" in status:
-            raise ValueError(f"{operation} failed: {status['error']}")
-
-        # Check for resting field (order placed but not filled)
-        if "resting" in status:
-            # This is OK - limit orders will rest in the book
-            continue
-
-        # Check for filled field (success)
-        if "filled" in status:
-            # Success case
-            continue
 
 
 class OrderService:
@@ -132,7 +93,7 @@ class OrderService:
             logger.info(f"Market order result: {result}")
 
             # Parse response and raise exception if order failed
-            _parse_hyperliquid_response(result, f"Market {side} order for {coin}")
+            parse_hyperliquid_response(result, f"Market {side} order for {coin}")
 
             return {
                 "status": "success",
@@ -209,7 +170,7 @@ class OrderService:
             logger.info(f"Limit order result: {result}")
 
             # Parse response and raise exception if order failed
-            _parse_hyperliquid_response(result, f"Limit {side} order for {coin}")
+            parse_hyperliquid_response(result, f"Limit {side} order for {coin}")
 
             return {
                 "status": "success",
@@ -259,7 +220,7 @@ class OrderService:
             logger.info(f"Cancel order result: {result}")
 
             # Parse response and raise exception if cancellation failed
-            _parse_hyperliquid_response(result, f"Cancel order {coin}#{order_id}")
+            parse_hyperliquid_response(result, f"Cancel order {coin}#{order_id}")
 
             return {
                 "status": "success",
@@ -313,7 +274,7 @@ class OrderService:
                 oid = order.get("oid")
                 try:
                     result = exchange.cancel(name=coin, oid=oid)
-                    _parse_hyperliquid_response(result, f"Cancel order {coin}#{oid}")
+                    parse_hyperliquid_response(result, f"Cancel order {coin}#{oid}")
                     results.append(result)
                     logger.debug(f"Canceled order {coin}#{oid}: {result}")
                 except (ValueError, RuntimeError) as e:

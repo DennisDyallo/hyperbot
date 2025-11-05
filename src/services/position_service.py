@@ -4,42 +4,8 @@ Position service for managing trading positions.
 from typing import Dict, Any, List, Optional
 from src.services.hyperliquid_service import hyperliquid_service
 from src.services.account_service import account_service
+from src.use_cases.common.response_parser import parse_hyperliquid_response
 from src.config import logger, settings
-
-
-def _parse_hyperliquid_response(result: Dict[str, Any], operation: str) -> None:
-    """
-    Parse Hyperliquid API response and raise exception if operation failed.
-
-    Hyperliquid returns 'status: ok' even when operations fail. The actual
-    success/failure is nested in response.data.statuses array.
-
-    Args:
-        result: The response from Hyperliquid API
-        operation: Description of the operation (for error messages)
-
-    Raises:
-        RuntimeError: If the operation failed according to Hyperliquid
-        ValueError: If the operation failed due to validation errors
-    """
-    # Check top-level status
-    if result.get("status") != "ok":
-        error_msg = result.get("error", "Unknown error")
-        raise RuntimeError(f"{operation} failed: {error_msg}")
-
-    # Check nested statuses for errors
-    response = result.get("response", {})
-    data = response.get("data", {})
-    statuses = data.get("statuses", [])
-
-    for status in statuses:
-        # Check for error field
-        if "error" in status:
-            raise ValueError(f"{operation} failed: {status['error']}")
-
-        # Check for filled field (success)
-        if "filled" in status:
-            continue
 
 
 class PositionService:
@@ -155,7 +121,7 @@ class PositionService:
             logger.info(f"Position close result: {result}")
 
             # Parse response and raise exception if close failed
-            _parse_hyperliquid_response(result, f"Close position for {coin}")
+            parse_hyperliquid_response(result, f"Close position for {coin}")
 
             return {
                 "status": "success",
