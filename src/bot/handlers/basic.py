@@ -468,15 +468,23 @@ async def menu_rebalance_callback(update: Update, context: ContextTypes.DEFAULT_
 
 @authorized_only
 async def menu_scale_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle scale order menu button."""
+    """Handle scale order menu button - directs to scale order wizard."""
     query = update.callback_query
     await query.answer()
 
-    # Import here to avoid circular import
-    from src.bot.handlers.advanced import scale_command
-
-    # Call the scale command handler
-    await scale_command(update, context)
+    # ConversationHandler requires command entry, so redirect user to use /scale
+    await query.edit_message_text(
+        "📊 *Scale Order Wizard*\n\n"
+        "Use the `/scale` command to start the interactive scale order wizard.\n\n"
+        "*What is a scale order?*\n"
+        "A scale order places multiple limit orders at different price levels, "
+        "allowing you to gradually enter or exit a position.\n\n"
+        "*Perfect for:*\n"
+        "• 📈 *DCA In* - Buy as price drops (accumulate)\n"
+        "• 📉 *DCA Out* - Sell as price rises (take profits)\n\n"
+        "Type `/scale` to get started!",
+        parse_mode="Markdown"
+    )
 
 
 # ============================================================================
