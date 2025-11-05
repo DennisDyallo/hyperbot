@@ -55,58 +55,67 @@ class ScaleOrderService:
 
     def _calculate_geometric_sizes(
         self,
-        total_size: float,
+        total_usd_amount: float,
+        price_levels: List[float],
         num_orders: int,
         ratio: float = 1.5
     ) -> List[float]:
         """
-        Calculate sizes with geometric distribution (weighted towards first orders).
+        Calculate sizes with geometric distribution (weighted USD towards first orders).
 
         Args:
-            total_size: Total size to distribute
+            total_usd_amount: Total USD amount to distribute
+            price_levels: Price levels for each order
             num_orders: Number of orders
-            ratio: Geometric ratio (default 1.5 = each order 1.5x previous)
+            ratio: Geometric ratio (default 1.5 = each order gets 1.5x USD of previous)
 
         Returns:
-            List of order sizes
+            List of coin sizes (weighted USD distribution)
         """
         if num_orders == 1:
-            return [total_size]
+            return [total_usd_amount / price_levels[0]]
 
-        # Calculate geometric series sum
+        # Calculate geometric series sum for USD distribution
         # S = a * (1 - r^n) / (1 - r)
-        # We need to find 'a' such that S = total_size
+        # We need to find 'a' such that S = total_usd_amount
         geometric_sum = (1 - ratio ** num_orders) / (1 - ratio)
-        first_size = total_size / geometric_sum
+        first_usd = total_usd_amount / geometric_sum
 
-        # Generate sizes
-        sizes = [first_size * (ratio ** i) for i in range(num_orders)]
+        # Generate USD amounts per order
+        usd_amounts = [first_usd * (ratio ** i) for i in range(num_orders)]
 
         # Ensure exact total (adjust for floating point errors)
-        actual_total = sum(sizes)
-        if actual_total != total_size:
-            adjustment = total_size / actual_total
-            sizes = [s * adjustment for s in sizes]
+        actual_total_usd = sum(usd_amounts)
+        if actual_total_usd != total_usd_amount:
+            adjustment = total_usd_amount / actual_total_usd
+            usd_amounts = [u * adjustment for u in usd_amounts]
+
+        # Convert USD amounts to coin sizes at each price level
+        sizes = [usd / price for usd, price in zip(usd_amounts, price_levels)]
 
         return sizes
 
     def _calculate_linear_sizes(
         self,
-        total_size: float,
+        total_usd_amount: float,
+        price_levels: List[float],
         num_orders: int
     ) -> List[float]:
         """
-        Calculate sizes with linear distribution (equal sizes).
+        Calculate sizes with linear distribution (equal USD per order).
 
         Args:
-            total_size: Total size to distribute
+            total_usd_amount: Total USD amount to distribute
+            price_levels: Price levels for each order
             num_orders: Number of orders
 
         Returns:
-            List of equal order sizes
+            List of coin sizes (equal USD per order)
         """
-        size_per_order = total_size / num_orders
-        return [size_per_order] * num_orders
+        usd_per_order = total_usd_amount / num_orders
+        # Convert USD to coin size at each price level
+        sizes = [usd_per_order / price for price in price_levels]
+        return sizes
 
     def _round_price(self, price: float, tick_size: float = 0.01) -> float:
         """
@@ -148,7 +157,7 @@ class ScaleOrderService:
             >>> config = ScaleOrderConfig(
             ...     coin="BTC",
             ...     is_buy=True,
-            ...     total_size=1.0,
+            ...     total_usd_amount=50000.0,
             ...     num_orders=5,
             ...     start_price=50000,
             ...     end_price=48000
@@ -159,7 +168,7 @@ class ScaleOrderService:
         logger.info(
             f"Previewing scale order: {config.coin} "
             f"{'BUY' if config.is_buy else 'SELL'} "
-            f"{config.total_size} across {config.num_orders} orders"
+            f"${config.total_usd_amount} across {config.num_orders} orders"
         )
 
         # Calculate price levels
@@ -169,19 +178,27 @@ class ScaleOrderService:
             config.num_orders
         )
 
-        # Calculate sizes
+        # Calculate sizes (coin quantities from USD amounts)
         if config.distribution_type == "geometric":
             sizes = self._calculate_geometric_sizes(
-                config.total_size,
+                config.total_usd_amount,
+                price_levels,
                 config.num_orders,
                 config.geometric_ratio
             )
         else:
-            sizes = self._calculate_linear_sizes(config.total_size, config.num_orders)
+            sizes = self._calculate_linear_sizes(
+                config.total_usd_amount,
+                price_levels,
+                config.num_orders
+            )
 
         # Round values
         price_levels = [self._round_price(p) for p in price_levels]
         sizes = [self._round_size(s) for s in sizes]
+
+        # Calculate total coin size
+        total_coin_size = sum(sizes)
 
         # Create order list
         orders = [
@@ -195,7 +212,7 @@ class ScaleOrderService:
 
         # Calculate estimated average price
         total_notional = sum(o["notional"] for o in orders)
-        estimated_avg_price = total_notional / config.total_size
+        estimated_avg_price = total_notional / total_coin_size
 
         # Calculate price range percentage
         price_range_pct = abs(config.end_price - config.start_price) / config.start_price * 100
@@ -203,7 +220,8 @@ class ScaleOrderService:
         return ScaleOrderPreview(
             coin=config.coin,
             is_buy=config.is_buy,
-            total_size=config.total_size,
+            total_usd_amount=config.total_usd_amount,
+            total_coin_size=total_coin_size,
             num_orders=config.num_orders,
             orders=orders,
             estimated_avg_price=estimated_avg_price,
@@ -228,7 +246,7 @@ class ScaleOrderService:
             >>> config = ScaleOrderConfig(
             ...     coin="BTC",
             ...     is_buy=True,
-            ...     total_size=1.0,
+            ...     total_usd_amount=50000.0,
             ...     num_orders=5,
             ...     start_price=50000,
             ...     end_price=48000
@@ -239,7 +257,7 @@ class ScaleOrderService:
         logger.info(
             f"Placing scale order: {config.coin} "
             f"{'BUY' if config.is_buy else 'SELL'} "
-            f"{config.total_size} across {config.num_orders} orders "
+            f"${config.total_usd_amount} across {config.num_orders} orders "
             f"from ${config.start_price} to ${config.end_price}"
         )
 
@@ -347,7 +365,8 @@ class ScaleOrderService:
         result = ScaleOrderResult(
             coin=config.coin,
             is_buy=config.is_buy,
-            total_size=config.total_size,
+            total_usd_amount=config.total_usd_amount,
+            total_coin_size=preview.total_coin_size,
             num_orders=config.num_orders,
             placements=placements,
             orders_placed=orders_placed,
@@ -362,7 +381,8 @@ class ScaleOrderService:
             id=result.scale_order_id,
             coin=config.coin,
             is_buy=config.is_buy,
-            total_size=config.total_size,
+            total_usd_amount=config.total_usd_amount,
+            total_coin_size=preview.total_coin_size,
             num_orders=config.num_orders,
             start_price=config.start_price,
             end_price=config.end_price,
