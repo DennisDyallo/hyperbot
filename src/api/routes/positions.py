@@ -14,6 +14,7 @@ from src.services.market_data_service import market_data_service
 from src.services.account_service import account_service
 from src.api.models import Position, PositionSummary, ClosePositionResponse
 from src.use_cases.trading import ClosePositionUseCase, ClosePositionRequest as UseCaseClosePositionRequest
+from src.use_cases.portfolio import PositionSummaryUseCase, PositionSummaryRequest
 from src.config import logger
 
 router = APIRouter(prefix="/api/positions", tags=["Positions"])
@@ -21,6 +22,7 @@ templates = Jinja2Templates(directory="src/api/templates")
 
 # Initialize use cases
 close_position_use_case = ClosePositionUseCase()
+position_summary_use_case = PositionSummaryUseCase()
 
 
 class ClosePositionRequest(BaseModel):
@@ -115,22 +117,31 @@ async def list_positions(request: Request):
 
 
 @router.get("/summary")
-async def get_position_summary(request: Request):
+async def get_position_summary(
+    request: Request,
+    include_risk_metrics: bool = Query(True, description="Include risk metrics for positions"),
+    include_spot_balances: bool = Query(False, description="Include spot token balances")
+):
     """
-    Get summary of all positions.
+    Get summary of all positions with optional risk metrics.
     Returns HTML partial if requested by HTMX, otherwise JSON.
 
     Returns:
-        Summary with position counts, values, and PnL
+        Summary with position counts, values, PnL, and optional risk metrics
     """
     try:
-        summary = position_service.get_position_summary()
+        # Use PositionSummaryUseCase for unified logic
+        use_case_request = PositionSummaryRequest(
+            include_risk_metrics=include_risk_metrics,
+            include_spot_balances=include_spot_balances
+        )
+        summary = await position_summary_use_case.execute(use_case_request)
 
         # Check if request is from HTMX
         if request.headers.get("HX-Request"):
             return templates.TemplateResponse(
                 "partials/position_summary.html",
-                {"request": request, "summary": summary},
+                {"request": request, "summary": summary.model_dump()},
                 headers={"Content-Type": "text/html"}
             )
 

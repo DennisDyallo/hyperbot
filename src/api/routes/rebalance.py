@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel, Field
 
+from src.use_cases.portfolio import RebalanceUseCase, RebalanceRequest as UseCaseRebalanceRequest, RiskAnalysisUseCase, RiskAnalysisRequest
 from src.services.rebalance_service import rebalance_service
 from src.services.risk_calculator import risk_calculator
 from src.services.position_service import position_service
@@ -14,6 +15,10 @@ from src.services.market_data_service import market_data_service
 from src.config import logger
 
 router = APIRouter(prefix="/api/rebalance", tags=["Rebalance"])
+
+# Initialize use cases
+rebalance_use_case = RebalanceUseCase()
+risk_analysis_use_case = RiskAnalysisUseCase()
 
 
 class RebalanceRequest(BaseModel):
@@ -72,47 +77,33 @@ async def preview_rebalance(request: RebalanceRequest = Body(...)):
     try:
         logger.info(f"Rebalance preview requested: {request.target_weights}")
 
-        # Get preview from service
-        result = rebalance_service.preview_rebalance(
+        # Use RebalanceUseCase for unified logic
+        use_case_request = UseCaseRebalanceRequest(
             target_weights=request.target_weights,
             leverage=request.leverage,
-            min_trade_usd=request.min_trade_usd
+            dry_run=True,
+            min_trade_usd=request.min_trade_usd,
+            max_slippage=request.max_slippage
         )
+
+        result = await rebalance_use_case.execute(use_case_request)
 
         if not result.success:
             raise ValueError(result.message)
-
-        # Calculate total USD volume
-        total_volume = sum(
-            abs(trade.trade_usd_value)
-            for trade in result.planned_trades
-            if trade.action.value not in ["SKIP"]
-        )
-
-        # Identify high-risk trades (would create HIGH or CRITICAL risk)
-        high_risk_coins = []
-        for trade in result.planned_trades:
-            if trade.estimated_risk_level and trade.estimated_risk_level.value in ["HIGH", "CRITICAL"]:
-                high_risk_coins.append(trade.coin)
 
         # Format trades for response
         trades_data = []
         for trade in result.planned_trades:
             trades_data.append({
                 "coin": trade.coin,
-                "action": trade.action.value,
-                "current_allocation_pct": round(trade.current_allocation_pct, 2),
-                "target_allocation_pct": round(trade.target_allocation_pct, 2),
-                "diff_pct": round(trade.diff_pct, 2),
-                "trade_usd_value": round(trade.trade_usd_value, 2),
-                "current_usd_value": round(trade.current_usd_value, 2),
-                "target_usd_value": round(trade.target_usd_value, 2),
+                "action": trade.action,
+                "current_allocation_pct": trade.current_allocation_pct,
+                "target_allocation_pct": trade.target_allocation_pct,
+                "diff_pct": trade.diff_pct,
+                "trade_usd_value": trade.trade_usd_value,
+                "current_usd_value": trade.current_usd_value,
+                "target_usd_value": trade.target_usd_value,
             })
-
-        actionable_count = sum(
-            1 for trade in result.planned_trades
-            if trade.action.value not in ["SKIP"]
-        )
 
         response = RebalancePreviewResponse(
             success=True,
@@ -120,15 +111,15 @@ async def preview_rebalance(request: RebalanceRequest = Body(...)):
             initial_allocation=result.initial_allocation,
             target_allocation=request.target_weights,
             planned_trades=trades_data,
-            total_trades=len(result.planned_trades),
-            actionable_trades=actionable_count,
-            total_usd_volume=total_volume,
-            high_risk_coins=high_risk_coins,
-            critical_risk_prevented=False,
-            warnings=result.errors if result.errors else []
+            total_trades=result.total_trades,
+            actionable_trades=result.actionable_trades,
+            total_usd_volume=result.total_usd_volume,
+            high_risk_coins=result.high_risk_coins,
+            critical_risk_prevented=result.critical_risk_prevented,
+            warnings=result.warnings
         )
 
-        logger.info(f"Preview generated: {actionable_count} actionable trades")
+        logger.info(f"Preview generated: {result.actionable_trades} actionable trades")
         return response
 
     except ValueError as e:
@@ -169,14 +160,16 @@ async def execute_rebalance(request: RebalanceRequest = Body(...)):
             f"leverage={request.leverage}x, target={request.target_weights}"
         )
 
-        # Execute rebalancing
-        result = rebalance_service.execute_rebalance(
+        # Use RebalanceUseCase for unified logic
+        use_case_request = UseCaseRebalanceRequest(
             target_weights=request.target_weights,
             leverage=request.leverage,
             dry_run=request.dry_run,
             min_trade_usd=request.min_trade_usd,
             max_slippage=request.max_slippage
         )
+
+        result = await rebalance_use_case.execute(use_case_request)
 
         if not result.success:
             # If validation failed, return 400
@@ -190,14 +183,14 @@ async def execute_rebalance(request: RebalanceRequest = Body(...)):
         for trade in result.planned_trades:
             trade_dict = {
                 "coin": trade.coin,
-                "action": trade.action.value,
+                "action": trade.action,
                 "executed": trade.executed,
                 "success": trade.success,
                 "error": trade.error,
-                "current_allocation_pct": round(trade.current_allocation_pct, 2),
-                "target_allocation_pct": round(trade.target_allocation_pct, 2),
-                "diff_pct": round(trade.diff_pct, 2),
-                "trade_usd_value": round(trade.trade_usd_value, 2),
+                "current_allocation_pct": trade.current_allocation_pct,
+                "target_allocation_pct": trade.target_allocation_pct,
+                "diff_pct": trade.diff_pct,
+                "trade_usd_value": trade.trade_usd_value,
             }
 
             if trade.trade_size is not None:
@@ -218,7 +211,7 @@ async def execute_rebalance(request: RebalanceRequest = Body(...)):
                 "failed": result.failed_trades,
                 "skipped": result.skipped_trades,
             },
-            "errors": result.errors if result.errors else []
+            "errors": result.errors
         }
 
         logger.info(
@@ -237,7 +230,9 @@ async def execute_rebalance(request: RebalanceRequest = Body(...)):
 
 
 @router.get("/risk-summary")
-async def get_risk_summary():
+async def get_risk_summary(
+    include_cross_margin_ratio: bool = Query(True, description="Include Hyperliquid's cross margin ratio metric")
+):
     """
     Get current portfolio risk assessment.
 
@@ -252,103 +247,67 @@ async def get_risk_summary():
     try:
         logger.debug("Risk summary requested")
 
-        # Get positions and prices
-        account_info = account_service.get_account_info()
-        positions = account_info.get("positions", [])
-        margin_summary = account_info["margin_summary"]
-
-        if not positions:
-            return {
-                "success": True,
-                "message": "No open positions",
-                "portfolio_risk": {
-                    "overall_risk_level": "SAFE",
-                    "overall_health_score": 100,
-                    "position_count": 0,
-                    "positions_by_risk": {
-                        "SAFE": 0,
-                        "LOW": 0,
-                        "MODERATE": 0,
-                        "HIGH": 0,
-                        "CRITICAL": 0
-                    },
-                    "margin_utilization_pct": 0.0,
-                    "warnings": [],
-                    "recommendations": []
-                },
-                "position_risks": []
-            }
-
-        # Get current prices
-        prices = market_data_service.get_all_prices()
-
-        # Assess portfolio risk
-        portfolio_risk = risk_calculator.assess_portfolio_risk(
-            positions=positions,
-            margin_summary=margin_summary,
-            prices=prices
+        # Use RiskAnalysisUseCase for unified logic
+        use_case_request = RiskAnalysisRequest(
+            coins=None,  # Analyze all positions
+            include_cross_margin_ratio=include_cross_margin_ratio
         )
 
-        # Assess individual positions
+        result = await risk_analysis_use_case.execute(use_case_request)
+
+        # Format position risks
         position_risks = []
-        for pos in positions:
-            position_data = pos["position"]
-            coin = position_data["coin"]
-            current_price = prices.get(coin, position_data.get("entry_price", 0))
-
-            margin_util = (
-                margin_summary["total_margin_used"] / margin_summary["account_value"] * 100
-                if margin_summary["account_value"] > 0
-                else 0
-            )
-
-            risk = risk_calculator.assess_position_risk(
-                position_data=position_data,
-                current_price=current_price,
-                margin_utilization_pct=margin_util
-            )
-
+        for pos in result.positions:
             position_risks.append({
-                "coin": risk.coin,
-                "risk_level": risk.risk_level.value,
-                "health_score": risk.health_score,
-                "current_price": round(risk.current_price, 2),
-                "liquidation_price": round(risk.liquidation_price, 2) if risk.liquidation_price else None,
-                "liquidation_distance_pct": round(risk.liquidation_distance_pct, 2) if risk.liquidation_distance_pct else None,
-                "liquidation_distance_usd": round(risk.liquidation_distance_usd, 2) if risk.liquidation_distance_usd else None,
-                "size": round(risk.size, 6),
-                "entry_price": round(risk.entry_price, 2),
-                "position_value": round(risk.position_value, 2),
-                "unrealized_pnl": round(risk.unrealized_pnl, 2),
-                "leverage": risk.leverage,
-                "leverage_type": risk.leverage_type,
-                "warnings": risk.warnings,
-                "recommendations": risk.recommendations
+                "coin": pos.coin,
+                "size": round(pos.size, 6),
+                "side": pos.side,
+                "entry_price": round(pos.entry_price, 2),
+                "current_price": round(pos.current_price, 2),
+                "leverage": pos.leverage,
+                "leverage_type": pos.leverage_type,
+                "risk_level": pos.risk_level,
+                "health_score": pos.health_score,
+                "liquidation_price": round(pos.liquidation_price, 2) if pos.liquidation_price else None,
+                "liquidation_distance_pct": round(pos.liquidation_distance_pct, 2) if pos.liquidation_distance_pct else None,
+                "warnings": pos.warnings
             })
 
+        # Build response
         response = {
             "success": True,
-            "message": f"Risk assessed for {portfolio_risk.position_count} positions",
+            "message": f"Risk assessed for {len(result.positions)} positions",
             "portfolio_risk": {
-                "overall_risk_level": portfolio_risk.overall_risk_level.value,
-                "overall_health_score": portfolio_risk.overall_health_score,
-                "position_count": portfolio_risk.position_count,
-                "positions_by_risk": portfolio_risk.positions_by_risk,
-                "account_value": round(portfolio_risk.account_value, 2),
-                "total_margin_used": round(portfolio_risk.total_margin_used, 2),
-                "margin_utilization_pct": round(portfolio_risk.margin_utilization_pct, 2),
-                "available_margin": round(portfolio_risk.available_margin, 2),
-                "critical_positions": portfolio_risk.critical_positions,
-                "high_risk_positions": portfolio_risk.high_risk_positions,
-                "warnings": portfolio_risk.warnings,
-                "recommendations": portfolio_risk.recommendations
+                "overall_risk_level": result.overall_risk_level,
+                "overall_health_score": result.portfolio_health_score,
+                "position_count": len(result.positions),
+                "positions_by_risk": {
+                    "SAFE": result.safe_positions,
+                    "LOW": result.low_risk_positions,
+                    "MODERATE": result.moderate_risk_positions,
+                    "HIGH": result.high_risk_positions,
+                    "CRITICAL": result.critical_positions
+                },
+                "account_value": round(result.account_value, 2),
+                "total_margin_used": round(result.total_margin_used, 2),
+                "margin_utilization_pct": round(result.margin_utilization_pct, 2),
+                "available_margin": round(result.available_margin, 2),
+                "critical_positions": result.critical_positions,
+                "high_risk_positions": result.high_risk_positions,
+                "warnings": result.portfolio_warnings
             },
             "position_risks": position_risks
         }
 
+        # Add cross margin ratio if available
+        if result.cross_margin_ratio_pct is not None:
+            response["portfolio_risk"]["cross_margin_ratio_pct"] = round(result.cross_margin_ratio_pct, 2)
+            response["portfolio_risk"]["cross_maintenance_margin"] = round(result.cross_maintenance_margin, 2)
+            response["portfolio_risk"]["cross_account_value"] = round(result.cross_account_value, 2)
+
         logger.debug(
-            f"Risk summary generated: {portfolio_risk.overall_risk_level.value} "
-            f"({portfolio_risk.position_count} positions)"
+            f"Risk summary generated: {result.overall_risk_level} "
+            f"({len(result.positions)} positions)"
         )
 
         return response
