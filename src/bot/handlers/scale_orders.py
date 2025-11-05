@@ -523,7 +523,7 @@ class ScaleOrderWizard:
                 distribution_type=distribution
             )
 
-            preview = scale_order_service.preview_scale_order(config)
+            preview = await scale_order_service.preview_scale_order(config)
 
             # Build preview message
             coin = context.user_data["coin"]
@@ -592,7 +592,7 @@ class ScaleOrderWizard:
 
             await query.edit_message_text("⏳ Placing scale order...")
 
-            result = scale_order_service.place_scale_order(config)
+            result = await scale_order_service.place_scale_order(config)
 
             # Format result message
             coin = config.coin
