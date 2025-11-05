@@ -15,7 +15,7 @@ class ScaleOrderConfig(BaseModel):
 
     coin: str = Field(..., description="Asset symbol (e.g., 'BTC', 'ETH')")
     is_buy: bool = Field(..., description="True for buy orders, False for sell orders")
-    total_size: float = Field(..., gt=0, description="Total size to trade across all orders")
+    total_usd_amount: float = Field(..., gt=0, description="Total USD amount to deploy across all orders")
     num_orders: int = Field(..., ge=2, le=20, description="Number of orders to place (2-20)")
 
     # Price range
@@ -71,7 +71,8 @@ class ScaleOrderPreview(BaseModel):
 
     coin: str
     is_buy: bool
-    total_size: float
+    total_usd_amount: float
+    total_coin_size: float = Field(..., description="Total coin quantity across all orders")
     num_orders: int
     orders: List[dict] = Field(
         ...,
@@ -97,7 +98,8 @@ class ScaleOrderResult(BaseModel):
     scale_order_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique ID for this scale order group")
     coin: str
     is_buy: bool
-    total_size: float
+    total_usd_amount: float
+    total_coin_size: float = Field(..., description="Total coin quantity placed")
     num_orders: int
 
     placements: List[OrderPlacement] = Field(
@@ -132,7 +134,8 @@ class ScaleOrder(BaseModel):
     is_buy: bool
 
     # Configuration
-    total_size: float
+    total_usd_amount: float
+    total_coin_size: float = Field(..., description="Total coin quantity")
     num_orders: int
     start_price: float
     end_price: float
@@ -162,7 +165,8 @@ class ScaleOrder(BaseModel):
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "coin": "BTC",
                 "is_buy": True,
-                "total_size": 1.0,
+                "total_usd_amount": 50000.0,
+                "total_coin_size": 1.0,
                 "num_orders": 5,
                 "start_price": 50000.0,
                 "end_price": 48000.0,
