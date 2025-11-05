@@ -44,6 +44,9 @@ class ScaleOrderWizard:
     @authorized_only
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Start the scale order wizard."""
+        logger.info("🎯 Scale order wizard START called")
+        logger.info(f"Update type: {type(update)}, has message: {update.message is not None}")
+
         # Clear any previous wizard data
         context.user_data.clear()
 
@@ -55,12 +58,15 @@ class ScaleOrderWizard:
             parse_mode="Markdown"
         )
 
+        logger.info(f"Scale wizard: Transitioning to SELECT_COIN state ({SELECT_COIN})")
         return SELECT_COIN
 
     @staticmethod
     async def select_coin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle coin selection."""
+        logger.info("🎯 Scale wizard: select_coin called")
         coin = update.message.text.strip().upper()
+        logger.info(f"Scale wizard: User entered coin: {coin}")
 
         # Validate coin exists
         try:

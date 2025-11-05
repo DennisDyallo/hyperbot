@@ -256,6 +256,9 @@ async def scale_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     Reference: docs/hyperliquid/api-reference.md - Scale Orders
     """
+    logger.warning("⚠️ OLD scale_command called! This should NOT happen - wizard should handle /scale")
+    logger.warning(f"Update type: callback={update.callback_query is not None}, message={update.message is not None}")
+
     # Handle callback query from menu button
     if update.callback_query:
         query = update.callback_query

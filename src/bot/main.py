@@ -73,8 +73,11 @@ def create_application() -> Application:
     application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
 
     # Register ConversationHandlers first (they have priority over simple callbacks)
+    logger.info("Registering ConversationHandlers...")
     application.add_handler(wizards.get_market_wizard_handler())
+    logger.info("✅ Market wizard registered")
     application.add_handler(scale_orders.scale_order_conversation)
+    logger.info("✅ Scale order wizard registered")
 
     # Register command handlers
     # Basic commands
