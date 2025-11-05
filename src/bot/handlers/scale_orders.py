@@ -62,6 +62,28 @@ class ScaleOrderWizard:
         return SELECT_COIN
 
     @staticmethod
+    @authorized_only
+    async def start_from_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Start the scale order wizard from a callback query (menu button)."""
+        logger.info("🎯 Scale order wizard START called from callback")
+        query = update.callback_query
+        await query.answer()
+
+        # Clear any previous wizard data
+        context.user_data.clear()
+
+        await query.edit_message_text(
+            "📊 *Scale Order Wizard*\n\n"
+            "Let's create a scale order to gradually build or exit a position.\n\n"
+            "First, which coin would you like to trade?\n"
+            "_(Example: BTC, ETH, SOL)_",
+            parse_mode="Markdown"
+        )
+
+        logger.info(f"Scale wizard: Transitioning to SELECT_COIN state ({SELECT_COIN})")
+        return SELECT_COIN
+
+    @staticmethod
     async def select_coin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle coin selection."""
         logger.info("🎯 Scale wizard: select_coin called")
@@ -639,7 +661,10 @@ class ScaleOrderWizard:
 
 # Create conversation handler
 scale_order_conversation = ConversationHandler(
-    entry_points=[CommandHandler("scale", ScaleOrderWizard.start)],
+    entry_points=[
+        CommandHandler("scale", ScaleOrderWizard.start),
+        CallbackQueryHandler(ScaleOrderWizard.start_from_callback, pattern="^menu_scale$")
+    ],
     states={
         SELECT_COIN: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, ScaleOrderWizard.select_coin)

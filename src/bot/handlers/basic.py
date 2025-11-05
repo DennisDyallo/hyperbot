@@ -501,5 +501,5 @@ def get_menu_callback_handlers():
         CallbackQueryHandler(menu_status_callback, pattern="^menu_status$"),
         CallbackQueryHandler(menu_close_callback, pattern="^menu_close$"),
         CallbackQueryHandler(menu_rebalance_callback, pattern="^menu_rebalance$"),
-        CallbackQueryHandler(menu_scale_callback, pattern="^menu_scale$"),
+        # Note: menu_scale is now handled by scale_order_conversation ConversationHandler
     ]
