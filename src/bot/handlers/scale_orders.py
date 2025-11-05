@@ -411,12 +411,11 @@ class ScaleOrderWizard:
         num_orders = int(query.data.split("_")[1])
         context.user_data["num_orders"] = num_orders
 
-        # Ask for total size
-        coin = context.user_data["coin"]
+        # Ask for total USD amount
         await query.edit_message_text(
             f"✅ Number of orders: {num_orders}\n\n"
-            f"What's the *total size* you want to trade?\n"
-            f"_(Enter size in {coin}, e.g., 0.1)_",
+            f"What's the *total USD amount* you want to deploy?\n"
+            f"_(Enter amount in USD, e.g., 1000)_",
             parse_mode="Markdown"
         )
 
@@ -437,12 +436,11 @@ class ScaleOrderWizard:
 
             context.user_data["num_orders"] = num_orders
 
-            # Ask for total size
-            coin = context.user_data["coin"]
+            # Ask for total USD amount
             await update.message.reply_text(
                 f"✅ Number of orders: {num_orders}\n\n"
-                f"What's the *total size* you want to trade?\n"
-                f"_(Enter size in {coin}, e.g., 0.1)_",
+                f"What's the *total USD amount* you want to deploy?\n"
+                f"_(Enter amount in USD, e.g., 1000)_",
                 parse_mode="Markdown"
             )
 
@@ -456,36 +454,35 @@ class ScaleOrderWizard:
 
     @staticmethod
     async def enter_total_size(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Handle total size input."""
+        """Handle total USD amount input."""
         try:
-            total_size = float(update.message.text.strip())
+            total_usd_amount = float(update.message.text.strip())
 
-            if total_size <= 0:
+            if total_usd_amount <= 0:
                 await update.message.reply_text(
-                    "❌ Size must be greater than 0.\n"
-                    "Please enter a valid size:"
+                    "❌ Amount must be greater than 0.\n"
+                    "Please enter a valid USD amount:"
                 )
                 return ENTER_TOTAL_SIZE
 
-            context.user_data["total_size"] = total_size
+            context.user_data["total_usd_amount"] = total_usd_amount
 
             # Ask for distribution type
             keyboard = [
-                [InlineKeyboardButton("📊 Linear (Equal sizes)", callback_data="dist_linear")],
-                [InlineKeyboardButton("📈 Geometric (Weighted)", callback_data="dist_geometric")],
+                [InlineKeyboardButton("📊 Linear (Equal USD per order)", callback_data="dist_linear")],
+                [InlineKeyboardButton("📈 Geometric (Weighted USD)", callback_data="dist_geometric")],
                 [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            coin = context.user_data["coin"]
             num_orders = context.user_data["num_orders"]
-            avg_size = total_size / num_orders
+            avg_usd = total_usd_amount / num_orders
 
             await update.message.reply_text(
-                f"✅ Total size: {total_size} {coin}\n\n"
-                f"*How should I distribute the size across orders?*\n\n"
-                f"📊 *Linear*: Each order has equal size (~{avg_size:.4f} {coin})\n"
-                f"📈 *Geometric*: First orders larger, later orders smaller",
+                f"✅ Total USD amount: ${total_usd_amount:,.2f}\n\n"
+                f"*How should I distribute the USD across orders?*\n\n"
+                f"📊 *Linear*: Each order gets equal USD (~${avg_usd:,.2f})\n"
+                f"📈 *Geometric*: First orders get more USD, later orders less",
                 parse_mode="Markdown",
                 reply_markup=reply_markup
             )
@@ -494,7 +491,7 @@ class ScaleOrderWizard:
 
         except ValueError:
             await update.message.reply_text(
-                "❌ Invalid size. Please enter a number (e.g., 0.5):"
+                "❌ Invalid amount. Please enter a number (e.g., 1000):"
             )
             return ENTER_TOTAL_SIZE
 
@@ -516,7 +513,7 @@ class ScaleOrderWizard:
             config = ScaleOrderConfig(
                 coin=context.user_data["coin"],
                 is_buy=context.user_data["is_buy"],
-                total_size=context.user_data["total_size"],
+                total_usd_amount=context.user_data["total_usd_amount"],
                 num_orders=context.user_data["num_orders"],
                 start_price=context.user_data["start_price"],
                 end_price=context.user_data["end_price"],
@@ -534,7 +531,8 @@ class ScaleOrderWizard:
             preview_text += f"*Coin*: {coin}\n"
             preview_text += f"*Direction*: {direction}\n"
             preview_text += f"*Current Price*: ${current_price:,.2f}\n"
-            preview_text += f"*Total Size*: {config.total_size} {coin}\n"
+            preview_text += f"*Total USD Amount*: ${config.total_usd_amount:,.2f}\n"
+            preview_text += f"*Total Coin Size*: {preview.total_coin_size:.6f} {coin}\n"
             preview_text += f"*Orders*: {config.num_orders}\n"
             preview_text += f"*Distribution*: {distribution.title()}\n"
             preview_text += f"*Avg Fill Price*: ${preview.estimated_avg_price:,.2f}\n"
