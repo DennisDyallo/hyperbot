@@ -206,25 +206,37 @@ async def rebalance_execute_callback(update: Update, context: ContextTypes.DEFAU
 
         # Execute rebalance
         result = rebalance_service.execute_rebalance(
-            target_allocations=target_allocations,
-            target_leverage=3
+            target_weights=target_allocations,
+            leverage=3,
+            dry_run=False  # Execute for real
         )
 
         # Format result message
-        summary = result["summary"]
-        success_msg = "✅ **Rebalance Complete**\n\n"
-        success_msg += f"**Total Trades**: {summary['total_trades']}\n"
-        success_msg += f"**Successful**: {summary['successful_trades']}\n"
-        success_msg += f"**Failed**: {summary['failed_trades']}\n\n"
+        if result.success:
+            total_trades = result.executed_trades
+            success_msg = "✅ **Rebalance Complete**\n\n"
+            success_msg += f"**Total Trades**: {total_trades}\n"
+            success_msg += f"**Successful**: {result.successful_trades}\n"
+            success_msg += f"**Failed**: {result.failed_trades}\n"
+            success_msg += f"**Skipped**: {result.skipped_trades}\n\n"
 
-        if summary["failed_trades"] > 0:
-            success_msg += "⚠️ Some trades failed. Check your positions.\n\n"
+            if result.failed_trades > 0:
+                success_msg += "⚠️ Some trades failed. Check your positions.\n\n"
+                if result.errors:
+                    success_msg += "**Errors**:\n"
+                    for error in result.errors[:3]:  # Show first 3 errors
+                        success_msg += f"• {error}\n"
+                    success_msg += "\n"
 
-        success_msg += f"**Final Portfolio Value**: ${summary['final_portfolio_value']:.2f}\n"
-        success_msg += f"**Value Change**: {summary['value_change_pct']:.2f}%\n\n"
-        success_msg += "_Use /positions to see updated portfolio_"
-
-        await query.edit_message_text(success_msg, parse_mode="Markdown")
+            success_msg += "_Use /positions to see updated portfolio_"
+            await query.edit_message_text(success_msg, parse_mode="Markdown")
+        else:
+            error_msg = f"❌ **Rebalance Failed**\n\n{result.message}"
+            if result.errors:
+                error_msg += "\n\n**Errors**:\n"
+                for error in result.errors[:3]:
+                    error_msg += f"• {error}\n"
+            await query.edit_message_text(error_msg, parse_mode="Markdown")
 
     except Exception as e:
         logger.exception("Failed to execute rebalance")

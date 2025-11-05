@@ -234,7 +234,7 @@ class LeverageService:
             exchange = self.hyperliquid.get_exchange_client()
             result = exchange.update_leverage(
                 leverage=leverage,
-                coin=coin,
+                name=coin,  # SDK uses 'name' parameter, not 'coin'
                 is_cross=is_cross
             )
 

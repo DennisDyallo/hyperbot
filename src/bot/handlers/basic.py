@@ -62,7 +62,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/market - Place market order\n\n"
         "**Advanced:**\n"
         "/rebalance - Rebalance portfolio\n"
-        "/scale - Place scale order\n\n"
+        "/scale - Scale order wizard (DCA in/out)\n\n"
         "**Information:**\n"
         "/help - Show this help message\n"
         "/status - Bot status\n\n"

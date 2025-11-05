@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 from src.config import logger, settings
 from src.services.hyperliquid_service import hyperliquid_service
-from src.bot.handlers import basic, trading, advanced, wizards
+from src.bot.handlers import basic, trading, advanced, wizards, scale_orders
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -74,6 +74,7 @@ def create_application() -> Application:
 
     # Register ConversationHandlers first (they have priority over simple callbacks)
     application.add_handler(wizards.get_market_wizard_handler())
+    application.add_handler(scale_orders.scale_order_conversation)
 
     # Register command handlers
     # Basic commands
@@ -89,7 +90,7 @@ def create_application() -> Application:
 
     # Advanced commands (legacy - kept for backward compatibility)
     application.add_handler(CommandHandler("rebalance", advanced.rebalance_command))
-    application.add_handler(CommandHandler("scale", advanced.scale_command))
+    # Note: /scale command is now a ConversationHandler registered above
 
     # Register menu navigation callback handlers
     for handler in basic.get_menu_callback_handlers():

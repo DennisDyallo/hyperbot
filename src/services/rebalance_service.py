@@ -632,20 +632,90 @@ class RebalanceService:
                 logger.info("Waiting 2 seconds for margin to be freed after closes...")
                 time.sleep(2)
 
-                # Recalculate trade sizes based on actual available margin
-                # When reducing leverage, we need MORE margin for same position size!
+                # CRITICAL: Recalculate target_usd_value for OPEN trades
+                # After closing positions, total_ntl_pos has changed, so we need to
+                # recalculate targets based on the DESIRED final total and target percentages
+
                 account_info = self.account_service.get_account_info()
                 account_value = float(account_info["margin_summary"]["account_value"])
+                current_total_ntl_pos = float(account_info["margin_summary"]["total_ntl_pos"])
 
-                # Calculate maximum position value we can support with target leverage
+                # Calculate the desired final total_ntl_pos
+                # Option 1: Use max position value based on account and leverage
+                # Option 2: Calculate based on what we'll have after all trades
+
+                # We'll calculate the target total by considering:
+                # - Current positions (after closes)
+                # - Target allocations
+                # - Maintaining reasonable leverage usage
+
+                # Get current allocations after closes
+                current_allocation = self.calculate_current_allocation()
+
+                # Calculate what the final total SHOULD be based on:
+                # - Existing positions that we're keeping/decreasing
+                # - New positions we're opening/increasing
+                # Such that the final percentages match target_weights
+
+                # For each coin in target_weights, calculate what the total must be
+                # to achieve the target percentage given current/planned positions
+                target_total = 0.0
+
+                # Start with current positions that we're NOT changing
+                for coin, pct in current_allocation.items():
+                    if coin not in target_weights:
+                        # Position being closed - already handled
+                        continue
+                    target_pct = target_weights.get(coin, 0.0)
+                    if target_pct == 0:
+                        # Being closed - skip
+                        continue
+
+                    # This coin exists and has a target
+                    # If we're not opening it (meaning we already have a position),
+                    # use current value to calculate what total should be
+                    if coin not in [t.coin for t in open_trades if t.action == TradeAction.OPEN]:
+                        current_value = (pct / 100) * current_total_ntl_pos
+                        # If current_value should be target_pct of total, then:
+                        # current_value = (target_pct / 100) * total
+                        # total = current_value * 100 / target_pct
+                        if target_pct > 0:
+                            implied_total = current_value * 100 / target_pct
+                            target_total = max(target_total, implied_total)
+
+                # If we couldn't determine target_total from existing positions,
+                # use account_value * leverage as the target
+                if target_total == 0:
+                    target_total = account_value * leverage
+                    logger.info(
+                        f"Using account-based target total: ${target_total:.2f} "
+                        f"(${account_value:.2f} * {leverage}x)"
+                    )
+                else:
+                    logger.info(f"Calculated target total from existing positions: ${target_total:.2f}")
+
+                # Now recalculate all OPEN trade targets based on this total
+                for trade in open_trades:
+                    if trade.action == TradeAction.OPEN:
+                        # Recalculate target based on percentage of target_total
+                        old_target = trade.target_usd_value
+                        trade.target_usd_value = (trade.target_allocation_pct / 100) * target_total
+                        trade.trade_usd_value = trade.target_usd_value  # OPEN means current is 0
+                        logger.info(
+                            f"Recalculated {trade.coin} target: ${old_target:.2f} → ${trade.target_usd_value:.2f} "
+                            f"({trade.target_allocation_pct}% of ${target_total:.2f})"
+                        )
+
+                # Validate we have enough margin
                 max_position_value = account_value * leverage
-                current_total_target = sum(abs(t.target_usd_value) for t in open_trades if t.action == TradeAction.OPEN)
+                total_target_after_recalc = sum(abs(t.target_usd_value) for t in open_trades if t.action == TradeAction.OPEN)
+                total_target_after_recalc += current_total_ntl_pos  # Add existing positions
 
-                if current_total_target > max_position_value:
-                    scale_factor = max_position_value / current_total_target
+                if total_target_after_recalc > max_position_value:
+                    scale_factor = max_position_value / total_target_after_recalc
                     logger.warning(
                         f"Account value (${account_value:.2f}) at {leverage}x can only support "
-                        f"${max_position_value:.2f} in positions, but target is ${current_total_target:.2f}. "
+                        f"${max_position_value:.2f} in positions, but target is ${total_target_after_recalc:.2f}. "
                         f"Scaling down by {scale_factor:.1%}"
                     )
 
@@ -654,7 +724,7 @@ class RebalanceService:
                         if trade.action == TradeAction.OPEN:
                             trade.target_usd_value *= scale_factor
                             trade.trade_usd_value *= scale_factor
-                            logger.info(f"Adjusted {trade.coin} target to ${trade.target_usd_value:.2f}")
+                            logger.info(f"Scaled down {trade.coin} target to ${trade.target_usd_value:.2f}")
 
             # Check if any CLOSE trades failed - must abort if so
             failed_closes = [t for t in close_trades if t.action == TradeAction.CLOSE and not t.success]
