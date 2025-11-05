@@ -87,12 +87,21 @@ class ScaleOrderWizard:
 
             return SELECT_DIRECTION
 
-        except Exception as e:
+        except ValueError as e:
+            # Coin not found
             await update.message.reply_text(
-                f"❌ Error: Could not find price for {coin}.\n"
+                f"❌ {str(e)}\n\n"
                 f"Please enter a valid coin symbol."
             )
             return SELECT_COIN
+        except Exception as e:
+            # Unexpected error - log it and show to user
+            logger.exception(f"Error in scale order wizard (select_coin): {e}")
+            await update.message.reply_text(
+                f"❌ Unexpected error: {str(e)}\n\n"
+                f"Please try again or contact support."
+            )
+            return ConversationHandler.END
 
     @staticmethod
     async def select_direction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
