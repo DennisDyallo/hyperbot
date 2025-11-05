@@ -4,8 +4,11 @@ A Python-based trading bot for Hyperliquid that manages positions and responds t
 
 ## Features
 
+- **Telegram Bot**: Interactive trading interface with wizards for market orders, scale orders, and portfolio rebalancing
 - **Hyperliquid API Integration**: Connect and interact with the Hyperliquid trading platform
 - **Position Management**: Automated position entry, exit, and rebalancing
+- **Scale Orders**: DCA (Dollar Cost Averaging) in/out with customizable distribution
+- **Leverage Management**: Per-coin leverage control with safety validations
 - **TradingView Webhooks**: Receive and process POST webhook requests from TradingView alerts
 - **Account Monitoring**: View account information, balance, and current positions
 - **FastAPI REST API**: Interactive API with Swagger UI
@@ -43,6 +46,21 @@ cp .env.example .env
 
 ## Usage
 
+### Start the Telegram Bot
+
+```bash
+# Using uv (recommended)
+uv run python -m src.bot.main
+
+# Or activate venv first
+source .venv/bin/activate  # Linux/Mac
+python -m src.bot.main
+```
+
+The bot will start polling for Telegram messages. Make sure you've configured:
+- `TELEGRAM_BOT_TOKEN` in your `.env` file
+- `TELEGRAM_AUTHORIZED_USERS` (comma-separated user IDs)
+
 ### Start the API Server
 
 ```bash
@@ -55,6 +73,13 @@ python run.py
 ```
 
 The server will start on `http://localhost:8000`
+
+### Start Both (API + Bot)
+
+For development, you can run both in separate terminals, or use VS Code tasks:
+- Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
+- Type "Tasks: Run Task"
+- Select "Start Both (API + Bot)"
 
 ### API Documentation
 
@@ -72,23 +97,77 @@ uv sync
 # Install with dev tools
 uv sync --extra dev
 
-# Run server
+# Run API server
 uv run python run.py
 
-# Run tests (when available)
-uv run pytest
+# Run Telegram bot
+uv run python -m src.bot.main
+
+# Run tests
+uv run pytest tests/ -v
+
+# Run tests with coverage
+uv run pytest tests/ --cov=src --cov-report=term-missing --cov-report=html
+
+# Format code
+uv run black src/ tests/
 ```
 
 For more details on using uv, see [README.uv.md](README.uv.md).
 
+### VS Code Tasks
+
+The project includes VS Code tasks for common operations. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) and type "Tasks: Run Task" to access:
+
+- **Start API Server** - Launch the FastAPI server
+- **Start Telegram Bot** - Launch the Telegram bot
+- **Start Both (API + Bot)** - Launch both in parallel
+- **Run Tests** - Execute all tests with verbose output
+- **Run Tests with Coverage** - Run tests and generate coverage report
+- **Install Dependencies** - Install/update all dependencies
+- **Format Code** - Format code with Black
+
 ## Configuration
+
+### Telegram Bot Setup
+
+1. Create a bot with [@BotFather](https://t.me/botfather) on Telegram:
+   - Send `/newbot` to BotFather
+   - Follow the instructions to choose a name and username
+   - Copy the bot token provided
+
+2. Get your Telegram user ID:
+   - Send a message to [@userinfobot](https://t.me/userinfobot)
+   - It will reply with your user ID (a number like `123456789`)
+
+3. Add to your `.env` file:
+   ```env
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   TELEGRAM_AUTHORIZED_USERS=123456789,987654321  # Comma-separated user IDs
+   ```
+
+4. Available bot commands:
+   - `/start` - Welcome message and main menu
+   - `/help` - Show all available commands
+   - `/account` - View account balance and summary
+   - `/positions` - List all open positions
+   - `/market` - Place market order (wizard)
+   - `/close` - Close position (wizard)
+   - `/rebalance` - Rebalance portfolio
+   - `/scale` - Scale order wizard (DCA in/out)
+   - `/leverage` - View/manage leverage settings
 
 ### Hyperliquid API Setup
 
 1. Log in to your Hyperliquid account
 2. Navigate to API settings
 3. Generate API key and secret
-4. Add credentials to your `.env` file
+4. Add credentials to your `.env` file:
+   ```env
+   HYPERLIQUID_WALLET_ADDRESS=0x...
+   HYPERLIQUID_PRIVATE_KEY=0x...
+   HYPERLIQUID_TESTNET=true  # Set to false for mainnet
+   ```
 
 ### TradingView Webhook Setup
 
