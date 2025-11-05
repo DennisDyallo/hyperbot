@@ -8,9 +8,13 @@ from pydantic import BaseModel, Field
 
 from src.services import order_service
 from src.api.models import OrderResponse, CancelOrderResponse
+from src.use_cases.trading import PlaceOrderUseCase, PlaceOrderRequest
 from src.config import logger
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
+
+# Initialize use cases
+place_order_use_case = PlaceOrderUseCase()
 
 
 class MarketOrderRequest(BaseModel):
@@ -67,13 +71,31 @@ async def place_market_order(request: MarketOrderRequest = Body(...)):
         500: Exchange API error
     """
     try:
-        result = order_service.place_market_order(
+        # Adapt API request to use case request
+        use_case_request = PlaceOrderRequest(
             coin=request.coin,
             is_buy=request.is_buy,
-            size=request.size,
+            coin_size=request.size,  # API uses coin size directly
+            is_market=True,
             slippage=request.slippage,
         )
-        return result
+
+        # Execute use case
+        response = await place_order_use_case.execute(use_case_request)
+
+        # Adapt use case response to API response format
+        return {
+            "status": response.status,
+            "coin": response.coin,
+            "side": response.side.lower(),
+            "size": response.size,
+            "order_type": response.order_type.lower(),
+            "result": {
+                "message": response.message,
+                "usd_value": response.usd_value,
+                "price": response.price,
+            }
+        }
     except ValueError as e:
         logger.error(f"Validation error placing market order: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -101,14 +123,34 @@ async def place_limit_order(request: LimitOrderRequest = Body(...)):
         500: Exchange API error
     """
     try:
-        result = order_service.place_limit_order(
+        # Adapt API request to use case request
+        use_case_request = PlaceOrderRequest(
             coin=request.coin,
             is_buy=request.is_buy,
-            size=request.size,
+            coin_size=request.size,  # API uses coin size directly
+            is_market=False,
             limit_price=request.limit_price,
             time_in_force=request.time_in_force,
         )
-        return result
+
+        # Execute use case
+        response = await place_order_use_case.execute(use_case_request)
+
+        # Adapt use case response to API response format
+        return {
+            "status": response.status,
+            "coin": response.coin,
+            "side": response.side.lower(),
+            "size": response.size,
+            "order_type": response.order_type.lower(),
+            "limit_price": response.price,
+            "time_in_force": request.time_in_force,
+            "result": {
+                "message": response.message,
+                "usd_value": response.usd_value,
+                "order_id": response.order_id,
+            }
+        }
     except ValueError as e:
         logger.error(f"Validation error placing limit order: {e}")
         raise HTTPException(status_code=400, detail=str(e))

@@ -31,7 +31,17 @@ from src.bot.utils import (
 from src.services.order_service import order_service
 from src.services.position_service import position_service
 from src.services.scale_order_service import scale_order_service
+from src.use_cases.trading import (
+    PlaceOrderUseCase,
+    PlaceOrderRequest,
+    ClosePositionUseCase,
+    ClosePositionRequest,
+)
 from src.config import logger, settings
+
+# Initialize use cases
+place_order_use_case = PlaceOrderUseCase()
+close_position_use_case = ClosePositionUseCase()
 
 
 # Conversation states for market order wizard
@@ -274,21 +284,20 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Show processing
         await query.edit_message_text(f"⏳ Placing {side_str} order for {coin}...")
 
-        # Place order
-        result = order_service.place_market_order(
+        # Create use case request
+        request = PlaceOrderRequest(
             coin=coin,
             is_buy=is_buy,
-            size=coin_size
+            coin_size=coin_size,
+            is_market=True,
         )
 
-        # Calculate USD value at execution
-        try:
-            usd_value, execution_price = convert_coin_to_usd(coin_size, coin)
-            usd_str = f"\n**USD Amount**: {format_usd_amount(usd_value)}"
-            price_str = f"\n**Execution Price**: ${execution_price:,.2f}"
-        except Exception:
-            usd_str = ""
-            price_str = ""
+        # Execute use case
+        response = await place_order_use_case.execute(request)
+
+        # Format response details
+        usd_str = f"\n**USD Amount**: {format_usd_amount(response.usd_value)}"
+        price_str = f"\n**Execution Price**: ${response.price:,.2f}" if response.price else ""
 
         # Show result
         side_emoji = "🟢" if is_buy else "🔴"
@@ -296,8 +305,8 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{side_emoji} **Market Order Placed**\n\n"
             f"**Coin**: {coin}\n"
             f"**Side**: {side_str}\n"
-            f"**Coin Size**: {format_coin_amount(coin_size, coin)}{usd_str}{price_str}\n"
-            f"**Status**: {result['status']}\n\n"
+            f"**Coin Size**: {format_coin_amount(response.size, coin)}{usd_str}{price_str}\n"
+            f"**Status**: {response.status}\n\n"
             f"✅ Order submitted to exchange!"
         )
 
@@ -468,23 +477,21 @@ async def close_position_execute(update: Update, context: ContextTypes.DEFAULT_T
         # Show processing
         await query.edit_message_text(f"⏳ Closing {coin} position...")
 
-        # Close position
-        result = position_service.close_position(coin)
+        # Create use case request
+        request = ClosePositionRequest(coin=coin)
 
-        # Get USD value of closed position
-        try:
-            size_closed = abs(result['size_closed'])
-            usd_value, _ = convert_coin_to_usd(size_closed, coin)
-            usd_str = f"\n**USD Value**: {format_usd_amount(usd_value)}"
-        except Exception:
-            usd_str = ""
+        # Execute use case
+        response = await close_position_use_case.execute(request)
+
+        # Format response details
+        usd_str = f"\n**USD Value**: {format_usd_amount(response.usd_value)}"
 
         # Show result
         success_msg = (
             f"✅ **Position Closed**\n\n"
             f"**Coin**: {coin}\n"
-            f"**Status**: {result['status']}\n"
-            f"**Size Closed**: {format_coin_amount(abs(result['size_closed']), coin)}{usd_str}\n\n"
+            f"**Status**: {response.status}\n"
+            f"**Size Closed**: {format_coin_amount(response.size_closed, coin)}{usd_str}\n\n"
             f"Market order has been placed to close the position."
         )
 

@@ -13,10 +13,14 @@ from src.services.risk_calculator import risk_calculator
 from src.services.market_data_service import market_data_service
 from src.services.account_service import account_service
 from src.api.models import Position, PositionSummary, ClosePositionResponse
+from src.use_cases.trading import ClosePositionUseCase, ClosePositionRequest as UseCaseClosePositionRequest
 from src.config import logger
 
 router = APIRouter(prefix="/api/positions", tags=["Positions"])
 templates = Jinja2Templates(directory="src/api/templates")
+
+# Initialize use cases
+close_position_use_case = ClosePositionUseCase()
 
 
 class ClosePositionRequest(BaseModel):
@@ -182,10 +186,28 @@ async def close_position(coin: str, request: ClosePositionRequest = Body(...)):
         500: Exchange API error
     """
     try:
-        result = position_service.close_position(
-            coin=coin, size=request.size, slippage=request.slippage
+        # Adapt API request to use case request
+        use_case_request = UseCaseClosePositionRequest(
+            coin=coin,
+            size=request.size,
+            slippage=request.slippage,
         )
-        return result
+
+        # Execute use case
+        response = await close_position_use_case.execute(use_case_request)
+
+        # Adapt use case response to API response format
+        return {
+            "status": response.status,
+            "coin": response.coin,
+            "size_closed": response.size_closed,
+            "result": {
+                "message": response.message,
+                "usd_value": response.usd_value,
+                "remaining_size": response.remaining_size,
+                "close_type": response.close_type,
+            }
+        }
     except ValueError as e:
         logger.error(f"Validation error closing {coin}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -229,26 +251,22 @@ async def bulk_close_positions(request: BulkCloseRequest = Body(...)):
         failed_count = 0
         errors = []
 
-        # Close percentage of each position
+        # Close percentage of each position using use case
         for item in positions:
             pos = item["position"]
             coin = pos["coin"]
-            position_size = abs(pos["size"])
-
-            # Calculate size to close (percentage of current position)
-            if request.percentage == 100:
-                # Close full position
-                size_to_close = None
-            else:
-                # Close percentage of position
-                size_to_close = position_size * (request.percentage / 100)
 
             try:
-                position_service.close_position(
+                # Create use case request with percentage
+                use_case_request = UseCaseClosePositionRequest(
                     coin=coin,
-                    size=size_to_close,
-                    slippage=request.slippage
+                    percentage=float(request.percentage),
+                    slippage=request.slippage,
                 )
+
+                # Execute use case
+                response = await close_position_use_case.execute(use_case_request)
+
                 success_count += 1
                 logger.info(f"Successfully closed {request.percentage}% of {coin} position (bulk close)")
 
