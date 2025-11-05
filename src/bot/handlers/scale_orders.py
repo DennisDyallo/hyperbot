@@ -683,6 +683,6 @@ scale_order_conversation = ConversationHandler(
     fallbacks=[CommandHandler("cancel", ScaleOrderWizard.cancel)],
     name="scale_order_wizard",
     persistent=False,
-    per_message=True,  # Track callbacks per message for inline keyboards
+    # per_message=False is the default and correct for mixed handler types
     allow_reentry=True  # Allow restarting wizard
 )
