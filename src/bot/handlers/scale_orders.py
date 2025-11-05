@@ -627,7 +627,6 @@ class ScaleOrderWizard:
                 msg += f"*Total Size*: {result.total_placed_size:.6f} {coin}\n"
                 if result.average_price:
                     msg += f"*Average Price*: ${result.average_price:,.2f}\n"
-                msg += f"\nUse /scale\\_status to monitor this order"
             elif result.status == "partial":
                 msg = f"⚠️ *Scale Order Partially Placed*\n\n"
                 msg += f"*Order ID*: `{result.scale_order_id}`\n"
