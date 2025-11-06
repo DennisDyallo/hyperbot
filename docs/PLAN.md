@@ -163,7 +163,7 @@ curl -X POST '/api/scale-orders/place' -d '{
 **Code Statistics**:
 - **Use Cases Created**: 2,798 LOC (11 use cases across 4 categories)
 - **Total Codebase**: 12,076 LOC
-- **Tests Passing**: 106 passed, 2 skipped
+- **Tests Passing**: 532 passed (55% coverage)
 - **Duplicate Code**: Eliminated (response parsers centralized)
 
 **Use Cases Implemented**:
@@ -246,7 +246,7 @@ uv run pytest tests/integration/ -v
 uv run pytest tests/ --cov=src --cov-report=term-missing
 ```
 
-**Current Status**: 106 tests passing, 2 skipped (25% coverage, target >80%)
+**Current Status**: 532 tests passing (55% coverage, target >80%)
 
 > **Note**: See [TODO.md](TODO.md) for testing lessons learned, known issues, and coverage by service.
 
