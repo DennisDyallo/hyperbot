@@ -13,13 +13,12 @@ from telegram.ext import (
 )
 from src.bot.middleware import authorized_only
 from src.bot.menus import (
-    build_main_menu,
     build_coin_selection_menu,
     build_buy_sell_menu,
     build_quick_amounts_menu,
     build_confirm_cancel,
     build_num_orders_menu,
-    build_back_button,
+    build_main_menu,
 )
 from src.bot.utils import (
     parse_usd_amount,
@@ -145,11 +144,8 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
     try:
         usd_amount = parse_usd_amount(amount_str)
     except ValueError as e:
-        await query.edit_message_text(
-            f"❌ Invalid amount: {str(e)}\n\nReturning to main menu.",
-            reply_markup=build_back_button()
-        )
-        return ConversationHandler.END
+        # Use utility function - automatically shows main menu!
+        return await send_error_and_end(update, f"❌ Invalid amount: {str(e)}\n\nReturning to main menu.")
 
     coin = context.user_data['market_coin']
     is_buy = context.user_data['market_is_buy']
@@ -162,11 +158,8 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
     try:
         coin_size, current_price = convert_usd_to_coin(usd_amount, coin)
     except (ValueError, RuntimeError) as e:
-        await query.edit_message_text(
-            f"❌ {str(e)}\n\nReturning to main menu.",
-            reply_markup=build_back_button()
-        )
-        return ConversationHandler.END
+        # Use utility function - automatically shows main menu!
+        return await send_error_and_end(update, f"❌ {str(e)}\n\nReturning to main menu.")
 
     # Store for confirmation
     context.user_data['market_usd'] = usd_amount
@@ -239,11 +232,8 @@ async def market_amount_text_input(update: Update, context: ContextTypes.DEFAULT
     try:
         coin_size, current_price = convert_usd_to_coin(usd_amount, coin)
     except (ValueError, RuntimeError) as e:
-        await msg.edit_text(
-            f"❌ {str(e)}\n\nReturning to main menu.",
-            reply_markup=build_back_button()
-        )
-        return ConversationHandler.END
+        # Use utility function - automatically shows main menu!
+        return await send_error_and_end(update, f"❌ {str(e)}\n\nReturning to main menu.")
 
     # Store for confirmation
     context.user_data['market_usd'] = usd_amount
@@ -337,20 +327,8 @@ async def wizard_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Clean up user data
     context.user_data.clear()
 
-    text = "❌ Operation cancelled.\n\nReturning to main menu..."
-
-    if query:
-        await query.edit_message_text(
-            text,
-            reply_markup=build_main_menu()
-        )
-    else:
-        await update.message.reply_text(
-            text,
-            reply_markup=build_main_menu()
-        )
-
-    return ConversationHandler.END
+    # Use utility function - automatically shows main menu!
+    return await send_cancel_and_end(update, "❌ Operation cancelled.\n\nReturning to main menu...")
 
 
 # ============================================================================
@@ -451,14 +429,14 @@ async def close_position_selected(update: Update, context: ContextTypes.DEFAULT_
     except ValueError as e:
         await query.edit_message_text(
             f"❌ {str(e)}",
-            reply_markup=build_back_button()
+            reply_markup=build_main_menu()
         )
     except Exception as e:
         logger.exception(f"Failed to get position details for {coin}")
         await query.edit_message_text(
             f"❌ Error: `{str(e)}`",
             parse_mode="Markdown",
-            reply_markup=build_back_button()
+            reply_markup=build_main_menu()
         )
 
 
@@ -493,19 +471,13 @@ async def close_position_execute(update: Update, context: ContextTypes.DEFAULT_T
             f"Market order has been placed to close the position."
         )
 
-        await query.edit_message_text(
-            success_msg,
-            parse_mode="Markdown",
-            reply_markup=build_main_menu()
-        )
+        # Use utility function - automatically shows main menu!
+        return await send_success_and_end(update, success_msg)
 
     except Exception as e:
         logger.exception(f"Failed to close position {coin}")
-        await query.edit_message_text(
-            f"❌ Failed to close position:\n`{str(e)}`",
-            parse_mode="Markdown",
-            reply_markup=build_main_menu()
-        )
+        # Use utility function - automatically shows main menu!
+        return await send_error_and_end(update, f"❌ Failed to close position:\n`{str(e)}`")
 
 
 def get_close_position_handlers():
