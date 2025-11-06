@@ -5,9 +5,13 @@ Tests the functions in src/bot/utils.py that handle:
 - USD amount parsing
 - USD <-> coin conversions with precision rounding
 - Formatting functions
+
+MIGRATED: Now using tests/helpers for service mocking.
+- Replaced @patch decorators with pytest fixtures
+- Using ServiceMockBuilder.market_data_service() for consistent mocking
 """
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from src.bot.utils import (
     parse_usd_amount,
     convert_usd_to_coin,
@@ -16,6 +20,9 @@ from src.bot.utils import (
     format_usd_amount,
     format_dual_amount
 )
+
+# Import helpers for cleaner service mocking
+from tests.helpers import ServiceMockBuilder
 
 
 # =============================================================================
@@ -77,12 +84,22 @@ class TestParseUsdAmount:
 class TestConvertUsdToCoin:
     """Test USD to coin conversion with precision rounding."""
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_with_btc_precision(self, mock_service):
+    @pytest.fixture
+    def mock_market_data_service(self):
+        """Mock market_data_service with common configuration."""
+        return ServiceMockBuilder.market_data_service()
+
+    @pytest.fixture(autouse=True)
+    def patch_market_data_service(self, mock_market_data_service):
+        """Auto-patch market_data_service for all tests in this class."""
+        with patch('src.bot.utils.market_data_service', mock_market_data_service):
+            yield mock_market_data_service
+
+    def test_convert_with_btc_precision(self, mock_market_data_service):
         """Should round to BTC's 5 decimal precision."""
         # BTC price = $104,088, szDecimals = 5
-        mock_service.get_price.return_value = 104088.0
-        mock_service.get_asset_metadata.return_value = {
+        mock_market_data_service.get_price.return_value = 104088.0
+        mock_market_data_service.get_asset_metadata.return_value = {
             "name": "BTC",
             "szDecimals": 5
         }
@@ -97,12 +114,11 @@ class TestConvertUsdToCoin:
         # Verify no precision error (was causing ValueError before)
         assert len(str(coin_size).split('.')[1]) <= 5
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_with_eth_precision(self, mock_service):
+    def test_convert_with_eth_precision(self, mock_market_data_service):
         """Should round to ETH's 4 decimal precision."""
         # ETH price = $3,850.50, szDecimals = 4
-        mock_service.get_price.return_value = 3850.50
-        mock_service.get_asset_metadata.return_value = {
+        mock_market_data_service.get_price.return_value = 3850.50
+        mock_market_data_service.get_asset_metadata.return_value = {
             "name": "ETH",
             "szDecimals": 4
         }
@@ -114,12 +130,11 @@ class TestConvertUsdToCoin:
         assert coin_size == pytest.approx(0.0260, abs=1e-4)
         assert price == 3850.50
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_with_sol_precision(self, mock_service):
+    def test_convert_with_sol_precision(self, mock_market_data_service):
         """Should round to SOL's 1 decimal precision."""
         # SOL price = $161.64, szDecimals = 1
-        mock_service.get_price.return_value = 161.64
-        mock_service.get_asset_metadata.return_value = {
+        mock_market_data_service.get_price.return_value = 161.64
+        mock_market_data_service.get_asset_metadata.return_value = {
             "name": "SOL",
             "szDecimals": 1
         }
@@ -131,11 +146,11 @@ class TestConvertUsdToCoin:
         assert coin_size == pytest.approx(0.3, abs=0.1)
         assert price == 161.64
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_fallback_to_6_decimals(self, mock_service):
+    def test_convert_fallback_to_6_decimals(self, mock_market_data_service):
         """Should fallback to 6 decimals if metadata unavailable."""
-        mock_service.get_price.return_value = 100.0
-        mock_service.get_asset_metadata.return_value = None
+        # Override the side_effect to return 100.0 for UNKNOWN coin
+        mock_market_data_service.get_price = lambda coin: 100.0
+        mock_market_data_service.get_asset_metadata.return_value = None
 
         coin_size, price = convert_usd_to_coin(50.0, "UNKNOWN")
 
@@ -144,11 +159,10 @@ class TestConvertUsdToCoin:
         assert coin_size == 0.5
         assert price == 100.0
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_large_amounts(self, mock_service):
+    def test_convert_large_amounts(self, mock_market_data_service):
         """Should handle large USD amounts correctly."""
-        mock_service.get_price.return_value = 104088.0
-        mock_service.get_asset_metadata.return_value = {
+        mock_market_data_service.get_price.return_value = 104088.0
+        mock_market_data_service.get_asset_metadata.return_value = {
             "name": "BTC",
             "szDecimals": 5
         }
@@ -159,11 +173,10 @@ class TestConvertUsdToCoin:
         # Rounded to 5 decimals = 0.09608
         assert coin_size == pytest.approx(0.09608, abs=1e-5)
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_small_amounts(self, mock_service):
+    def test_convert_small_amounts(self, mock_market_data_service):
         """Should handle small USD amounts correctly."""
-        mock_service.get_price.return_value = 104088.0
-        mock_service.get_asset_metadata.return_value = {
+        mock_market_data_service.get_price.return_value = 104088.0
+        mock_market_data_service.get_asset_metadata.return_value = {
             "name": "BTC",
             "szDecimals": 5
         }
@@ -174,21 +187,27 @@ class TestConvertUsdToCoin:
         # Rounded to 5 decimals = 0.00001
         assert coin_size == pytest.approx(0.00001, abs=1e-5)
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_invalid_price_raises_error(self, mock_service):
+    def test_convert_invalid_price_raises_error(self, mock_market_data_service):
         """Should raise ValueError for invalid prices."""
-        mock_service.get_price.return_value = 0
+        mock_market_data_service.get_price = lambda coin: 0
+        mock_market_data_service.get_asset_metadata.return_value = None
 
         with pytest.raises(ValueError, match="Invalid price"):
             convert_usd_to_coin(100.0, "BTC")
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_coin_not_found_raises_error(self, mock_service):
+    def test_convert_coin_not_found_raises_error(self, mock_market_data_service):
         """Should raise ValueError if coin not found."""
-        mock_service.get_price.side_effect = ValueError("Coin not found")
+        mock_market_data_service.get_price.side_effect = ValueError("Coin not found")
 
         with pytest.raises(ValueError, match="Failed to get price"):
             convert_usd_to_coin(100.0, "INVALID")
+
+    def test_convert_generic_error_raises_runtime_error(self, mock_market_data_service):
+        """Should raise RuntimeError for generic exceptions."""
+        mock_market_data_service.get_price.side_effect = Exception("Network error")
+
+        with pytest.raises(RuntimeError, match="Failed to fetch price"):
+            convert_usd_to_coin(100.0, "BTC")
 
 
 # =============================================================================
@@ -198,10 +217,20 @@ class TestConvertUsdToCoin:
 class TestConvertCoinToUsd:
     """Test coin to USD conversion."""
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_coin_to_usd(self, mock_service):
+    @pytest.fixture
+    def mock_market_data_service(self):
+        """Mock market_data_service with common configuration."""
+        return ServiceMockBuilder.market_data_service()
+
+    @pytest.fixture(autouse=True)
+    def patch_market_data_service(self, mock_market_data_service):
+        """Auto-patch market_data_service for all tests in this class."""
+        with patch('src.bot.utils.market_data_service', mock_market_data_service):
+            yield mock_market_data_service
+
+    def test_convert_coin_to_usd(self, mock_market_data_service):
         """Should convert coin size to USD value."""
-        mock_service.get_price.return_value = 104088.0
+        mock_market_data_service.get_price.return_value = 104088.0
 
         usd_value, price = convert_coin_to_usd(0.00432, "BTC")
 
@@ -209,15 +238,42 @@ class TestConvertCoinToUsd:
         assert usd_value == pytest.approx(449.66, abs=0.01)
         assert price == 104088.0
 
-    @patch('src.bot.utils.market_data_service')
-    def test_convert_zero_coin(self, mock_service):
+    def test_convert_zero_coin(self, mock_market_data_service):
         """Should handle zero coin amount."""
-        mock_service.get_price.return_value = 104088.0
+        mock_market_data_service.get_price.return_value = 104088.0
 
         usd_value, price = convert_coin_to_usd(0.0, "BTC")
 
         assert usd_value == 0.0
         assert price == 104088.0
+
+    def test_convert_invalid_price_raises_error(self, mock_market_data_service):
+        """Should raise ValueError for invalid prices."""
+        mock_market_data_service.get_price = lambda coin: None
+
+        with pytest.raises(ValueError, match="Invalid price"):
+            convert_coin_to_usd(0.5, "BTC")
+
+    def test_convert_negative_price_raises_error(self, mock_market_data_service):
+        """Should raise ValueError for negative prices."""
+        mock_market_data_service.get_price = lambda coin: -100.0
+
+        with pytest.raises(ValueError, match="Invalid price"):
+            convert_coin_to_usd(0.5, "BTC")
+
+    def test_convert_coin_not_found_raises_error(self, mock_market_data_service):
+        """Should raise ValueError if coin not found."""
+        mock_market_data_service.get_price.side_effect = ValueError("Coin not found")
+
+        with pytest.raises(ValueError, match="Failed to get price"):
+            convert_coin_to_usd(0.5, "INVALID")
+
+    def test_convert_generic_error_raises_runtime_error(self, mock_market_data_service):
+        """Should raise RuntimeError for generic exceptions."""
+        mock_market_data_service.get_price.side_effect = Exception("Network error")
+
+        with pytest.raises(RuntimeError, match="Failed to fetch price"):
+            convert_coin_to_usd(0.5, "BTC")
 
 
 # =============================================================================
