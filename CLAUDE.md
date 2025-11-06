@@ -5,10 +5,12 @@ This document provides comprehensive guidance for developing and maintaining the
 ## 📋 Implementation Plan & Progress
 
 **IMPORTANT**: Before working on any feature, always check:
-- **Implementation Plan**: [docs/PLAN.md](docs/PLAN.md) - Overall architecture and phases
-- **Current TODO**: [docs/TODO.md](docs/TODO.md) - Detailed checklist and progress
-- **Current Phase**: Phase 1A - Core Services + API
-- **Next Task**: Phase 1A.1 - Configuration System
+- **Strategy & Architecture**: [docs/PLAN.md](docs/PLAN.md) - EPIC-level goals, decisions, ADRs (PM view)
+- **Tasks & Progress**: [docs/TODO.md](docs/TODO.md) - Detailed checklists, status, issues (Developer view)
+
+**Current Status** (see TODO.md for details):
+- **Current Phase**: ✅ Phase 4 Complete - Code Consolidation & Use Case Layer
+- **Next Decision**: Choose between Phase 1B.2 (Dashboard), Phase 2C (Spot Trading), Phase 3 (Telegram Bot), or Phase 1A.7 (Testing)
 
 ## Project Overview
 
@@ -24,8 +26,8 @@ All documentation is stored locally in the `/docs` directory:
 
 ```
 docs/
-├── PLAN.md                    # ⭐ Implementation plan and progress
-├── TODO.md                    # Detailed checklist and progress tracking
+├── PLAN.md                    # ⭐ EPIC-level: Architecture, decisions, strategy (PM view)
+├── TODO.md                    # ⭐ Task-level: Checklists, progress, issues (Developer view)
 ├── hyperliquid/
 │   ├── python-sdk.md          # Official SDK documentation
 │   └── api-reference.md       # Complete API reference with examples
@@ -34,6 +36,113 @@ docs/
     ├── best-practices.md      # Security, performance, patterns
     ├── features.md            # All Telegram bot features
     └── faq.md                 # Comprehensive FAQ and troubleshooting
+```
+
+### PLAN.md vs TODO.md - Clear Separation
+
+> **Important**: These files have **zero duplication** - each piece of information lives in exactly one place.
+
+#### PLAN.md (PM/EPIC View)
+**When to read**: Understanding project strategy, architecture, or design decisions
+
+**Contains**:
+- ✅ Architecture diagrams
+- ✅ Phase goals and deliverables
+- ✅ Tech stack decisions with rationale (FastAPI, HTMX, Tailwind)
+- ✅ Decision Log (ADRs - why we chose X over Y)
+- ✅ Testing strategy (high-level philosophy)
+
+**Does NOT contain**:
+- ❌ Task checklists with file paths
+- ❌ Implementation code snippets
+- ❌ Current progress tracking (see TODO.md)
+- ❌ Granular subtasks
+
+**Use this when**:
+- Starting a new phase (understand the goal and architecture)
+- Making architectural decisions (check existing ADRs)
+- Explaining project structure to others
+- You need to understand "why" something was done
+
+---
+
+#### TODO.md (Developer/Task View)
+**When to read**: Implementing features, tracking progress, debugging issues
+
+**Contains**:
+- ✅ Detailed task checklists with file paths (e.g., `src/use_cases/trading/place_order.py`)
+- ✅ Progress tracking (✅ Completed / 🔄 In Progress / 🚫 Blocked)
+- ✅ Implementation code snippets and examples
+- ✅ Testing lessons learned (mocking patterns, known issues)
+- ✅ Known issues and workarounds
+- ✅ Session summaries
+
+**Does NOT contain**:
+- ❌ Architecture diagrams (see PLAN.md)
+- ❌ Tech stack rationale (see PLAN.md)
+- ❌ High-level phase goals (see PLAN.md)
+
+**Use this when**:
+- Working on a specific task (find your next checkbox)
+- Checking progress status
+- Debugging (known issues section)
+- Writing tests (testing lessons section)
+- Completing a task (update checkboxes here only)
+
+---
+
+#### Quick Reference Table
+
+| Information Type | PLAN.md | TODO.md |
+|------------------|---------|---------|
+| Architecture diagrams | ✅ | ❌ Reference PLAN.md |
+| "Why" decisions (ADRs) | ✅ | ❌ Reference PLAN.md |
+| Phase goals | ✅ | ❌ Reference PLAN.md |
+| Task checkboxes | ❌ Reference TODO.md | ✅ |
+| File paths & code | ❌ Reference TODO.md | ✅ |
+| Progress status | ❌ Reference TODO.md | ✅ |
+| Testing lessons | ❌ Reference TODO.md | ✅ |
+| Known issues | ❌ Reference TODO.md | ✅ |
+
+---
+
+#### Workflow Examples
+
+**Example 1: Starting Phase 3 (Telegram Bot)**
+```
+Step 1: Read PLAN.md → Phase 3 section
+  - Understand goal: "Mobile interface for trading and alerts"
+  - See tech stack decision: python-telegram-bot library
+  - Review ADR: "Why Web Dashboard before Telegram Bot"
+
+Step 2: Read TODO.md → Find Phase 3 tasks
+  - [ ] Telegram bot setup
+  - [ ] Create src/bot/handlers/
+  - [ ] Implement /start command
+  - ...
+
+Step 3: Work from TODO.md, checking off tasks as you complete them
+```
+
+**Example 2: Understanding Rebalancing Logic**
+```
+Step 1: Read PLAN.md → Phase 2A section
+  - Goal: "Portfolio rebalancing with integrated risk assessment"
+  - Key decision: Use Case Layer architecture
+
+Step 2: Read TODO.md → Phase 2A completed tasks
+  - [x] Created src/services/rebalance_service.py
+  - [x] Implemented preview_rebalance()
+  - See testing lessons for risk calculation formulas
+```
+
+**Example 3: Completing a Task**
+```
+✅ DO: Update TODO.md
+  - [x] Create src/use_cases/trading/place_order.py
+
+❌ DON'T: Update PLAN.md
+  - No duplicate tracking needed!
 ```
 
 ## When to Reference Documentation
