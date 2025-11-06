@@ -11,11 +11,30 @@ from src.models.scale_order import (
     ScaleOrderCancel,
     ScaleOrderStatus,
 )
+from src.use_cases.scale_orders import (
+    PreviewScaleOrderUseCase,
+    PreviewScaleOrderRequest,
+    PlaceScaleOrderUseCase,
+    PlaceScaleOrderRequest,
+    ListScaleOrdersUseCase,
+    ListScaleOrdersRequest,
+    GetScaleOrderStatusUseCase,
+    GetScaleOrderStatusRequest,
+    CancelScaleOrderUseCase,
+    CancelScaleOrderRequest
+)
 from src.services.scale_order_service import scale_order_service
 from src.config import logger
 
 
 router = APIRouter(prefix="/api/scale-orders", tags=["scale_orders"])
+
+# Initialize use cases
+preview_use_case = PreviewScaleOrderUseCase()
+place_use_case = PlaceScaleOrderUseCase()
+list_use_case = ListScaleOrdersUseCase()
+get_status_use_case = GetScaleOrderStatusUseCase()
+cancel_use_case = CancelScaleOrderUseCase()
 
 
 @router.post("/preview", response_model=ScaleOrderPreview, status_code=status.HTTP_200_OK)
@@ -56,31 +75,18 @@ async def preview_scale_order(config: ScaleOrderConfig):
     }
     ```
     """
-    logger.info(
-        f"Scale order preview requested: {config.coin} "
-        f"{'BUY' if config.is_buy else 'SELL'} "
-        f"{config.total_size} across {config.num_orders} orders"
-    )
-
     try:
-        preview = await scale_order_service.preview_scale_order(config)
-
-        logger.info(
-            f"Preview generated: {len(preview.orders)} orders, "
-            f"avg_price=${preview.estimated_avg_price:.2f}, "
-            f"range={preview.price_range_pct:.2f}%"
-        )
-
-        return preview
+        # Use PreviewScaleOrderUseCase for unified logic
+        request = PreviewScaleOrderRequest(config=config)
+        response = await preview_use_case.execute(request)
+        return response.preview
 
     except ValueError as e:
-        logger.warning(f"Invalid scale order configuration: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
-        logger.error(f"Failed to generate scale order preview: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate preview: {str(e)}"
@@ -130,48 +136,35 @@ async def place_scale_order(config: ScaleOrderConfig):
     }
     ```
     """
-    logger.info(
-        f"Scale order placement requested: {config.coin} "
-        f"{'BUY' if config.is_buy else 'SELL'} "
-        f"{config.total_size} across {config.num_orders} orders "
-        f"from ${config.start_price} to ${config.end_price}"
-    )
-
     try:
-        result = await scale_order_service.place_scale_order(config)
+        # Use PlaceScaleOrderUseCase for unified logic
+        request = PlaceScaleOrderRequest(config=config)
+        response = await place_use_case.execute(request)
 
-        if result.status == "failed":
-            logger.error(
-                f"Scale order placement failed: {result.orders_failed}/{result.num_orders} orders failed"
-            )
+        result = response.result
+
+        # Check if all orders failed
+        if result.failed_orders == result.num_orders:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"All orders failed. Check placements for details."
+                detail=f"All orders failed. Check order details."
             )
-
-        logger.info(
-            f"Scale order placed: {result.orders_placed}/{result.num_orders} successful, "
-            f"status={result.status}"
-        )
 
         return result
 
     except HTTPException:
         raise
     except ValueError as e:
-        logger.warning(f"Invalid scale order configuration: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except RuntimeError as e:
-        logger.error(f"Runtime error placing scale order: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e)
         )
     except Exception as e:
-        logger.error(f"Failed to place scale order: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to place scale order: {str(e)}"
@@ -209,17 +202,13 @@ async def list_scale_orders():
     ]
     ```
     """
-    logger.info("Listing all scale orders")
-
     try:
-        scale_orders = scale_order_service.list_scale_orders()
-
-        logger.info(f"Retrieved {len(scale_orders)} scale orders")
-
-        return scale_orders
+        # Use ListScaleOrdersUseCase for unified logic
+        request = ListScaleOrdersRequest(active_only=False)
+        response = await list_use_case.execute(request)
+        return response.scale_orders
 
     except Exception as e:
-        logger.error(f"Failed to list scale orders: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list scale orders: {str(e)}"
@@ -253,27 +242,18 @@ async def get_scale_order_status(scale_order_id: str):
     }
     ```
     """
-    logger.info(f"Getting status for scale order: {scale_order_id}")
-
     try:
-        status_info = await scale_order_service.get_scale_order_status(scale_order_id)
-
-        logger.info(
-            f"Scale order {scale_order_id}: "
-            f"{status_info.scale_order.orders_filled}/{status_info.scale_order.orders_placed} filled "
-            f"({status_info.fill_percentage:.1f}%)"
-        )
-
-        return status_info
+        # Use GetScaleOrderStatusUseCase for unified logic
+        request = GetScaleOrderStatusRequest(scale_order_id=scale_order_id)
+        response = await get_status_use_case.execute(request)
+        return response.status
 
     except ValueError as e:
-        logger.warning(f"Scale order not found: {scale_order_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
     except Exception as e:
-        logger.error(f"Failed to get scale order status: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get scale order status: {str(e)}"
@@ -301,40 +281,23 @@ async def cancel_scale_order(scale_order_id: str, cancel_all_orders: bool = True
     }
     ```
     """
-    logger.info(
-        f"Cancel scale order requested: {scale_order_id} "
-        f"(cancel_all_orders={cancel_all_orders})"
-    )
-
     try:
-        cancel_request = ScaleOrderCancel(
-            scale_order_id=scale_order_id,
-            cancel_all_orders=cancel_all_orders
-        )
-
-        result = await scale_order_service.cancel_scale_order(cancel_request)
-
-        logger.info(
-            f"Scale order {scale_order_id} cancelled: "
-            f"{result['orders_cancelled']}/{result.get('total_orders', 0)} orders cancelled"
-        )
-
-        return result
+        # Use CancelScaleOrderUseCase for unified logic
+        request = CancelScaleOrderRequest(scale_order_id=scale_order_id)
+        response = await cancel_use_case.execute(request)
+        return response.result
 
     except ValueError as e:
-        logger.warning(f"Scale order not found: {scale_order_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
     except RuntimeError as e:
-        logger.error(f"Runtime error cancelling scale order: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e)
         )
     except Exception as e:
-        logger.error(f"Failed to cancel scale order: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to cancel scale order: {str(e)}"
