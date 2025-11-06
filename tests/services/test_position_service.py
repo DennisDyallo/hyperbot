@@ -1,212 +1,409 @@
 """
 Unit tests for PositionService.
 
-Tests position closing to catch bugs like the 'size' vs 'size_closed' KeyError.
+Tests position listing, retrieval, closing, and summary calculations.
+CRITICAL - bugs here = incorrect position management, unintended losses.
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from src.services.position_service import PositionService
+from unittest.mock import Mock, patch, AsyncMock
+from src.services.position_service import PositionService, position_service
+from src.config import settings
 
 
-class TestPositionService:
-    """Test PositionService methods."""
-
-    @pytest.fixture
-    def mock_hyperliquid_service(self):
-        """Mock HyperliquidService."""
-        mock_hl = Mock()
-        mock_hl.is_initialized.return_value = True
-        return mock_hl
+class TestPositionServiceListPositions:
+    """Test list_positions method."""
 
     @pytest.fixture
     def mock_account_service(self):
-        """Mock AccountService."""
+        """Mock account service."""
         return Mock()
 
     @pytest.fixture
-    def service(self, mock_hyperliquid_service, mock_account_service):
-        """Create PositionService instance with mocked dependencies."""
-        with patch('src.services.position_service.hyperliquid_service', mock_hyperliquid_service):
-            with patch('src.services.position_service.account_service', mock_account_service):
-                svc = PositionService()
-                # Explicitly set the mocked dependencies
-                svc.hyperliquid = mock_hyperliquid_service
-                svc.account = mock_account_service
-                return svc
+    def service(self, mock_account_service):
+        """Create service with mocked account service."""
+        with patch('src.services.position_service.account_service', mock_account_service):
+            svc = PositionService()
+            svc.account = mock_account_service
+            return svc
 
-    @pytest.fixture
-    def mock_close_position_response(self):
-        """Mock close_position API response from Hyperliquid."""
-        return {
-            "status": "ok",
-            "response": {
-                "type": "order",
-                "data": {
-                    "statuses": [
-                        {
-                            "filled": {
-                                "totalSz": "1.26",
-                                "avgPx": "161.64",
-                                "oid": 42279993822
-                            }
-                        }
-                    ]
-                }
-            }
-        }
-
-    def test_close_position_returns_size_closed_field(
-        self, service, mock_hyperliquid_service, mock_close_position_response
-    ):
-        """
-        Test that close_position returns 'size_closed' field, not 'size'.
-
-        Bug Fix: Previously returned 'size' which caused KeyError in bot handler.
-        """
-        # Setup mocks
-        mock_exchange = Mock()
-        mock_exchange.market_close.return_value = mock_close_position_response
-        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
-
-        # Mock get_position to return a position with nested structure
-        service.get_position = Mock(return_value={
-            "position": {
-                "coin": "SOL",
-                "size": 1.26
-            }
-        })
-
-        result = service.close_position("SOL")
-
-        # Verify correct field name
-        assert "size_closed" in result
-        assert "size" not in result  # Bug: This was accessed in bot handler
-
-        # Verify value
-        assert result["size_closed"] == pytest.approx(1.26, abs=0.01)
-
-    def test_close_position_success_fields(
-        self, service, mock_hyperliquid_service, mock_close_position_response
-    ):
-        """Test that close_position returns all required fields."""
-        mock_exchange = Mock()
-        mock_exchange.market_close.return_value = mock_close_position_response
-        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
-
-        # Mock get_position
-        service.get_position = Mock(return_value={
-            "position": {
-                "coin": "SOL",
-                "size": 1.26
-            }
-        })
-
-        result = service.close_position("SOL")
-
-        # Required fields
-        assert result["status"] == "success"
-        assert result["coin"] == "SOL"
-        assert "size_closed" in result
-        assert "result" in result
-
-    def test_close_position_negative_size(
-        self, service, mock_hyperliquid_service
-    ):
-        """Test closing short positions (negative size)."""
-        response = {
-            "status": "ok",
-            "response": {
-                "type": "order",
-                "data": {
-                    "statuses": [
-                        {
-                            "filled": {
-                                "totalSz": "-0.5",  # Short position
-                                "avgPx": "161.64",
-                                "oid": 42279993822
-                            }
-                        }
-                    ]
-                }
-            }
-        }
-
-        mock_exchange = Mock()
-        mock_exchange.market_close.return_value = response
-        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
-
-        # Mock get_position
-        service.get_position = Mock(return_value={
-            "position": {
-                "coin": "SOL",
-                "size": -0.5
-            }
-        })
-
-        result = service.close_position("SOL")
-
-        # Should return the absolute value (position_service converts to positive)
-        assert result["size_closed"] == pytest.approx(0.5, abs=0.01)
-
-    def test_close_position_with_slippage(
-        self, service, mock_hyperliquid_service, mock_close_position_response
-    ):
-        """Test closing position with custom slippage."""
-        mock_exchange = Mock()
-        mock_exchange.market_close.return_value = mock_close_position_response
-        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
-
-        # Mock get_position
-        service.get_position = Mock(return_value={
-            "position": {
-                "coin": "SOL",
-                "size": 1.26
-            }
-        })
-
-        result = service.close_position("SOL", slippage=10.0)
-
-        # Verify slippage was passed correctly
-        mock_exchange.market_close.assert_called_once()
-        call_args = mock_exchange.market_close.call_args
-        assert "slippage" in call_args[1] or len(call_args[0]) >= 2
-
-        assert result["status"] == "success"
-
-    def test_close_position_api_error(self, service, mock_hyperliquid_service):
-        """Test close_position handles API errors."""
-        mock_exchange = Mock()
-        mock_exchange.market_close.side_effect = Exception("API Error")
-        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
-
-        # Mock get_position
-        service.get_position = Mock(return_value={
-            "position": {
-                "coin": "SOL",
-                "size": 1.26
-            }
-        })
-
-        with pytest.raises(Exception):
-            service.close_position("SOL")
-
-    def test_list_positions_returns_correct_format(self, service, mock_account_service):
-        """Test that list_positions returns positions in correct format."""
-        # Mock account service - list_positions looks for "positions" key
+    def test_list_positions_success(self, service, mock_account_service):
+        """Test listing positions successfully."""
         mock_account_service.get_account_info.return_value = {
-            "perps_account_value": 10000,
             "positions": [
-                {
-                    "coin": "BTC",
-                    "size": 0.00432,
-                    "entry_price": 104088.0,
-                    "position_value": 449.66,
-                    "unrealized_pnl": 5.25
-                }
+                {"position": {"coin": "BTC", "size": "0.1"}},
+                {"position": {"coin": "ETH", "size": "2.5"}}
             ]
         }
 
         positions = service.list_positions()
 
-        assert len(positions) == 1
-        assert positions[0]["coin"] == "BTC"
+        assert len(positions) == 2
+        assert positions[0]["position"]["coin"] == "BTC"
+        assert positions[1]["position"]["coin"] == "ETH"
+
+    def test_list_positions_empty(self, service, mock_account_service):
+        """Test listing when no positions exist."""
+        mock_account_service.get_account_info.return_value = {
+            "positions": []
+        }
+
+        positions = service.list_positions()
+
+        assert positions == []
+
+    def test_list_positions_no_positions_key(self, service, mock_account_service):
+        """Test listing when positions key missing."""
+        mock_account_service.get_account_info.return_value = {}
+
+        positions = service.list_positions()
+
+        assert positions == []
+
+    def test_list_positions_api_failure(self, service, mock_account_service):
+        """Test listing raises exception on API failure."""
+        mock_account_service.get_account_info.side_effect = Exception("API error")
+
+        with pytest.raises(Exception, match="API error"):
+            service.list_positions()
+
+
+class TestPositionServiceGetPosition:
+    """Test get_position method."""
+
+    @pytest.fixture
+    def mock_account_service(self):
+        """Mock account service."""
+        mock = Mock()
+        mock.get_account_info.return_value = {
+            "positions": [
+                {"position": {"coin": "BTC", "size": "0.1", "position_value": "5000.0"}},
+                {"position": {"coin": "ETH", "size": "2.5", "position_value": "7500.0"}},
+                {"position": {"coin": "SOL", "size": "-10.0", "position_value": "-1500.0"}}
+            ]
+        }
+        return mock
+
+    @pytest.fixture
+    def service(self, mock_account_service):
+        """Create service with mocked account service."""
+        with patch('src.services.position_service.account_service', mock_account_service):
+            svc = PositionService()
+            svc.account = mock_account_service
+            return svc
+
+    def test_get_position_found(self, service):
+        """Test getting existing position."""
+        position = service.get_position("BTC")
+
+        assert position is not None
+        assert position["position"]["coin"] == "BTC"
+        assert position["position"]["size"] == "0.1"
+
+    def test_get_position_not_found(self, service):
+        """Test getting non-existent position returns None."""
+        position = service.get_position("DOGE")
+
+        assert position is None
+
+    def test_get_position_case_sensitive(self, service):
+        """Test coin symbol is case sensitive."""
+        # Should not find "btc" when position is "BTC"
+        position = service.get_position("btc")
+
+        assert position is None
+
+    def test_get_position_api_failure(self, service, mock_account_service):
+        """Test get_position raises exception on API failure."""
+        mock_account_service.get_account_info.side_effect = Exception("API error")
+
+        with pytest.raises(Exception, match="API error"):
+            service.get_position("BTC")
+
+
+class TestPositionServiceClosePosition:
+    """Test close_position method."""
+
+    @pytest.fixture
+    def mock_account_service(self):
+        """Mock account service."""
+        mock = Mock()
+        mock.get_account_info.return_value = {
+            "positions": [
+                {"position": {"coin": "BTC", "size": "0.5", "position_value": "25000.0"}}
+            ]
+        }
+        return mock
+
+    @pytest.fixture
+    def mock_hyperliquid(self):
+        """Mock hyperliquid service."""
+        mock = Mock()
+        mock_exchange = Mock()
+        mock_exchange.market_close.return_value = {"status": "ok"}
+        mock.get_exchange_client.return_value = mock_exchange
+        return mock
+
+    @pytest.fixture
+    def service(self, mock_account_service, mock_hyperliquid):
+        """Create service with mocked dependencies."""
+        with patch('src.services.position_service.account_service', mock_account_service):
+            with patch('src.services.position_service.hyperliquid_service', mock_hyperliquid):
+                svc = PositionService()
+                svc.account = mock_account_service
+                svc.hyperliquid = mock_hyperliquid
+                return svc
+
+    def test_close_position_full(self, service, mock_hyperliquid):
+        """Test closing entire position."""
+        result = service.close_position("BTC")
+
+        assert result["status"] == "success"
+        assert result["coin"] == "BTC"
+        assert result["size_closed"] == 0.5
+
+        # Verify exchange API called with None size (close all)
+        exchange = mock_hyperliquid.get_exchange_client()
+        exchange.market_close.assert_called_once_with(
+            coin="BTC",
+            sz=None,
+            slippage=0.05
+        )
+
+    def test_close_position_partial(self, service, mock_hyperliquid):
+        """Test closing partial position."""
+        result = service.close_position("BTC", size=0.2)
+
+        assert result["status"] == "success"
+        assert result["coin"] == "BTC"
+        assert result["size_closed"] == 0.2
+
+        # Verify exchange API called with specific size
+        exchange = mock_hyperliquid.get_exchange_client()
+        exchange.market_close.assert_called_once_with(
+            coin="BTC",
+            sz=0.2,
+            slippage=0.05
+        )
+
+    def test_close_position_custom_slippage(self, service, mock_hyperliquid):
+        """Test closing with custom slippage."""
+        result = service.close_position("BTC", slippage=0.1)
+
+        # Verify slippage parameter passed correctly
+        exchange = mock_hyperliquid.get_exchange_client()
+        exchange.market_close.assert_called_once()
+        assert exchange.market_close.call_args[1]["slippage"] == 0.1
+
+    def test_close_position_not_found_raises(self, service, mock_account_service):
+        """Test closing non-existent position raises ValueError."""
+        mock_account_service.get_account_info.return_value = {"positions": []}
+
+        with pytest.raises(ValueError, match="No open position found for DOGE"):
+            service.close_position("DOGE")
+
+    def test_close_position_zero_size_raises(self, service):
+        """Test closing with zero size raises ValueError."""
+        with pytest.raises(ValueError, match="Size must be positive"):
+            service.close_position("BTC", size=0.0)
+
+    def test_close_position_negative_size_raises(self, service):
+        """Test closing with negative size raises ValueError."""
+        with pytest.raises(ValueError, match="Size must be positive"):
+            service.close_position("BTC", size=-0.1)
+
+    def test_close_position_size_exceeds_raises(self, service):
+        """Test closing size exceeding current position raises ValueError."""
+        # Current position is 0.5
+        with pytest.raises(ValueError, match="exceeds current position size"):
+            service.close_position("BTC", size=1.0)
+
+    def test_close_position_no_wallet_raises(self, service):
+        """Test closing without wallet configured raises RuntimeError."""
+        with patch.object(settings, 'HYPERLIQUID_WALLET_ADDRESS', None):
+            with pytest.raises(RuntimeError, match="Wallet address not configured"):
+                service.close_position("BTC")
+
+    def test_close_position_api_failure(self, service, mock_hyperliquid):
+        """Test close_position raises exception on API failure."""
+        exchange = mock_hyperliquid.get_exchange_client()
+        exchange.market_close.side_effect = Exception("Network error")
+
+        with pytest.raises(Exception, match="Network error"):
+            service.close_position("BTC")
+
+    def test_close_position_short_position(self, service, mock_account_service, mock_hyperliquid):
+        """Test closing short position (negative size)."""
+        mock_account_service.get_account_info.return_value = {
+            "positions": [
+                {"position": {"coin": "SOL", "size": "-10.0", "position_value": "-1500.0"}}
+            ]
+        }
+
+        result = service.close_position("SOL")
+
+        assert result["status"] == "success"
+        assert result["size_closed"] == 10.0  # Absolute value
+
+
+class TestPositionServiceGetPositionSummary:
+    """Test get_position_summary method."""
+
+    @pytest.fixture
+    def mock_account_service(self):
+        """Mock account service."""
+        return Mock()
+
+    @pytest.fixture
+    def service(self, mock_account_service):
+        """Create service with mocked account service."""
+        with patch('src.services.position_service.account_service', mock_account_service):
+            svc = PositionService()
+            svc.account = mock_account_service
+            return svc
+
+    def test_summary_with_positions(self, service, mock_account_service):
+        """Test summary with multiple positions."""
+        mock_account_service.get_account_info.return_value = {
+            "positions": [
+                {
+                    "position": {
+                        "coin": "BTC",
+                        "size": "0.5",
+                        "position_value": "25000.0",
+                        "unrealized_pnl": "500.0"
+                    }
+                },
+                {
+                    "position": {
+                        "coin": "ETH",
+                        "size": "10.0",
+                        "position_value": "30000.0",
+                        "unrealized_pnl": "-200.0"
+                    }
+                },
+                {
+                    "position": {
+                        "coin": "SOL",
+                        "size": "-20.0",
+                        "position_value": "-3000.0",
+                        "unrealized_pnl": "100.0"
+                    }
+                }
+            ]
+        }
+
+        summary = service.get_position_summary()
+
+        assert summary["total_positions"] == 3
+        assert summary["long_positions"] == 2  # BTC, ETH
+        assert summary["short_positions"] == 1  # SOL
+        assert summary["total_position_value"] == pytest.approx(52000.0)
+        assert summary["total_unrealized_pnl"] == pytest.approx(400.0)
+        assert len(summary["positions"]) == 3
+
+    def test_summary_no_positions(self, service, mock_account_service):
+        """Test summary with no positions."""
+        mock_account_service.get_account_info.return_value = {
+            "positions": []
+        }
+
+        summary = service.get_position_summary()
+
+        assert summary["total_positions"] == 0
+        assert summary["long_positions"] == 0
+        assert summary["short_positions"] == 0
+        assert summary["total_position_value"] == 0.0
+        assert summary["total_unrealized_pnl"] == 0.0
+        assert summary["positions"] == []
+
+    def test_summary_only_long_positions(self, service, mock_account_service):
+        """Test summary with only long positions."""
+        mock_account_service.get_account_info.return_value = {
+            "positions": [
+                {
+                    "position": {
+                        "coin": "BTC",
+                        "size": "0.5",
+                        "position_value": "25000.0",
+                        "unrealized_pnl": "500.0"
+                    }
+                },
+                {
+                    "position": {
+                        "coin": "ETH",
+                        "size": "10.0",
+                        "position_value": "30000.0",
+                        "unrealized_pnl": "300.0"
+                    }
+                }
+            ]
+        }
+
+        summary = service.get_position_summary()
+
+        assert summary["long_positions"] == 2
+        assert summary["short_positions"] == 0
+
+    def test_summary_only_short_positions(self, service, mock_account_service):
+        """Test summary with only short positions."""
+        mock_account_service.get_account_info.return_value = {
+            "positions": [
+                {
+                    "position": {
+                        "coin": "BTC",
+                        "size": "-0.5",
+                        "position_value": "-25000.0",
+                        "unrealized_pnl": "-500.0"
+                    }
+                }
+            ]
+        }
+
+        summary = service.get_position_summary()
+
+        assert summary["long_positions"] == 0
+        assert summary["short_positions"] == 1
+
+    def test_summary_position_details(self, service, mock_account_service):
+        """Test individual position details in summary."""
+        mock_account_service.get_account_info.return_value = {
+            "positions": [
+                {
+                    "position": {
+                        "coin": "BTC",
+                        "size": "0.5",
+                        "position_value": "25000.0",
+                        "unrealized_pnl": "500.0"
+                    }
+                }
+            ]
+        }
+
+        summary = service.get_position_summary()
+
+        pos = summary["positions"][0]
+        assert pos["coin"] == "BTC"
+        assert pos["size"] == 0.5
+        assert pos["value"] == 25000.0
+        assert pos["pnl"] == 500.0
+
+    def test_summary_api_failure(self, service, mock_account_service):
+        """Test summary raises exception on API failure."""
+        mock_account_service.get_account_info.side_effect = Exception("API error")
+
+        with pytest.raises(Exception, match="API error"):
+            service.get_position_summary()
+
+
+class TestPositionServiceSingleton:
+    """Test global service singleton."""
+
+    def test_singleton_instance_exists(self):
+        """Test global service instance is available."""
+        assert position_service is not None
+        assert isinstance(position_service, PositionService)
+
+    def test_singleton_has_dependencies(self):
+        """Test singleton has required dependencies."""
+        assert hasattr(position_service, 'hyperliquid')
+        assert hasattr(position_service, 'account')
