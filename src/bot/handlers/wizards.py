@@ -313,7 +313,7 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             success_msg,
             parse_mode="Markdown",
-            reply_markup=build_back_button()
+            reply_markup=build_main_menu()
         )
 
     except Exception as e:
@@ -321,7 +321,7 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             f"❌ Failed to place order:\n`{str(e)}`",
             parse_mode="Markdown",
-            reply_markup=build_back_button()
+            reply_markup=build_main_menu()
         )
 
     # Clean up user data
@@ -498,7 +498,7 @@ async def close_position_execute(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text(
             success_msg,
             parse_mode="Markdown",
-            reply_markup=build_back_button()
+            reply_markup=build_main_menu()
         )
 
     except Exception as e:
@@ -506,7 +506,7 @@ async def close_position_execute(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text(
             f"❌ Failed to close position:\n`{str(e)}`",
             parse_mode="Markdown",
-            reply_markup=build_back_button()
+            reply_markup=build_main_menu()
         )
 
 

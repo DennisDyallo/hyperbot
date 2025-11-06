@@ -14,6 +14,7 @@ from telegram.ext import (
     filters
 )
 from src.bot.middleware import authorized_only
+from src.bot.menus import build_main_menu
 from src.services.scale_order_service import scale_order_service
 from src.services.market_data_service import market_data_service
 from src.models.scale_order import ScaleOrderConfig
@@ -127,7 +128,8 @@ class ScaleOrderWizard:
             logger.exception(f"Error in scale order wizard (select_coin): {e}")
             await update.message.reply_text(
                 f"❌ Unexpected error: {str(e)}\n\n"
-                f"Please try again or contact support."
+                f"Please try again or contact support.",
+                reply_markup=build_main_menu()
             )
             return ConversationHandler.END
 
@@ -138,7 +140,7 @@ class ScaleOrderWizard:
         await query.answer()
 
         if query.data == "cancel":
-            await query.edit_message_text("❌ Scale order cancelled.")
+            await query.edit_message_text("❌ Scale order cancelled.", reply_markup=build_main_menu())
             return ConversationHandler.END
 
         is_buy = query.data == "direction_in"
@@ -171,7 +173,7 @@ class ScaleOrderWizard:
         await query.answer()
 
         if query.data == "cancel":
-            await query.edit_message_text("❌ Scale order cancelled.")
+            await query.edit_message_text("❌ Scale order cancelled.", reply_markup=build_main_menu())
             return ConversationHandler.END
 
         is_auto = query.data == "range_auto"
@@ -268,7 +270,7 @@ class ScaleOrderWizard:
         await query.answer()
 
         if query.data == "cancel":
-            await query.edit_message_text("❌ Scale order cancelled.")
+            await query.edit_message_text("❌ Scale order cancelled.", reply_markup=build_main_menu())
             return ConversationHandler.END
 
         current_price = context.user_data["current_price"]
@@ -419,7 +421,7 @@ class ScaleOrderWizard:
         await query.answer()
 
         if query.data == "cancel":
-            await query.edit_message_text("❌ Scale order cancelled.")
+            await query.edit_message_text("❌ Scale order cancelled.", reply_markup=build_main_menu())
             return ConversationHandler.END
 
         if query.data == "num_custom":
@@ -524,7 +526,7 @@ class ScaleOrderWizard:
         await query.answer()
 
         if query.data == "cancel":
-            await query.edit_message_text("❌ Scale order cancelled.")
+            await query.edit_message_text("❌ Scale order cancelled.", reply_markup=build_main_menu())
             return ConversationHandler.END
 
         distribution = "geometric" if query.data == "dist_geometric" else "linear"
@@ -592,7 +594,8 @@ class ScaleOrderWizard:
             logger.error(f"Preview generation failed: {e}")
             await query.edit_message_text(
                 f"❌ Error generating preview: {str(e)}\n\n"
-                f"Scale order cancelled."
+                f"Scale order cancelled.",
+                reply_markup=build_main_menu()
             )
             return ConversationHandler.END
 
@@ -603,7 +606,7 @@ class ScaleOrderWizard:
         await query.answer()
 
         if query.data == "cancel":
-            await query.edit_message_text("❌ Scale order cancelled.")
+            await query.edit_message_text("❌ Scale order cancelled.", reply_markup=build_main_menu())
             return ConversationHandler.END
 
         # Execute scale order
@@ -639,14 +642,15 @@ class ScaleOrderWizard:
                 msg += f"All {result.num_orders} orders failed to place.\n"
                 msg += f"Please check your account and try again."
 
-            await query.edit_message_text(msg, parse_mode="Markdown")
+            await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=build_main_menu())
 
         except Exception as e:
             logger.error(f"Scale order execution failed: {e}")
             await query.edit_message_text(
                 f"❌ *Error placing scale order*\n\n"
                 f"Error: {str(e)}",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=build_main_menu()
             )
 
         return ConversationHandler.END
@@ -654,7 +658,7 @@ class ScaleOrderWizard:
     @staticmethod
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Cancel the conversation."""
-        await update.message.reply_text("❌ Scale order wizard cancelled.")
+        await update.message.reply_text("❌ Scale order wizard cancelled.", reply_markup=build_main_menu())
         return ConversationHandler.END
 
 
