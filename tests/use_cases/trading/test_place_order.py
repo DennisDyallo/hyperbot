@@ -3,9 +3,14 @@ Unit tests for PlaceOrderUseCase.
 
 Tests order placement logic that handles actual trading operations.
 This is CRITICAL - bugs here = lost money.
+
+REFACTORED: Now using tests/helpers for service mocking.
+- create_service_with_mocks replaces manual fixture boilerplate
+- ServiceMockBuilder provides pre-configured service mocks
+- Result: Cleaner fixtures, consistent with CLAUDE.md patterns
 """
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import patch
 from src.use_cases.trading.place_order import (
     PlaceOrderRequest,
     PlaceOrderResponse,
@@ -13,45 +18,37 @@ from src.use_cases.trading.place_order import (
 )
 from src.use_cases.common.validators import ValidationError
 
+# Import helpers for cleaner service mocking
+from tests.helpers import create_service_with_mocks, ServiceMockBuilder
+
 
 class TestPlaceOrderUseCase:
     """Test PlaceOrderUseCase."""
 
     @pytest.fixture
-    def mock_order_service(self):
-        """Mock OrderService."""
-        mock = AsyncMock()
-        return mock
-
-    @pytest.fixture
-    def mock_market_data_service(self):
-        """Mock MarketDataService."""
-        mock = Mock()
-        return mock
-
-    @pytest.fixture
-    def use_case(self, mock_order_service, mock_market_data_service):
+    def use_case(self):
         """Create PlaceOrderUseCase with mocked dependencies."""
-        with patch('src.use_cases.trading.place_order.order_service', mock_order_service):
-            with patch('src.use_cases.trading.place_order.market_data_service', mock_market_data_service):
-                uc = PlaceOrderUseCase()
-                # Explicitly assign mocked services
-                uc.order_service = mock_order_service
-                uc.market_data = mock_market_data_service
-                return uc
+        return create_service_with_mocks(
+            PlaceOrderUseCase,
+            'src.use_cases.trading.place_order',
+            {
+                'order_service': ServiceMockBuilder.order_service(),
+                'market_data_service': ServiceMockBuilder.market_data_service()
+            }
+        )
 
     # ===================================================================
     # Market Order with USD Amount tests
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_market_buy_with_usd_amount_success(self, use_case, mock_order_service):
+    async def test_market_buy_with_usd_amount_success(self, use_case):
         """Test market buy order with USD amount."""
         # Mock USD to coin conversion
         with patch.object(use_case.usd_converter, 'convert_usd_to_coin') as mock_convert:
             mock_convert.return_value = (0.02, 50000.0)  # 0.02 BTC at $50k
 
-            mock_order_service.place_market_order.return_value = {
+            use_case.order_service.place_market_order.return_value = {
                 "status": "success",
                 "price": 50100.0  # Execution price with slippage
             }
@@ -74,15 +71,15 @@ class TestPlaceOrderUseCase:
             assert response.usd_value == pytest.approx(1002.0, abs=0.01)  # 0.02 * 50100
 
             mock_convert.assert_called_once_with(1000.0, "BTC")
-            mock_order_service.place_market_order.assert_called_once()
+            use_case.order_service.place_market_order.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_market_sell_with_usd_amount_success(self, use_case, mock_order_service):
+    async def test_market_sell_with_usd_amount_success(self, use_case):
         """Test market sell order with USD amount."""
         with patch.object(use_case.usd_converter, 'convert_usd_to_coin') as mock_convert:
             mock_convert.return_value = (10.0, 3000.0)  # 10 ETH at $3k
 
-            mock_order_service.place_market_order.return_value = {
+            use_case.order_service.place_market_order.return_value = {
                 "status": "success",
                 "price": 2990.0  # Execution price
             }
@@ -106,10 +103,10 @@ class TestPlaceOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_market_buy_with_coin_size_success(self, use_case, mock_order_service, mock_market_data_service):
+    async def test_market_buy_with_coin_size_success(self, use_case):
         """Test market buy order with coin size."""
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_order_service.place_market_order.return_value = {
+        use_case.market_data.get_price.return_value = 50000.0
+        use_case.order_service.place_market_order.return_value = {
             "status": "success",
             "price": 50050.0
         }
@@ -127,8 +124,8 @@ class TestPlaceOrderUseCase:
         assert response.size == 0.5
         assert response.usd_value == pytest.approx(25025.0, abs=0.01)  # 0.5 * 50050
 
-        mock_market_data_service.get_price.assert_called_once_with("BTC")
-        mock_order_service.place_market_order.assert_called_once_with(
+        use_case.market_data.get_price.assert_called_once_with("BTC")
+        use_case.order_service.place_market_order.assert_called_once_with(
             coin="BTC",
             is_buy=True,
             size=0.5,
@@ -141,12 +138,12 @@ class TestPlaceOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_limit_buy_with_usd_amount_success(self, use_case, mock_order_service):
+    async def test_limit_buy_with_usd_amount_success(self, use_case):
         """Test limit buy order with USD amount."""
         with patch.object(use_case.usd_converter, 'convert_usd_to_coin') as mock_convert:
             mock_convert.return_value = (0.02, 50000.0)
 
-            mock_order_service.place_limit_order.return_value = {
+            use_case.order_service.place_limit_order.return_value = {
                 "status": "success",
                 "order_id": 12345
             }
@@ -166,7 +163,7 @@ class TestPlaceOrderUseCase:
             assert response.price == 49000.0
             assert response.order_id == 12345
 
-            mock_order_service.place_limit_order.assert_called_once_with(
+            use_case.order_service.place_limit_order.assert_called_once_with(
                 coin="BTC",
                 is_buy=True,
                 size=0.02,
@@ -176,10 +173,10 @@ class TestPlaceOrderUseCase:
             )
 
     @pytest.mark.asyncio
-    async def test_limit_sell_with_coin_size_success(self, use_case, mock_order_service, mock_market_data_service):
+    async def test_limit_sell_with_coin_size_success(self, use_case):
         """Test limit sell order with coin size."""
-        mock_market_data_service.get_price.return_value = 3000.0
-        mock_order_service.place_limit_order.return_value = {
+        use_case.market_data.get_price.return_value = 3000.0
+        use_case.order_service.place_limit_order.return_value = {
             "status": "success",
             "order_id": 99999
         }
@@ -200,8 +197,8 @@ class TestPlaceOrderUseCase:
         assert response.order_id == 99999
         assert response.price == 3100.0
 
-        mock_order_service.place_limit_order.assert_called_once()
-        call_kwargs = mock_order_service.place_limit_order.call_args.kwargs
+        use_case.order_service.place_limit_order.assert_called_once()
+        call_kwargs = use_case.order_service.place_limit_order.call_args.kwargs
         assert call_kwargs["time_in_force"] == "Ioc"
 
     # ===================================================================
@@ -235,9 +232,9 @@ class TestPlaceOrderUseCase:
             await use_case.execute(request)
 
     @pytest.mark.asyncio
-    async def test_limit_order_missing_limit_price_fails(self, use_case, mock_market_data_service):
+    async def test_limit_order_missing_limit_price_fails(self, use_case):
         """Test limit order without limit price fails."""
-        mock_market_data_service.get_price.return_value = 50000.0
+        use_case.market_data.get_price.return_value = 50000.0
 
         request = PlaceOrderRequest(
             coin="BTC",
@@ -264,9 +261,9 @@ class TestPlaceOrderUseCase:
             await use_case.execute(request)
 
     @pytest.mark.asyncio
-    async def test_zero_coin_size_fails(self, use_case, mock_market_data_service):
+    async def test_zero_coin_size_fails(self, use_case):
         """Test zero coin size fails validation."""
-        mock_market_data_service.get_price.return_value = 50000.0
+        use_case.market_data.get_price.return_value = 50000.0
 
         # Pydantic should catch this with gt=0 constraint
         with pytest.raises(Exception):  # Pydantic ValidationError
@@ -282,12 +279,12 @@ class TestPlaceOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_market_order_placement_failure(self, use_case, mock_order_service):
+    async def test_market_order_placement_failure(self, use_case):
         """Test market order placement failure raises RuntimeError."""
         with patch.object(use_case.usd_converter, 'convert_usd_to_coin') as mock_convert:
             mock_convert.return_value = (0.02, 50000.0)
 
-            mock_order_service.place_market_order.side_effect = Exception("API Error")
+            use_case.order_service.place_market_order.side_effect = Exception("API Error")
 
             request = PlaceOrderRequest(
                 coin="BTC",
@@ -300,12 +297,12 @@ class TestPlaceOrderUseCase:
                 await use_case.execute(request)
 
     @pytest.mark.asyncio
-    async def test_limit_order_placement_failure(self, use_case, mock_order_service):
+    async def test_limit_order_placement_failure(self, use_case):
         """Test limit order placement failure raises RuntimeError."""
         with patch.object(use_case.usd_converter, 'convert_usd_to_coin') as mock_convert:
             mock_convert.return_value = (0.02, 50000.0)
 
-            mock_order_service.place_limit_order.side_effect = Exception("Insufficient margin")
+            use_case.order_service.place_limit_order.side_effect = Exception("Insufficient margin")
 
             request = PlaceOrderRequest(
                 coin="BTC",
@@ -335,9 +332,9 @@ class TestPlaceOrderUseCase:
                 await use_case.execute(request)
 
     @pytest.mark.asyncio
-    async def test_invalid_price_for_coin_size_fails(self, use_case, mock_market_data_service):
+    async def test_invalid_price_for_coin_size_fails(self, use_case):
         """Test that invalid price from market data fails."""
-        mock_market_data_service.get_price.return_value = 0.0  # Invalid price
+        use_case.market_data.get_price.return_value = 0.0  # Invalid price
 
         request = PlaceOrderRequest(
             coin="BTC",
@@ -354,10 +351,10 @@ class TestPlaceOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_reduce_only_flag_passed_to_service(self, use_case, mock_order_service, mock_market_data_service):
+    async def test_reduce_only_flag_passed_to_service(self, use_case):
         """Test reduce_only flag is passed to order service."""
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_order_service.place_market_order.return_value = {
+        use_case.market_data.get_price.return_value = 50000.0
+        use_case.order_service.place_market_order.return_value = {
             "status": "success",
             "price": 50000.0
         }
@@ -372,14 +369,14 @@ class TestPlaceOrderUseCase:
 
         await use_case.execute(request)
 
-        call_kwargs = mock_order_service.place_market_order.call_args.kwargs
+        call_kwargs = use_case.order_service.place_market_order.call_args.kwargs
         assert call_kwargs["reduce_only"] is True
 
     @pytest.mark.asyncio
-    async def test_custom_slippage_passed_to_service(self, use_case, mock_order_service, mock_market_data_service):
+    async def test_custom_slippage_passed_to_service(self, use_case):
         """Test custom slippage is passed to order service."""
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_order_service.place_market_order.return_value = {
+        use_case.market_data.get_price.return_value = 50000.0
+        use_case.order_service.place_market_order.return_value = {
             "status": "success",
             "price": 50000.0
         }
@@ -394,15 +391,15 @@ class TestPlaceOrderUseCase:
 
         await use_case.execute(request)
 
-        call_kwargs = mock_order_service.place_market_order.call_args.kwargs
+        call_kwargs = use_case.order_service.place_market_order.call_args.kwargs
         assert call_kwargs["slippage"] == 0.10
 
     @pytest.mark.asyncio
-    async def test_custom_time_in_force_passed_to_limit_order(self, use_case, mock_order_service):
+    async def test_custom_time_in_force_passed_to_limit_order(self, use_case):
         """Test custom time_in_force is passed to limit order."""
         with patch.object(use_case.usd_converter, 'convert_usd_to_coin') as mock_convert:
             mock_convert.return_value = (0.02, 50000.0)
-            mock_order_service.place_limit_order.return_value = {
+            use_case.order_service.place_limit_order.return_value = {
                 "status": "success",
                 "order_id": 12345
             }
@@ -418,7 +415,7 @@ class TestPlaceOrderUseCase:
 
             await use_case.execute(request)
 
-            call_kwargs = mock_order_service.place_limit_order.call_args.kwargs
+            call_kwargs = use_case.order_service.place_limit_order.call_args.kwargs
             assert call_kwargs["time_in_force"] == "Alo"
 
     # ===================================================================
@@ -426,10 +423,10 @@ class TestPlaceOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_response_includes_all_fields(self, use_case, mock_order_service, mock_market_data_service):
+    async def test_response_includes_all_fields(self, use_case):
         """Test response includes all expected fields."""
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_order_service.place_market_order.return_value = {
+        use_case.market_data.get_price.return_value = 50000.0
+        use_case.order_service.place_market_order.return_value = {
             "status": "success",
             "price": 50100.0
         }
@@ -458,10 +455,10 @@ class TestPlaceOrderUseCase:
         assert "placed successfully" in response.message
 
     @pytest.mark.asyncio
-    async def test_market_order_has_no_order_id(self, use_case, mock_order_service, mock_market_data_service):
+    async def test_market_order_has_no_order_id(self, use_case):
         """Test market orders have no order_id (filled immediately)."""
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_order_service.place_market_order.return_value = {
+        use_case.market_data.get_price.return_value = 50000.0
+        use_case.order_service.place_market_order.return_value = {
             "status": "success",
             "price": 50000.0
         }
@@ -478,11 +475,11 @@ class TestPlaceOrderUseCase:
         assert response.order_id is None
 
     @pytest.mark.asyncio
-    async def test_limit_order_has_order_id(self, use_case, mock_order_service):
+    async def test_limit_order_has_order_id(self, use_case):
         """Test limit orders include order_id."""
         with patch.object(use_case.usd_converter, 'convert_usd_to_coin') as mock_convert:
             mock_convert.return_value = (0.02, 50000.0)
-            mock_order_service.place_limit_order.return_value = {
+            use_case.order_service.place_limit_order.return_value = {
                 "status": "success",
                 "order_id": 98765
             }

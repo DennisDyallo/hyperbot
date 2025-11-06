@@ -3,9 +3,13 @@ Unit tests for RebalanceUseCase.
 
 Tests portfolio rebalancing logic (wrapper around rebalance_service).
 CRITICAL - bugs here = incorrect rebalancing operations.
+
+MIGRATED: Now using tests/helpers for service mocking.
+- create_service_with_mocks replaces manual fixture boilerplate
+- ServiceMockBuilder provides pre-configured rebalance_service mock
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from src.use_cases.portfolio.rebalance import (
     RebalanceRequest,
     RebalanceResponse,
@@ -15,22 +19,28 @@ from src.use_cases.portfolio.rebalance import (
 from src.services.rebalance_service import TradeAction
 from src.services.risk_calculator import RiskLevel
 
+# Import helpers for cleaner service mocking
+from tests.helpers import create_service_with_mocks, ServiceMockBuilder
+
 
 class TestRebalanceUseCase:
     """Test RebalanceUseCase."""
 
     @pytest.fixture
-    def mock_rebalance_service(self):
-        """Mock RebalanceService."""
-        return Mock()
+    def use_case(self):
+        """Create RebalanceUseCase with mocked dependencies."""
+        return create_service_with_mocks(
+            RebalanceUseCase,
+            'src.use_cases.portfolio.rebalance',
+            {
+                'rebalance_service': ServiceMockBuilder.rebalance_service()
+            }
+        )
 
     @pytest.fixture
-    def use_case(self, mock_rebalance_service):
-        """Create RebalanceUseCase with mocked dependencies."""
-        with patch('src.use_cases.portfolio.rebalance.rebalance_service', mock_rebalance_service):
-            uc = RebalanceUseCase()
-            uc.rebalance_service = mock_rebalance_service
-            return uc
+    def mock_rebalance_service(self, use_case):
+        """Get the mocked rebalance_service from use_case."""
+        return use_case.rebalance_service
 
     @pytest.fixture
     def sample_preview_result(self):

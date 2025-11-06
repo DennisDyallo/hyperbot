@@ -5,68 +5,62 @@ Tests position closing logic that handles actual trading operations.
 CRITICAL - bugs here = positions not closed properly.
 """
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock
 from src.use_cases.trading.close_position import (
     ClosePositionRequest,
     ClosePositionResponse,
     ClosePositionUseCase
 )
 from src.use_cases.common.validators import ValidationError
+from tests.helpers.service_mocks import create_service_with_mocks, ServiceMockBuilder
+from tests.helpers.mock_data import PositionBuilder
 
 
 class TestClosePositionUseCase:
     """Test ClosePositionUseCase."""
 
     @pytest.fixture
-    def mock_position_service(self):
-        """Mock PositionService."""
-        mock = Mock()
-        # get_position is sync, close_position is async
-        mock.get_position = Mock()
-        mock.close_position = AsyncMock()
-        return mock
-
-    @pytest.fixture
-    def mock_market_data_service(self):
-        """Mock MarketDataService."""
-        mock = Mock()
-        return mock
-
-    @pytest.fixture
     def mock_position_data(self):
         """Sample position data."""
-        return {
-            "position": {
-                "coin": "BTC",
-                "size": 1.0,  # Long position
-                "position_value": 50000.0,
-                "entry_price": 48000.0
-            }
-        }
+        return (
+            PositionBuilder()
+            .with_coin("BTC")
+            .with_size(1.0)
+            .with_entry_price(50000.0)  # Match current price for USD calculations
+            .with_position_value(50000.0)
+            .build()
+        )
 
     @pytest.fixture
-    def use_case(self, mock_position_service, mock_market_data_service):
+    def use_case(self):
         """Create ClosePositionUseCase with mocked dependencies."""
-        with patch('src.use_cases.trading.close_position.position_service', mock_position_service):
-            with patch('src.use_cases.trading.close_position.market_data_service', mock_market_data_service):
-                uc = ClosePositionUseCase()
-                # Explicitly assign mocked services
-                uc.position_service = mock_position_service
-                uc.market_data = mock_market_data_service
-                return uc
+        mock_position = ServiceMockBuilder.position_service()
+        # get_position is sync, close_position is async
+        mock_position.close_position = AsyncMock()
+
+        # Create market_data_service with custom prices matching test expectations
+        mock_market_data = ServiceMockBuilder.market_data_service(
+            prices={"BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0}
+        )
+
+        return create_service_with_mocks(
+            ClosePositionUseCase,
+            'src.use_cases.trading.close_position',
+            {
+                'position_service': mock_position,
+                'market_data_service': mock_market_data
+            }
+        )
 
     # ===================================================================
     # Full Position Close tests
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_full_position_close_success(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_full_position_close_success(self, use_case, mock_position_data):
         """Test full position close (no parameters)."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(coin="BTC")  # No size/percentage = full close
 
@@ -79,27 +73,24 @@ class TestClosePositionUseCase:
         assert response.close_type == "full"
         assert response.usd_value == pytest.approx(50000.0, abs=0.01)
 
-        mock_position_service.close_position.assert_called_once_with(
+        use_case.position_service.close_position.assert_called_once_with(
             coin="BTC",
             size=1.0,
             slippage=0.05
         )
 
     @pytest.mark.asyncio
-    async def test_full_position_close_short_position(
-        self, use_case, mock_position_service, mock_market_data_service
-    ):
+    async def test_full_position_close_short_position(self, use_case):
         """Test full close of short position (negative size)."""
-        short_position = {
-            "position": {
-                "coin": "ETH",
-                "size": -10.0,  # Short position
-                "position_value": 30000.0
-            }
-        }
-        mock_position_service.get_position.return_value = short_position
-        mock_market_data_service.get_price.return_value = 3000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        short_position = (
+            PositionBuilder()
+            .with_coin("ETH")
+            .with_size(-10.0)
+            .with_position_value(30000.0)
+            .build()
+        )
+        use_case.position_service.get_position.return_value = short_position
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(coin="ETH")
 
@@ -114,13 +105,10 @@ class TestClosePositionUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_partial_close_by_percentage(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_partial_close_by_percentage(self, use_case, mock_position_data):
         """Test partial position close by percentage."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(
             coin="BTC",
@@ -135,20 +123,17 @@ class TestClosePositionUseCase:
         assert response.close_type == "partial"
         assert response.usd_value == pytest.approx(25000.0, abs=0.01)
 
-        mock_position_service.close_position.assert_called_once_with(
+        use_case.position_service.close_position.assert_called_once_with(
             coin="BTC",
             size=0.5,
             slippage=0.05
         )
 
     @pytest.mark.asyncio
-    async def test_close_100_percent_is_full_close(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_close_100_percent_is_full_close(self, use_case, mock_position_data):
         """Test 100% close is marked as full close."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(
             coin="BTC",
@@ -162,13 +147,10 @@ class TestClosePositionUseCase:
         assert response.close_type == "full"
 
     @pytest.mark.asyncio
-    async def test_close_25_percent(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_close_25_percent(self, use_case, mock_position_data):
         """Test 25% position close."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(
             coin="BTC",
@@ -186,13 +168,10 @@ class TestClosePositionUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_partial_close_by_size(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_partial_close_by_size(self, use_case, mock_position_data):
         """Test partial position close by absolute size."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(
             coin="BTC",
@@ -207,13 +186,10 @@ class TestClosePositionUseCase:
         assert response.close_type == "partial"
 
     @pytest.mark.asyncio
-    async def test_close_size_equals_position_size_is_full(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_close_size_equals_position_size_is_full(self, use_case, mock_position_data):
         """Test close size equal to position size is full close."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(
             coin="BTC",
@@ -231,9 +207,9 @@ class TestClosePositionUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_position_not_found_raises_error(self, use_case, mock_position_service):
+    async def test_position_not_found_raises_error(self, use_case):
         """Test closing non-existent position raises ValueError."""
-        mock_position_service.get_position.return_value = None
+        use_case.position_service.get_position.return_value = None
 
         request = ClosePositionRequest(coin="NOTFOUND")
 
@@ -241,11 +217,9 @@ class TestClosePositionUseCase:
             await use_case.execute(request)
 
     @pytest.mark.asyncio
-    async def test_multiple_parameters_raises_error(
-        self, use_case, mock_position_service, mock_position_data
-    ):
+    async def test_multiple_parameters_raises_error(self, use_case, mock_position_data):
         """Test specifying both size and percentage raises ValidationError."""
-        mock_position_service.get_position.return_value = mock_position_data
+        use_case.position_service.get_position.return_value = mock_position_data
 
         request = ClosePositionRequest(
             coin="BTC",
@@ -257,12 +231,9 @@ class TestClosePositionUseCase:
             await use_case.execute(request)
 
     @pytest.mark.asyncio
-    async def test_close_size_exceeds_position_raises_error(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_close_size_exceeds_position_raises_error(self, use_case, mock_position_data):
         """Test close size exceeding position size raises ValidationError."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
+        use_case.position_service.get_position.return_value = mock_position_data
 
         request = ClosePositionRequest(
             coin="BTC",
@@ -273,11 +244,9 @@ class TestClosePositionUseCase:
             await use_case.execute(request)
 
     @pytest.mark.asyncio
-    async def test_invalid_percentage_zero_raises_error(
-        self, use_case, mock_position_service, mock_position_data
-    ):
+    async def test_invalid_percentage_zero_raises_error(self, use_case, mock_position_data):
         """Test zero percentage raises ValidationError."""
-        mock_position_service.get_position.return_value = mock_position_data
+        use_case.position_service.get_position.return_value = mock_position_data
 
         # Pydantic should catch this
         with pytest.raises(Exception):  # Pydantic validation error
@@ -287,11 +256,9 @@ class TestClosePositionUseCase:
             )
 
     @pytest.mark.asyncio
-    async def test_invalid_percentage_over_100_raises_error(
-        self, use_case, mock_position_service, mock_position_data
-    ):
+    async def test_invalid_percentage_over_100_raises_error(self, use_case, mock_position_data):
         """Test percentage over 100 raises ValidationError."""
-        mock_position_service.get_position.return_value = mock_position_data
+        use_case.position_service.get_position.return_value = mock_position_data
 
         # Pydantic should catch this
         with pytest.raises(Exception):  # Pydantic validation error
@@ -313,13 +280,12 @@ class TestClosePositionUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_price_fallback_when_market_data_unavailable(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_price_fallback_when_market_data_unavailable(self, use_case, mock_position_data):
         """Test fallback to position value when market price unavailable."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = None  # Price unavailable
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        # Replace get_price to return None (price unavailable)
+        use_case.market_data.get_price = Mock(return_value=None)
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(coin="BTC")
 
@@ -329,13 +295,12 @@ class TestClosePositionUseCase:
         assert response.usd_value == pytest.approx(50000.0, abs=0.01)
 
     @pytest.mark.asyncio
-    async def test_price_fallback_when_invalid_price(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_price_fallback_when_invalid_price(self, use_case, mock_position_data):
         """Test fallback when market price is zero."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 0.0  # Invalid price
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        # Replace get_price to return 0.0 (invalid price)
+        use_case.market_data.get_price = Mock(return_value=0.0)
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(coin="BTC")
 
@@ -349,13 +314,10 @@ class TestClosePositionUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_custom_slippage_passed_to_service(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_custom_slippage_passed_to_service(self, use_case, mock_position_data):
         """Test custom slippage is passed to position service."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(
             coin="BTC",
@@ -364,17 +326,14 @@ class TestClosePositionUseCase:
 
         await use_case.execute(request)
 
-        call_kwargs = mock_position_service.close_position.call_args.kwargs
+        call_kwargs = use_case.position_service.close_position.call_args.kwargs
         assert call_kwargs["slippage"] == 0.10
 
     @pytest.mark.asyncio
-    async def test_position_service_failure_raises_runtime_error(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_position_service_failure_raises_runtime_error(self, use_case, mock_position_data):
         """Test position service failure raises RuntimeError."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.side_effect = Exception("API Error")
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.side_effect = Exception("API Error")
 
         request = ClosePositionRequest(coin="BTC")
 
@@ -386,13 +345,10 @@ class TestClosePositionUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_response_includes_all_fields(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_response_includes_all_fields(self, use_case, mock_position_data):
         """Test response includes all expected fields."""
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(coin="BTC", percentage=50.0)
 
@@ -411,14 +367,11 @@ class TestClosePositionUseCase:
         assert "closed successfully" in response.message
 
     @pytest.mark.asyncio
-    async def test_coin_symbol_normalized_to_uppercase(
-        self, use_case, mock_position_service, mock_market_data_service, mock_position_data
-    ):
+    async def test_coin_symbol_normalized_to_uppercase(self, use_case, mock_position_data):
         """Test coin symbol is normalized to uppercase."""
         mock_position_data["position"]["coin"] = "BTC"  # Ensure data matches
-        mock_position_service.get_position.return_value = mock_position_data
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        use_case.position_service.get_position.return_value = mock_position_data
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(coin="btc")  # Lowercase
 
@@ -432,20 +385,17 @@ class TestClosePositionUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_large_position_close(
-        self, use_case, mock_position_service, mock_market_data_service
-    ):
+    async def test_large_position_close(self, use_case):
         """Test closing large position."""
-        large_position = {
-            "position": {
-                "coin": "SOL",
-                "size": 10000.0,
-                "position_value": 1500000.0
-            }
-        }
-        mock_position_service.get_position.return_value = large_position
-        mock_market_data_service.get_price.return_value = 150.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        large_position = (
+            PositionBuilder()
+            .with_coin("SOL")
+            .with_size(10000.0)
+            .with_position_value(1500000.0)
+            .build()
+        )
+        use_case.position_service.get_position.return_value = large_position
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(coin="SOL", percentage=25.0)
 
@@ -456,20 +406,17 @@ class TestClosePositionUseCase:
         assert response.usd_value == pytest.approx(375000.0, abs=0.01)
 
     @pytest.mark.asyncio
-    async def test_small_position_close(
-        self, use_case, mock_position_service, mock_market_data_service
-    ):
+    async def test_small_position_close(self, use_case):
         """Test closing very small position."""
-        small_position = {
-            "position": {
-                "coin": "BTC",
-                "size": 0.001,
-                "position_value": 50.0
-            }
-        }
-        mock_position_service.get_position.return_value = small_position
-        mock_market_data_service.get_price.return_value = 50000.0
-        mock_position_service.close_position.return_value = {"status": "success"}
+        small_position = (
+            PositionBuilder()
+            .with_coin("BTC")
+            .with_size(0.001)
+            .with_position_value(50.0)
+            .build()
+        )
+        use_case.position_service.get_position.return_value = small_position
+        use_case.position_service.close_position.return_value = {"status": "success"}
 
         request = ClosePositionRequest(coin="BTC")
 

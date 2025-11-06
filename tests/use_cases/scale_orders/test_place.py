@@ -3,9 +3,13 @@ Unit tests for PlaceScaleOrderUseCase.
 
 Tests scale order placement logic.
 CRITICAL - bugs here = actual trading operations with real money.
+
+MIGRATED: Now using tests/helpers for service mocking.
+- create_service_with_mocks replaces manual fixture boilerplate
+- AsyncMock configured manually for scale_order_service (no builder yet)
 """
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, AsyncMock
 from datetime import datetime
 from src.use_cases.scale_orders.place import (
     PlaceScaleOrderRequest,
@@ -18,24 +22,32 @@ from src.models.scale_order import (
     OrderPlacement
 )
 
+# Import helpers for cleaner service mocking
+from tests.helpers import create_service_with_mocks
+
 
 class TestPlaceScaleOrderUseCase:
     """Test PlaceScaleOrderUseCase."""
 
     @pytest.fixture
-    def mock_scale_order_service(self):
-        """Mock ScaleOrderService."""
-        mock = Mock()
-        mock.place_scale_order = AsyncMock()
-        return mock
+    def use_case(self):
+        """Create PlaceScaleOrderUseCase with mocked dependencies."""
+        # Create mock with AsyncMock for place_scale_order
+        mock_scale_order = Mock()
+        mock_scale_order.place_scale_order = AsyncMock()
+
+        return create_service_with_mocks(
+            PlaceScaleOrderUseCase,
+            'src.use_cases.scale_orders.place',
+            {
+                'scale_order_service': mock_scale_order
+            }
+        )
 
     @pytest.fixture
-    def use_case(self, mock_scale_order_service):
-        """Create PlaceScaleOrderUseCase with mocked dependencies."""
-        with patch('src.use_cases.scale_orders.place.scale_order_service', mock_scale_order_service):
-            uc = PlaceScaleOrderUseCase()
-            uc.scale_order_service = mock_scale_order_service
-            return uc
+    def mock_scale_order_service(self, use_case):
+        """Get the mocked scale_order_service from use_case."""
+        return use_case.scale_order_service
 
     @pytest.fixture
     def sample_config(self):

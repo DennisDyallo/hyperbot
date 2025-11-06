@@ -5,7 +5,7 @@ Tests listing, status checking, and cancellation of scale orders.
 CRITICAL - bugs here = inability to monitor/cancel trading operations.
 """
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, AsyncMock
 from datetime import datetime
 from src.use_cases.scale_orders.track import (
     ListScaleOrdersRequest,
@@ -19,23 +19,22 @@ from src.use_cases.scale_orders.track import (
     CancelScaleOrderUseCase
 )
 from src.models.scale_order import ScaleOrder, ScaleOrderStatus, ScaleOrderCancel
+from tests.helpers.service_mocks import create_service_with_mocks
 
 
 class TestListScaleOrdersUseCase:
     """Test ListScaleOrdersUseCase."""
 
     @pytest.fixture
-    def mock_scale_order_service(self):
-        """Mock ScaleOrderService."""
-        return Mock()
-
-    @pytest.fixture
-    def use_case(self, mock_scale_order_service):
+    def use_case(self):
         """Create ListScaleOrdersUseCase with mocked dependencies."""
-        with patch('src.use_cases.scale_orders.track.scale_order_service', mock_scale_order_service):
-            uc = ListScaleOrdersUseCase()
-            uc.scale_order_service = mock_scale_order_service
-            return uc
+        mock_scale_order = Mock()
+
+        return create_service_with_mocks(
+            ListScaleOrdersUseCase,
+            'src.use_cases.scale_orders.track',
+            {'scale_order_service': mock_scale_order}
+        )
 
     @pytest.fixture
     def sample_scale_orders(self):
@@ -94,10 +93,10 @@ class TestListScaleOrdersUseCase:
 
     @pytest.mark.asyncio
     async def test_list_all_scale_orders(
-        self, use_case, mock_scale_order_service, sample_scale_orders
+        self, use_case, sample_scale_orders
     ):
         """Test listing all scale orders."""
-        mock_scale_order_service.list_scale_orders.return_value = sample_scale_orders
+        use_case.scale_order_service.list_scale_orders.return_value = sample_scale_orders
 
         request = ListScaleOrdersRequest(active_only=False)
 
@@ -109,10 +108,10 @@ class TestListScaleOrdersUseCase:
 
     @pytest.mark.asyncio
     async def test_list_active_only(
-        self, use_case, mock_scale_order_service, sample_scale_orders
+        self, use_case, sample_scale_orders
     ):
         """Test listing only active scale orders."""
-        mock_scale_order_service.list_scale_orders.return_value = sample_scale_orders
+        use_case.scale_order_service.list_scale_orders.return_value = sample_scale_orders
 
         request = ListScaleOrdersRequest(active_only=True)
 
@@ -126,10 +125,10 @@ class TestListScaleOrdersUseCase:
 
     @pytest.mark.asyncio
     async def test_list_no_scale_orders(
-        self, use_case, mock_scale_order_service
+        self, use_case
     ):
         """Test listing when no scale orders exist."""
-        mock_scale_order_service.list_scale_orders.return_value = []
+        use_case.scale_order_service.list_scale_orders.return_value = []
 
         request = ListScaleOrdersRequest()
 
@@ -145,10 +144,10 @@ class TestListScaleOrdersUseCase:
 
     @pytest.mark.asyncio
     async def test_list_filter_by_coin(
-        self, use_case, mock_scale_order_service, sample_scale_orders
+        self, use_case, sample_scale_orders
     ):
         """Test filtering scale orders by coin."""
-        mock_scale_order_service.list_scale_orders.return_value = sample_scale_orders
+        use_case.scale_order_service.list_scale_orders.return_value = sample_scale_orders
 
         request = ListScaleOrdersRequest(coin="BTC", active_only=False)
 
@@ -160,10 +159,10 @@ class TestListScaleOrdersUseCase:
 
     @pytest.mark.asyncio
     async def test_list_filter_coin_no_matches(
-        self, use_case, mock_scale_order_service, sample_scale_orders
+        self, use_case, sample_scale_orders
     ):
         """Test filtering by coin with no matches."""
-        mock_scale_order_service.list_scale_orders.return_value = sample_scale_orders
+        use_case.scale_order_service.list_scale_orders.return_value = sample_scale_orders
 
         request = ListScaleOrdersRequest(coin="SOL", active_only=False)
 
@@ -178,10 +177,10 @@ class TestListScaleOrdersUseCase:
 
     @pytest.mark.asyncio
     async def test_list_service_failure_raises_runtime_error(
-        self, use_case, mock_scale_order_service
+        self, use_case
     ):
         """Test service failure raises RuntimeError."""
-        mock_scale_order_service.list_scale_orders.side_effect = Exception("Database error")
+        use_case.scale_order_service.list_scale_orders.side_effect = Exception("Database error")
 
         request = ListScaleOrdersRequest()
 
@@ -193,19 +192,16 @@ class TestGetScaleOrderStatusUseCase:
     """Test GetScaleOrderStatusUseCase."""
 
     @pytest.fixture
-    def mock_scale_order_service(self):
-        """Mock ScaleOrderService."""
-        mock = Mock()
-        mock.get_scale_order_status = AsyncMock()
-        return mock
-
-    @pytest.fixture
-    def use_case(self, mock_scale_order_service):
+    def use_case(self):
         """Create GetScaleOrderStatusUseCase with mocked dependencies."""
-        with patch('src.use_cases.scale_orders.track.scale_order_service', mock_scale_order_service):
-            uc = GetScaleOrderStatusUseCase()
-            uc.scale_order_service = mock_scale_order_service
-            return uc
+        mock_scale_order = Mock()
+        mock_scale_order.get_scale_order_status = AsyncMock()
+
+        return create_service_with_mocks(
+            GetScaleOrderStatusUseCase,
+            'src.use_cases.scale_orders.track',
+            {'scale_order_service': mock_scale_order}
+        )
 
     @pytest.fixture
     def sample_status(self):
@@ -246,16 +242,16 @@ class TestGetScaleOrderStatusUseCase:
 
     @pytest.mark.asyncio
     async def test_get_status_success(
-        self, use_case, mock_scale_order_service, sample_status
+        self, use_case, sample_status
     ):
         """Test getting scale order status."""
-        mock_scale_order_service.get_scale_order_status.return_value = sample_status
+        use_case.scale_order_service.get_scale_order_status.return_value = sample_status
 
         request = GetScaleOrderStatusRequest(scale_order_id="scale_123")
 
         response = await use_case.execute(request)
 
-        mock_scale_order_service.get_scale_order_status.assert_called_once_with("scale_123")
+        use_case.scale_order_service.get_scale_order_status.assert_called_once_with("scale_123")
         assert response.status.scale_order.id == "scale_123"
         assert response.status.fill_percentage == 40.0
         assert len(response.status.open_orders) == 3
@@ -263,10 +259,10 @@ class TestGetScaleOrderStatusUseCase:
 
     @pytest.mark.asyncio
     async def test_get_status_not_found_raises_value_error(
-        self, use_case, mock_scale_order_service
+        self, use_case
     ):
         """Test getting status for non-existent scale order."""
-        mock_scale_order_service.get_scale_order_status.return_value = None
+        use_case.scale_order_service.get_scale_order_status.return_value = None
 
         request = GetScaleOrderStatusRequest(scale_order_id="nonexistent")
 
@@ -275,10 +271,10 @@ class TestGetScaleOrderStatusUseCase:
 
     @pytest.mark.asyncio
     async def test_get_status_service_failure_raises_runtime_error(
-        self, use_case, mock_scale_order_service
+        self, use_case
     ):
         """Test service failure raises RuntimeError."""
-        mock_scale_order_service.get_scale_order_status.side_effect = Exception("API error")
+        use_case.scale_order_service.get_scale_order_status.side_effect = Exception("API error")
 
         request = GetScaleOrderStatusRequest(scale_order_id="scale_123")
 
@@ -290,19 +286,16 @@ class TestCancelScaleOrderUseCase:
     """Test CancelScaleOrderUseCase."""
 
     @pytest.fixture
-    def mock_scale_order_service(self):
-        """Mock ScaleOrderService."""
-        mock = Mock()
-        mock.cancel_scale_order = AsyncMock()
-        return mock
-
-    @pytest.fixture
-    def use_case(self, mock_scale_order_service):
+    def use_case(self):
         """Create CancelScaleOrderUseCase with mocked dependencies."""
-        with patch('src.use_cases.scale_orders.track.scale_order_service', mock_scale_order_service):
-            uc = CancelScaleOrderUseCase()
-            uc.scale_order_service = mock_scale_order_service
-            return uc
+        mock_scale_order = Mock()
+        mock_scale_order.cancel_scale_order = AsyncMock()
+
+        return create_service_with_mocks(
+            CancelScaleOrderUseCase,
+            'src.use_cases.scale_orders.track',
+            {'scale_order_service': mock_scale_order}
+        )
 
     # ===================================================================
     # Cancel Success tests
@@ -310,7 +303,7 @@ class TestCancelScaleOrderUseCase:
 
     @pytest.mark.asyncio
     async def test_cancel_all_orders_success(
-        self, use_case, mock_scale_order_service
+        self, use_case
     ):
         """Test cancelling all orders in scale order."""
         # Service returns a Dict with cancellation results
@@ -322,15 +315,15 @@ class TestCancelScaleOrderUseCase:
             "status": "cancelled"
         }
 
-        mock_scale_order_service.cancel_scale_order.return_value = result
+        use_case.scale_order_service.cancel_scale_order.return_value = result
 
         request = CancelScaleOrderRequest(scale_order_id="scale_123")
 
         response = await use_case.execute(request)
 
         # Verify service was called with ScaleOrderCancel object
-        assert mock_scale_order_service.cancel_scale_order.call_count == 1
-        call_arg = mock_scale_order_service.cancel_scale_order.call_args[0][0]
+        assert use_case.scale_order_service.cancel_scale_order.call_count == 1
+        call_arg = use_case.scale_order_service.cancel_scale_order.call_args[0][0]
         assert call_arg.scale_order_id == "scale_123"
         assert call_arg.cancel_all_orders is True
 
@@ -340,7 +333,7 @@ class TestCancelScaleOrderUseCase:
 
     @pytest.mark.asyncio
     async def test_cancel_partial_success(
-        self, use_case, mock_scale_order_service
+        self, use_case
     ):
         """Test partial cancellation (some orders fail to cancel)."""
         # Service returns a Dict with errors when partial cancellation
@@ -352,7 +345,7 @@ class TestCancelScaleOrderUseCase:
             "status": "cancelled"
         }
 
-        mock_scale_order_service.cancel_scale_order.return_value = result
+        use_case.scale_order_service.cancel_scale_order.return_value = result
 
         request = CancelScaleOrderRequest(scale_order_id="scale_123")
 
@@ -368,10 +361,10 @@ class TestCancelScaleOrderUseCase:
 
     @pytest.mark.asyncio
     async def test_cancel_not_found_raises_value_error(
-        self, use_case, mock_scale_order_service
+        self, use_case
     ):
         """Test cancelling non-existent scale order."""
-        mock_scale_order_service.cancel_scale_order.side_effect = ValueError(
+        use_case.scale_order_service.cancel_scale_order.side_effect = ValueError(
             "Scale order not found: nonexistent"
         )
 
@@ -382,10 +375,10 @@ class TestCancelScaleOrderUseCase:
 
     @pytest.mark.asyncio
     async def test_cancel_service_failure_raises_runtime_error(
-        self, use_case, mock_scale_order_service
+        self, use_case
     ):
         """Test service failure raises RuntimeError."""
-        mock_scale_order_service.cancel_scale_order.side_effect = Exception("API error")
+        use_case.scale_order_service.cancel_scale_order.side_effect = Exception("API error")
 
         request = CancelScaleOrderRequest(scale_order_id="scale_123")
 
