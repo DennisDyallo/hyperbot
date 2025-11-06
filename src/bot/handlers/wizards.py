@@ -390,6 +390,7 @@ def get_market_wizard_handler():
         ],
         name="market_wizard",
         persistent=False,
+        per_message=True,  # Track conversation state per message for CallbackQueryHandler
     )
 
 
