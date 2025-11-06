@@ -2,10 +2,17 @@
 Unit tests for AccountService.
 
 Tests account summary field names to catch bugs like the 'account_equity' KeyError.
+
+MIGRATED: Now using tests/helpers for service mocking.
+- create_service_with_mocks replaces manual fixture boilerplate
+- ServiceMockBuilder provides pre-configured hyperliquid mock
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from src.services.account_service import AccountService
+
+# Import helpers for cleaner service mocking
+from tests.helpers import create_service_with_mocks, ServiceMockBuilder
 
 
 class TestAccountService:
@@ -14,12 +21,16 @@ class TestAccountService:
     @pytest.fixture
     def service(self):
         """Create AccountService instance with mocked hyperliquid_service."""
-        from unittest.mock import Mock
-        svc = AccountService()
-        svc.hyperliquid = Mock()
-        svc.hyperliquid.is_initialized.return_value = True
-        svc.hyperliquid.wallet_address = "0xF67332761483018d2e604A094d7f00cA8230e881"
-        return svc
+        mock_hl = ServiceMockBuilder.hyperliquid_service()
+        mock_hl.wallet_address = "0xF67332761483018d2e604A094d7f00cA8230e881"
+
+        return create_service_with_mocks(
+            AccountService,
+            'src.services.account_service',
+            {
+                'hyperliquid_service': mock_hl
+            }
+        )
 
     @pytest.fixture
     def mock_user_state(self):

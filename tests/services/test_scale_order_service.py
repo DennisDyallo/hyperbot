@@ -5,14 +5,14 @@ Tests scale order calculation logic, order placement, cancellation,
 and status tracking. CRITICAL - bugs here = incorrect trade execution.
 """
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime
+from unittest.mock import Mock, AsyncMock
 from src.services.scale_order_service import ScaleOrderService, scale_order_service
 from src.models.scale_order import (
     ScaleOrderConfig,
     ScaleOrderCancel,
     ScaleOrder,
 )
+from tests.helpers.service_mocks import create_service_with_mocks, ServiceMockBuilder
 
 
 class TestScaleOrderServiceCalculations:
@@ -272,21 +272,18 @@ class TestScaleOrderServicePlacement:
     """Test place_scale_order method."""
 
     @pytest.fixture
-    def mock_hyperliquid(self):
-        """Mock hyperliquid service."""
-        mock = Mock()
-        mock.is_initialized = Mock(return_value=True)
-        mock.initialize = AsyncMock()
-        mock.place_limit_order = AsyncMock()
-        return mock
-
-    @pytest.fixture
-    def service(self, mock_hyperliquid):
+    def service(self):
         """Create service with mocked hyperliquid."""
-        with patch('src.services.scale_order_service.hyperliquid_service', mock_hyperliquid):
-            svc = ScaleOrderService()
-            svc.hyperliquid = mock_hyperliquid
-            return svc
+        mock_hyperliquid = ServiceMockBuilder.hyperliquid_service()
+        mock_hyperliquid.is_initialized = Mock(return_value=True)
+        mock_hyperliquid.initialize = AsyncMock()
+        mock_hyperliquid.place_limit_order = AsyncMock()
+
+        return create_service_with_mocks(
+            ScaleOrderService,
+            'src.services.scale_order_service',
+            {'hyperliquid_service': mock_hyperliquid}
+        )
 
     @pytest.fixture
     def sample_config(self):
@@ -302,24 +299,22 @@ class TestScaleOrderServicePlacement:
         )
 
     @pytest.mark.asyncio
-    async def test_place_initializes_hyperliquid_if_needed(
-        self, service, mock_hyperliquid, sample_config
-    ):
+    async def test_place_initializes_hyperliquid_if_needed(self, service, sample_config):
         """Test service initializes hyperliquid if not initialized."""
-        mock_hyperliquid.is_initialized.return_value = False
-        mock_hyperliquid.place_limit_order.return_value = {
+        service.hyperliquid.is_initialized.return_value = False
+        service.hyperliquid.place_limit_order.return_value = {
             "status": "ok",
             "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}
         }
 
         await service.place_scale_order(sample_config)
 
-        mock_hyperliquid.initialize.assert_called_once()
+        service.hyperliquid.initialize.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_place_all_orders_success(self, service, mock_hyperliquid, sample_config):
+    async def test_place_all_orders_success(self, service, sample_config):
         """Test placing all orders successfully."""
-        mock_hyperliquid.place_limit_order.return_value = {
+        service.hyperliquid.place_limit_order.return_value = {
             "status": "ok",
             "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}
         }
@@ -330,12 +325,12 @@ class TestScaleOrderServicePlacement:
         assert result.orders_failed == 0
         assert result.status == "completed"
         assert len(result.placements) == 3
-        assert mock_hyperliquid.place_limit_order.call_count == 3
+        assert service.hyperliquid.place_limit_order.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_place_stores_scale_order(self, service, mock_hyperliquid, sample_config):
+    async def test_place_stores_scale_order(self, service, sample_config):
         """Test scale order is stored after placement."""
-        mock_hyperliquid.place_limit_order.return_value = {
+        service.hyperliquid.place_limit_order.return_value = {
             "status": "ok",
             "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}
         }
@@ -350,10 +345,10 @@ class TestScaleOrderServicePlacement:
         assert len(stored.order_ids) == 3
 
     @pytest.mark.asyncio
-    async def test_place_partial_success(self, service, mock_hyperliquid, sample_config):
+    async def test_place_partial_success(self, service, sample_config):
         """Test partial placement when some orders fail."""
         # First order succeeds, second fails, third succeeds
-        mock_hyperliquid.place_limit_order.side_effect = [
+        service.hyperliquid.place_limit_order.side_effect = [
             {"status": "ok", "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}},
             {"status": "error", "response": {"message": "Insufficient margin"}},
             {"status": "ok", "response": {"data": {"statuses": [{"resting": {"oid": 1003}}]}}}
@@ -368,9 +363,9 @@ class TestScaleOrderServicePlacement:
         assert result.placements[1].error == "Insufficient margin"
 
     @pytest.mark.asyncio
-    async def test_place_all_failed(self, service, mock_hyperliquid, sample_config):
+    async def test_place_all_failed(self, service, sample_config):
         """Test all orders failing."""
-        mock_hyperliquid.place_limit_order.return_value = {
+        service.hyperliquid.place_limit_order.return_value = {
             "status": "error",
             "response": {"message": "Order rejected"}
         }
@@ -383,9 +378,9 @@ class TestScaleOrderServicePlacement:
         assert result.average_price is None
 
     @pytest.mark.asyncio
-    async def test_place_calculates_average_price(self, service, mock_hyperliquid, sample_config):
+    async def test_place_calculates_average_price(self, service, sample_config):
         """Test average price calculation for placed orders."""
-        mock_hyperliquid.place_limit_order.return_value = {
+        service.hyperliquid.place_limit_order.return_value = {
             "status": "ok",
             "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}
         }
@@ -401,37 +396,35 @@ class TestScaleOrderServiceCancellation:
     """Test cancel_scale_order method."""
 
     @pytest.fixture
-    def mock_hyperliquid(self):
-        """Mock hyperliquid service."""
-        mock = Mock()
-        mock.cancel_order = AsyncMock()
-        return mock
-
-    @pytest.fixture
-    def service(self, mock_hyperliquid):
+    def service(self):
         """Create service with mocked hyperliquid and sample orders."""
-        with patch('src.services.scale_order_service.hyperliquid_service', mock_hyperliquid):
-            svc = ScaleOrderService()
-            svc.hyperliquid = mock_hyperliquid
+        mock_hyperliquid = ServiceMockBuilder.hyperliquid_service()
+        mock_hyperliquid.cancel_order = AsyncMock()
 
-            # Add a sample scale order to storage
-            scale_order = ScaleOrder(
-                id="scale_123",
-                coin="BTC",
-                is_buy=True,
-                total_usd_amount=10000.0,
-                total_coin_size=0.2,
-                num_orders=3,
-                start_price=50000.0,
-                end_price=48000.0,
-                distribution_type="linear",
-                order_ids=[1001, 1002, 1003],
-                orders_placed=3,
-                status="active"
-            )
-            svc._scale_orders["scale_123"] = scale_order
+        svc = create_service_with_mocks(
+            ScaleOrderService,
+            'src.services.scale_order_service',
+            {'hyperliquid_service': mock_hyperliquid}
+        )
 
-            return svc
+        # Add a sample scale order to storage
+        scale_order = ScaleOrder(
+            id="scale_123",
+            coin="BTC",
+            is_buy=True,
+            total_usd_amount=10000.0,
+            total_coin_size=0.2,
+            num_orders=3,
+            start_price=50000.0,
+            end_price=48000.0,
+            distribution_type="linear",
+            order_ids=[1001, 1002, 1003],
+            orders_placed=3,
+            status="active"
+        )
+        svc._scale_orders["scale_123"] = scale_order
+
+        return svc
 
     @pytest.mark.asyncio
     async def test_cancel_not_found_raises_value_error(self, service):
@@ -463,9 +456,9 @@ class TestScaleOrderServiceCancellation:
         service.hyperliquid.cancel_order.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_cancel_all_orders_success(self, service, mock_hyperliquid):
+    async def test_cancel_all_orders_success(self, service):
         """Test cancelling all orders successfully."""
-        mock_hyperliquid.cancel_order.return_value = {"status": "ok"}
+        service.hyperliquid.cancel_order.return_value = {"status": "ok"}
 
         cancel_request = ScaleOrderCancel(
             scale_order_id="scale_123",
@@ -478,13 +471,13 @@ class TestScaleOrderServiceCancellation:
         assert result["total_orders"] == 3
         assert result["errors"] is None
         assert result["status"] == "cancelled"
-        assert mock_hyperliquid.cancel_order.call_count == 3
+        assert service.hyperliquid.cancel_order.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_cancel_partial_failure(self, service, mock_hyperliquid):
+    async def test_cancel_partial_failure(self, service):
         """Test partial cancellation when some orders fail."""
         # First succeeds, second fails, third succeeds
-        mock_hyperliquid.cancel_order.side_effect = [
+        service.hyperliquid.cancel_order.side_effect = [
             {"status": "ok"},
             {"status": "error", "response": {"message": "Order already filled"}},
             {"status": "ok"}
@@ -504,9 +497,9 @@ class TestScaleOrderServiceCancellation:
         assert "already filled" in result["errors"][0]
 
     @pytest.mark.asyncio
-    async def test_cancel_handles_exceptions(self, service, mock_hyperliquid):
+    async def test_cancel_handles_exceptions(self, service):
         """Test cancel handles exceptions gracefully."""
-        mock_hyperliquid.cancel_order.side_effect = Exception("Network error")
+        service.hyperliquid.cancel_order.side_effect = Exception("Network error")
 
         cancel_request = ScaleOrderCancel(
             scale_order_id="scale_123",
@@ -524,37 +517,35 @@ class TestScaleOrderServiceStatus:
     """Test get_scale_order_status method."""
 
     @pytest.fixture
-    def mock_hyperliquid(self):
-        """Mock hyperliquid service."""
-        mock = Mock()
-        mock.get_open_orders = AsyncMock()
-        return mock
-
-    @pytest.fixture
-    def service(self, mock_hyperliquid):
+    def service(self):
         """Create service with mocked hyperliquid and sample order."""
-        with patch('src.services.scale_order_service.hyperliquid_service', mock_hyperliquid):
-            svc = ScaleOrderService()
-            svc.hyperliquid = mock_hyperliquid
+        mock_hyperliquid = ServiceMockBuilder.hyperliquid_service()
+        mock_hyperliquid.get_open_orders = AsyncMock()
 
-            # Add a sample scale order
-            scale_order = ScaleOrder(
-                id="scale_123",
-                coin="BTC",
-                is_buy=True,
-                total_usd_amount=10000.0,
-                total_coin_size=0.2,
-                num_orders=5,
-                start_price=50000.0,
-                end_price=48000.0,
-                distribution_type="linear",
-                order_ids=[1001, 1002, 1003, 1004, 1005],
-                orders_placed=5,
-                status="active"
-            )
-            svc._scale_orders["scale_123"] = scale_order
+        svc = create_service_with_mocks(
+            ScaleOrderService,
+            'src.services.scale_order_service',
+            {'hyperliquid_service': mock_hyperliquid}
+        )
 
-            return svc
+        # Add a sample scale order
+        scale_order = ScaleOrder(
+            id="scale_123",
+            coin="BTC",
+            is_buy=True,
+            total_usd_amount=10000.0,
+            total_coin_size=0.2,
+            num_orders=5,
+            start_price=50000.0,
+            end_price=48000.0,
+            distribution_type="linear",
+            order_ids=[1001, 1002, 1003, 1004, 1005],
+            orders_placed=5,
+            status="active"
+        )
+        svc._scale_orders["scale_123"] = scale_order
+
+        return svc
 
     @pytest.mark.asyncio
     async def test_get_status_not_found_raises_value_error(self, service):
@@ -563,9 +554,9 @@ class TestScaleOrderServiceStatus:
             await service.get_scale_order_status("nonexistent")
 
     @pytest.mark.asyncio
-    async def test_get_status_all_open(self, service, mock_hyperliquid):
+    async def test_get_status_all_open(self, service):
         """Test status when all orders still open."""
-        mock_hyperliquid.get_open_orders.return_value = [
+        service.hyperliquid.get_open_orders.return_value = [
             {"oid": 1001, "coin": "BTC"},
             {"oid": 1002, "coin": "BTC"},
             {"oid": 1003, "coin": "BTC"},
@@ -581,10 +572,10 @@ class TestScaleOrderServiceStatus:
         assert status.scale_order.status == "active"
 
     @pytest.mark.asyncio
-    async def test_get_status_partial_filled(self, service, mock_hyperliquid):
+    async def test_get_status_partial_filled(self, service):
         """Test status when some orders filled."""
         # Only 3 orders still open (2 filled)
-        mock_hyperliquid.get_open_orders.return_value = [
+        service.hyperliquid.get_open_orders.return_value = [
             {"oid": 1001, "coin": "BTC"},
             {"oid": 1003, "coin": "BTC"},
             {"oid": 1005, "coin": "BTC"}
@@ -598,10 +589,10 @@ class TestScaleOrderServiceStatus:
         assert status.scale_order.orders_filled == 2
 
     @pytest.mark.asyncio
-    async def test_get_status_all_filled_updates_status(self, service, mock_hyperliquid):
+    async def test_get_status_all_filled_updates_status(self, service):
         """Test status updates to completed when all orders filled."""
         # No orders open (all filled)
-        mock_hyperliquid.get_open_orders.return_value = []
+        service.hyperliquid.get_open_orders.return_value = []
 
         status = await service.get_scale_order_status("scale_123")
 

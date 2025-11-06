@@ -4,40 +4,36 @@ Unit tests for LeverageService.
 Tests leverage management, validation, and liquidation price estimation.
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from src.services.leverage_service import LeverageService, LeverageValidation, LiquidationEstimate, LeverageSetting
+from tests.helpers.service_mocks import create_service_with_mocks, ServiceMockBuilder
 
 
 class TestLeverageService:
     """Test LeverageService methods."""
 
     @pytest.fixture
-    def mock_hyperliquid_service(self):
-        """Mock HyperliquidService."""
-        mock_hl = Mock()
-        mock_hl.is_initialized.return_value = True
-        return mock_hl
-
-    @pytest.fixture
-    def mock_position_service(self):
-        """Mock PositionService."""
-        return Mock()
-
-    @pytest.fixture
-    def service(self, mock_hyperliquid_service, mock_position_service):
+    def service(self):
         """Create LeverageService instance with mocked dependencies."""
-        with patch('src.services.leverage_service.hyperliquid_service', mock_hyperliquid_service):
-            with patch('src.services.leverage_service.position_service', mock_position_service):
-                svc = LeverageService()
-                return svc
+        mock_hyperliquid = ServiceMockBuilder.hyperliquid_service()
+        mock_hyperliquid.is_initialized.return_value = True
+
+        return create_service_with_mocks(
+            LeverageService,
+            'src.services.leverage_service',
+            {
+                'hyperliquid_service': mock_hyperliquid,
+                'position_service': ServiceMockBuilder.position_service()
+            }
+        )
 
     # ===================================================================
     # get_coin_leverage() tests
     # ===================================================================
 
-    def test_get_coin_leverage_with_position(self, service, mock_position_service):
+    def test_get_coin_leverage_with_position(self, service):
         """Test getting leverage for coin with open position."""
-        mock_position_service.list_positions.return_value = [
+        service.position_service.list_positions.return_value = [
             {
                 "position": {
                     "coin": "BTC",
@@ -50,9 +46,9 @@ class TestLeverageService:
 
         assert leverage == 3
 
-    def test_get_coin_leverage_no_position(self, service, mock_position_service):
+    def test_get_coin_leverage_no_position(self, service):
         """Test getting leverage for coin without position returns None."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
 
         leverage = service.get_coin_leverage("BTC")
 
@@ -62,9 +58,9 @@ class TestLeverageService:
     # validate_leverage() tests
     # ===================================================================
 
-    def test_validate_leverage_within_soft_limit(self, service, mock_position_service):
+    def test_validate_leverage_within_soft_limit(self, service):
         """Test validation for leverage within soft limit (≤5x)."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
 
         result = service.validate_leverage(3)
 
@@ -73,9 +69,9 @@ class TestLeverageService:
         assert result.can_proceed is True
         assert "recommended" in result.message.lower()
 
-    def test_validate_leverage_high_warning(self, service, mock_position_service):
+    def test_validate_leverage_high_warning(self, service):
         """Test validation for high leverage (6-10x) shows warning."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
 
         result = service.validate_leverage(7)
 
@@ -84,9 +80,9 @@ class TestLeverageService:
         assert result.can_proceed is True
         assert "moderate risk" in result.message.lower() or "high" in result.message.lower()
 
-    def test_validate_leverage_extreme_warning(self, service, mock_position_service):
+    def test_validate_leverage_extreme_warning(self, service):
         """Test validation for extreme leverage (>10x) shows strong warning."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
 
         result = service.validate_leverage(15)
 
@@ -95,7 +91,7 @@ class TestLeverageService:
         assert result.can_proceed is True
         assert "extreme" in result.message.lower() or "very high" in result.message.lower()
 
-    def test_validate_leverage_with_existing_position(self, service, mock_position_service):
+    def test_validate_leverage_with_existing_position(self, service):
         """
         Test validation detects existing position.
 
@@ -103,7 +99,7 @@ class TestLeverageService:
         The caller (set_coin_leverage) is responsible for checking
         has_open_position and enforcing the constraint.
         """
-        mock_position_service.list_positions.return_value = [
+        service.position_service.list_positions.return_value = [
             {
                 "position": {
                     "coin": "BTC",
@@ -124,12 +120,12 @@ class TestLeverageService:
     # set_coin_leverage() tests
     # ===================================================================
 
-    def test_set_coin_leverage_success(self, service, mock_hyperliquid_service, mock_position_service):
+    def test_set_coin_leverage_success(self, service):
         """Test successfully setting leverage when no position exists."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
         mock_exchange = Mock()
         mock_exchange.update_leverage.return_value = {"status": "ok"}
-        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
+        service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
         success, message = service.set_coin_leverage("BTC", 3)
 
@@ -137,9 +133,9 @@ class TestLeverageService:
         assert "leverage set" in message.lower()
         mock_exchange.update_leverage.assert_called_once()
 
-    def test_set_coin_leverage_fails_with_existing_position(self, service, mock_position_service):
+    def test_set_coin_leverage_fails_with_existing_position(self, service):
         """Test setting leverage fails when position already exists."""
-        mock_position_service.list_positions.return_value = [
+        service.position_service.list_positions.return_value = [
             {
                 "position": {
                     "coin": "BTC",
@@ -153,12 +149,12 @@ class TestLeverageService:
         assert success is False
         assert "cannot" in message.lower() or "exists" in message.lower()
 
-    def test_set_coin_leverage_handles_api_error(self, service, mock_hyperliquid_service, mock_position_service):
+    def test_set_coin_leverage_handles_api_error(self, service):
         """Test setting leverage handles API errors gracefully."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
         mock_exchange = Mock()
         mock_exchange.update_leverage.side_effect = Exception("API Error")
-        mock_hyperliquid_service.get_exchange_client.return_value = mock_exchange
+        service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
         success, message = service.set_coin_leverage("BTC", 3)
 
@@ -241,9 +237,9 @@ class TestLeverageService:
     # get_all_leverage_settings() tests
     # ===================================================================
 
-    def test_get_all_leverage_settings(self, service, mock_position_service):
+    def test_get_all_leverage_settings(self, service):
         """Test getting leverage settings for all positions."""
-        mock_position_service.list_positions.return_value = [
+        service.position_service.list_positions.return_value = [
             {
                 "position": {
                     "coin": "BTC",
@@ -270,9 +266,9 @@ class TestLeverageService:
         assert settings[1].coin == "ETH"
         assert settings[1].leverage == 5
 
-    def test_get_all_leverage_settings_no_positions(self, service, mock_position_service):
+    def test_get_all_leverage_settings_no_positions(self, service):
         """Test getting leverage settings when no positions exist."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
 
         settings = service.get_all_leverage_settings()
 
@@ -282,9 +278,9 @@ class TestLeverageService:
     # get_leverage_for_order() tests
     # ===================================================================
 
-    def test_get_leverage_for_order_with_position(self, service, mock_position_service):
+    def test_get_leverage_for_order_with_position(self, service):
         """Test getting leverage for order when position exists."""
-        mock_position_service.list_positions.return_value = [
+        service.position_service.list_positions.return_value = [
             {
                 "position": {
                     "coin": "BTC",
@@ -299,9 +295,9 @@ class TestLeverageService:
         assert leverage == 4
         assert needs_setting is False
 
-    def test_get_leverage_for_order_no_position_uses_default(self, service, mock_position_service):
+    def test_get_leverage_for_order_no_position_uses_default(self, service):
         """Test getting leverage for order uses default when no position."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
 
         leverage, needs_setting = service.get_leverage_for_order("BTC", default_leverage=3)
 
@@ -309,12 +305,121 @@ class TestLeverageService:
         assert leverage == 3
         assert needs_setting is True
 
-    def test_get_leverage_for_order_no_position_no_default(self, service, mock_position_service):
+    def test_get_leverage_for_order_no_position_no_default(self, service):
         """Test getting leverage for order without position or default."""
-        mock_position_service.list_positions.return_value = []
+        service.position_service.list_positions.return_value = []
 
         leverage, needs_setting = service.get_leverage_for_order("BTC")
 
         # Should return settings default (3), needs to be set
         assert leverage == 3
         assert needs_setting is True
+
+
+class TestLeverageServiceExceptionHandling:
+    """Test exception handling in LeverageService methods."""
+
+    @pytest.fixture
+    def service(self):
+        """Create LeverageService instance with mocked dependencies."""
+        mock_hyperliquid = ServiceMockBuilder.hyperliquid_service()
+        mock_hyperliquid.is_initialized.return_value = True
+
+        return create_service_with_mocks(
+            LeverageService,
+            'src.services.leverage_service',
+            {
+                'hyperliquid_service': mock_hyperliquid,
+                'position_service': ServiceMockBuilder.position_service()
+            }
+        )
+
+    def test_get_coin_leverage_exception_returns_none(self, service):
+        """Test get_coin_leverage returns None on exception."""
+        service.position_service.list_positions.side_effect = Exception("API error")
+
+        leverage = service.get_coin_leverage("BTC")
+
+        assert leverage is None
+
+    def test_get_all_leverage_settings_exception_returns_empty(self, service):
+        """Test get_all_leverage_settings returns empty list on exception."""
+        service.position_service.list_positions.side_effect = Exception("API error")
+
+        settings = service.get_all_leverage_settings()
+
+        assert settings == []
+
+    def test_validate_leverage_extreme_value(self, service):
+        """Test validation for extremely high leverage values."""
+        service.position_service.list_positions.return_value = []
+
+        validation = service.validate_leverage(50)
+
+        assert validation.is_valid is True
+        assert validation.warning_level.value == "EXTREME"
+        assert "extreme" in validation.message.lower() or "very high" in validation.message.lower()
+
+    def test_estimate_liquidation_price_long_position(self, service):
+        """Test liquidation price estimation for long position."""
+        estimate = service.estimate_liquidation_price(
+            coin="BTC",
+            entry_price=100000.0,
+            size=1.0,
+            leverage=10,
+            is_long=True
+        )
+
+        assert estimate.coin == "BTC"
+        assert estimate.estimated_liquidation_price is not None
+        assert estimate.estimated_liquidation_price < 100000.0  # Long liquidates below entry
+        assert abs(estimate.liquidation_distance_pct) > 0
+
+    def test_estimate_liquidation_price_short_position(self, service):
+        """Test liquidation price estimation for short position."""
+        estimate = service.estimate_liquidation_price(
+            coin="ETH",
+            entry_price=100000.0,
+            size=1.0,
+            leverage=10,
+            is_long=False
+        )
+
+        assert estimate.coin == "ETH"
+        assert estimate.estimated_liquidation_price is not None
+        assert estimate.estimated_liquidation_price > 100000.0  # Short liquidates above entry
+        assert abs(estimate.liquidation_distance_pct) > 0
+
+    def test_estimate_liquidation_price_extreme_leverage(self, service):
+        """Test liquidation price with extreme leverage."""
+        estimate = service.estimate_liquidation_price(
+            coin="SOL",
+            entry_price=100000.0,
+            size=1.0,
+            leverage=25,
+            is_long=True
+        )
+
+        # Extreme leverage should result in EXTREME risk level
+        assert estimate.risk_level in ["HIGH", "EXTREME"]
+
+    def test_estimate_liquidation_price_high_leverage_comparison(self, service):
+        """Test that higher leverage means closer liquidation price."""
+        estimate_5x = service.estimate_liquidation_price(
+            coin="BTC",
+            entry_price=100000.0,
+            size=1.0,
+            leverage=5,
+            is_long=True
+        )
+
+        estimate_20x = service.estimate_liquidation_price(
+            coin="BTC",
+            entry_price=100000.0,
+            size=1.0,
+            leverage=20,
+            is_long=True
+        )
+
+        # Higher leverage means closer to entry price (smaller distance)
+        assert abs(estimate_20x.liquidation_distance_pct) < abs(estimate_5x.liquidation_distance_pct)

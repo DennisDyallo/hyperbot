@@ -12,6 +12,7 @@ from src.services.risk_calculator import (
     PositionRisk,
     PortfolioRisk
 )
+from tests.helpers.mock_data import PositionBuilder
 
 
 class TestRiskCalculator:
@@ -350,16 +351,18 @@ class TestRiskCalculator:
 
     def test_assess_position_risk_long_position(self, calculator):
         """Test full position risk assessment for long position."""
-        position_data = {
-            "coin": "BTC",
-            "size": 1.0,
-            "entry_price": 48000.0,
-            "position_value": 50000.0,
-            "unrealized_pnl": 2000.0,
-            "leverage_value": 3,
-            "leverage_type": "cross",
-            "liquidation_price": 40000.0
-        }
+        # assess_position_risk() expects flat dict (no "position" wrapper)
+        position_data = (
+            PositionBuilder()
+            .with_coin("BTC")
+            .with_size(1.0)
+            .with_entry_price(48000.0)
+            .with_position_value(50000.0)
+            .with_pnl(2000.0)
+            .with_leverage(3, "cross")
+            .with_liquidation_price(40000.0)
+            .build()["position"]  # Extract inner dict
+        )
 
         risk = calculator.assess_position_risk(
             position_data,
@@ -381,16 +384,17 @@ class TestRiskCalculator:
 
     def test_assess_position_risk_includes_warnings(self, calculator):
         """Test that position risk assessment includes warnings."""
-        position_data = {
-            "coin": "SOL",
-            "size": 100.0,
-            "entry_price": 140.0,
-            "position_value": 15000.0,
-            "unrealized_pnl": -500.0,
-            "leverage_value": 15,  # High leverage
-            "leverage_type": "cross",
-            "liquidation_price": 135.0
-        }
+        position_data = (
+            PositionBuilder()
+            .with_coin("SOL")
+            .with_size(100.0)
+            .with_entry_price(140.0)
+            .with_position_value(15000.0)
+            .with_pnl(-500.0)
+            .with_leverage(15, "cross")  # High leverage
+            .with_liquidation_price(135.0)
+            .build()["position"]  # Extract inner dict
+        )
 
         risk = calculator.assess_position_risk(
             position_data,
@@ -406,18 +410,15 @@ class TestRiskCalculator:
     def test_assess_portfolio_risk_single_position(self, calculator):
         """Test portfolio risk assessment with single position."""
         positions = [
-            {
-                "position": {
-                    "coin": "BTC",
-                    "size": 1.0,
-                    "entry_price": 48000.0,
-                    "position_value": 50000.0,
-                    "unrealized_pnl": 2000.0,
-                    "leverage_value": 3,
-                    "leverage_type": "cross",
-                    "liquidation_price": 40000.0
-                }
-            }
+            PositionBuilder()
+            .with_coin("BTC")
+            .with_size(1.0)
+            .with_entry_price(48000.0)
+            .with_position_value(50000.0)
+            .with_pnl(2000.0)
+            .with_leverage(3, "cross")
+            .with_liquidation_price(40000.0)
+            .build()
         ]
 
         margin_summary = {
@@ -439,30 +440,24 @@ class TestRiskCalculator:
     def test_assess_portfolio_risk_multiple_positions(self, calculator):
         """Test portfolio risk assessment with multiple positions."""
         positions = [
-            {
-                "position": {
-                    "coin": "BTC",
-                    "size": 1.0,
-                    "entry_price": 48000.0,
-                    "position_value": 50000.0,
-                    "unrealized_pnl": 2000.0,
-                    "leverage_value": 3,
-                    "leverage_type": "cross",
-                    "liquidation_price": 40000.0
-                }
-            },
-            {
-                "position": {
-                    "coin": "ETH",
-                    "size": 10.0,
-                    "entry_price": 2800.0,
-                    "position_value": 30000.0,
-                    "unrealized_pnl": 2000.0,
-                    "leverage_value": 2,
-                    "leverage_type": "cross",
-                    "liquidation_price": 2400.0
-                }
-            }
+            PositionBuilder()
+            .with_coin("BTC")
+            .with_size(1.0)
+            .with_entry_price(48000.0)
+            .with_position_value(50000.0)
+            .with_pnl(2000.0)
+            .with_leverage(3, "cross")
+            .with_liquidation_price(40000.0)
+            .build(),
+            PositionBuilder()
+            .with_coin("ETH")
+            .with_size(10.0)
+            .with_entry_price(2800.0)
+            .with_position_value(30000.0)
+            .with_pnl(2000.0)
+            .with_leverage(2, "cross")
+            .with_liquidation_price(2400.0)
+            .build()
         ]
 
         margin_summary = {
@@ -501,18 +496,15 @@ class TestRiskCalculator:
     def test_assess_portfolio_risk_identifies_critical_positions(self, calculator):
         """Test that critical positions are identified in portfolio."""
         positions = [
-            {
-                "position": {
-                    "coin": "AVAX",
-                    "size": 100.0,
-                    "entry_price": 38.0,
-                    "position_value": 4000.0,
-                    "unrealized_pnl": -200.0,
-                    "leverage_value": 10,
-                    "leverage_type": "cross",
-                    "liquidation_price": 39.5  # Very close!
-                }
-            }
+            PositionBuilder()
+            .with_coin("AVAX")
+            .with_size(100.0)
+            .with_entry_price(38.0)
+            .with_position_value(4000.0)
+            .with_pnl(-200.0)
+            .with_leverage(10, "cross")
+            .with_liquidation_price(39.5)  # Very close!
+            .build()
         ]
 
         margin_summary = {
