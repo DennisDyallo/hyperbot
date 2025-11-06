@@ -2,6 +2,7 @@
 Main Telegram bot application.
 """
 import asyncio
+from warnings import filterwarnings
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -10,9 +11,16 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+from telegram.warnings import PTBUserWarning
 from src.config import logger, settings
 from src.services.hyperliquid_service import hyperliquid_service
 from src.bot.handlers import basic, trading, advanced, wizards, scale_orders
+
+# Suppress PTBUserWarning about CallbackQueryHandler with per_message=False
+# This is expected behavior for ConversationHandlers with mixed handler types
+# (MessageHandler + CallbackQueryHandler). See:
+# https://github.com/python-telegram-bot/python-telegram-bot/wiki/Frequently-Asked-Questions#what-do-the-per_-settings-in-conversationhandler-do
+filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
