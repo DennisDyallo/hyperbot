@@ -77,7 +77,6 @@ class TestMarketWizardCallbackParsing:
         assert mock_context.user_data['market_is_buy'] is False
         assert mock_context.user_data['market_side_str'] == "SELL"
 
-    @pytest.mark.skip(reason="TODO: Update test - market_data_service import path changed in wizards.py")
     @pytest.mark.asyncio
     async def test_market_amount_selected_parsing(self, mock_update, mock_context):
         """Test parsing amount selection callback data."""
@@ -85,15 +84,17 @@ class TestMarketWizardCallbackParsing:
         mock_update.callback_query.data = "amount:100"
         mock_context.user_data['market_coin'] = "BTC"
         mock_context.user_data['market_is_buy'] = True
+        mock_context.user_data['market_side_str'] = "BUY"
 
-        with patch('src.bot.handlers.wizards.market_data_service') as mock_market:
-            mock_market.get_price.return_value = 104088.0
-            mock_market.get_asset_metadata.return_value = {"szDecimals": 5}
+        # Patch convert_usd_to_coin (not market_data_service)
+        with patch('src.bot.handlers.wizards.convert_usd_to_coin') as mock_convert:
+            mock_convert.return_value = (0.00096, 104088.0)  # (coin_size, current_price)
 
             await wizards.market_amount_selected(mock_update, mock_context)
 
-            # Should parse amount successfully
+            # Should parse amount successfully and call convert function
             mock_update.callback_query.answer.assert_called_once()
+            mock_convert.assert_called_once_with(100.0, "BTC")
 
     @pytest.mark.asyncio
     async def test_close_position_callback_parsing(self, mock_update, mock_context):
@@ -161,30 +162,34 @@ class TestClosePositionHandlers:
         context.user_data = {}
         return context
 
-    @pytest.mark.skip(reason="TODO: Update test - edit_message_text called twice (progress + result), not once")
     @pytest.mark.asyncio
     async def test_close_position_execute_uses_size_closed(self, mock_update, mock_context):
         """
-        Test that close_position_execute accesses 'size_closed' field.
+        Test that close_position_execute uses ClosePositionUseCase response.
 
-        Bug Fix: Previously accessed 'size' which didn't exist, causing KeyError.
+        Handler calls edit_message_text twice: once for progress, once for result.
         """
-        with patch('src.bot.handlers.wizards.position_service') as mock_pos_service:
-            # Mock response with 'size_closed' field (not 'size')
-            mock_pos_service.close_position.return_value = {
-                "status": "success",
-                "coin": "SOL",
-                "size_closed": 1.26,  # Correct field name
-                "result": {"status": "ok"}
-            }
+        mock_update.callback_query.data = "confirm_close_pos:SOL"
+
+        with patch('src.bot.handlers.wizards.close_position_use_case') as mock_use_case:
+            # Mock ClosePositionResponse
+            from src.use_cases.trading import ClosePositionResponse
+            mock_response = Mock(spec=ClosePositionResponse)
+            mock_response.status = "success"
+            mock_response.coin = "SOL"
+            mock_response.size_closed = 1.26
+            mock_response.usd_value = 193.97
+
+            mock_use_case.execute = AsyncMock(return_value=mock_response)
 
             await wizards.close_position_execute(mock_update, mock_context)
 
-            # Should not raise KeyError
+            # Should answer callback and call edit_message_text twice (progress + result)
             mock_update.callback_query.answer.assert_called_once()
-            mock_update.callback_query.edit_message_text.assert_called_once()
+            assert mock_update.callback_query.edit_message_text.call_count == 2
 
-            # Verify message contains size information
-            call_args = mock_update.callback_query.edit_message_text.call_args
-            message_text = call_args[0][0] if call_args[0] else call_args[1].get('text', '')
+            # Verify final message contains size information
+            final_call = mock_update.callback_query.edit_message_text.call_args_list[1]
+            message_text = final_call[0][0] if final_call[0] else final_call[1].get('text', '')
             assert "1.26" in message_text or "1.3" in message_text  # Size should be in message
+            assert "SOL" in message_text
