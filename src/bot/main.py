@@ -22,7 +22,14 @@ filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBU
 
 from src.config import logger, settings
 from src.services.hyperliquid_service import hyperliquid_service
-from src.bot.handlers import basic, trading, advanced, wizards, scale_orders
+from src.bot.handlers import (
+    basic,
+    trading,
+    advanced,
+    wizard_market_order,
+    wizard_close_position,
+    wizard_scale_order,
+)
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,9 +91,9 @@ def create_application() -> Application:
 
     # Register ConversationHandlers first (they have priority over simple callbacks)
     logger.info("Registering ConversationHandlers...")
-    application.add_handler(wizards.get_market_wizard_handler())
+    application.add_handler(wizard_market_order.get_market_wizard_handler())
     logger.info("✅ Market wizard registered")
-    application.add_handler(scale_orders.scale_order_conversation)
+    application.add_handler(wizard_scale_order.scale_order_conversation)
     logger.info("✅ Scale order wizard registered")
 
     # Register command handlers
@@ -110,7 +117,7 @@ def create_application() -> Application:
         application.add_handler(handler)
 
     # Register close position handlers
-    for handler in wizards.get_close_position_handlers():
+    for handler in wizard_close_position.get_close_position_handlers():
         application.add_handler(handler)
 
     # Register trading callback query handlers (legacy)
