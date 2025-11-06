@@ -103,7 +103,7 @@ class PreviewScaleOrderUseCase(BaseUseCase[PreviewScaleOrderRequest, PreviewScal
             logger.info(
                 f"Scale order preview: {config.coin} "
                 f"{'BUY' if config.is_buy else 'SELL'} "
-                f"{config.total_size} across {config.num_orders} orders "
+                f"${config.total_usd_amount:.2f} across {config.num_orders} orders "
                 f"(${config.start_price:.2f} - ${config.end_price:.2f})"
             )
 

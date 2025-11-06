@@ -114,22 +114,23 @@ class PlaceScaleOrderUseCase(BaseUseCase[PlaceScaleOrderRequest, PlaceScaleOrder
             logger.info(
                 f"Placing scale order: {config.coin} "
                 f"{'BUY' if config.is_buy else 'SELL'} "
-                f"{config.total_size} across {config.num_orders} orders "
+                f"${config.total_usd_amount:.2f} across {config.num_orders} orders "
                 f"(${config.start_price:.2f} - ${config.end_price:.2f})"
             )
 
             # Place scale order via service
             result = await self.scale_order_service.place_scale_order(config)
 
+            success_rate = (result.orders_placed / result.num_orders * 100) if result.num_orders > 0 else 0.0
             logger.info(
                 f"Scale order placed: {result.scale_order_id} - "
-                f"{result.successful_orders}/{result.num_orders} orders successful "
-                f"({result.success_rate:.1f}%)"
+                f"{result.orders_placed}/{result.num_orders} orders successful "
+                f"({success_rate:.1f}%)"
             )
 
-            if result.failed_orders > 0:
+            if result.orders_failed > 0:
                 logger.warning(
-                    f"Scale order {result.scale_order_id} had {result.failed_orders} failed orders"
+                    f"Scale order {result.scale_order_id} had {result.orders_failed} failed orders"
                 )
 
             return PlaceScaleOrderResponse(result=result)
