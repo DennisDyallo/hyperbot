@@ -763,6 +763,82 @@ Pydantic models go in `src/models/`:
 - Type safety
 - Easy serialization
 
+### Wizard Response Pattern
+
+**✅ ALWAYS use these utility functions** when ending ConversationHandlers to ensure the main menu appears:
+
+Located in `src/bot/utils.py`:
+- `send_success_and_end()` - For successful completions (orders placed, positions closed)
+- `send_error_and_end()` - For errors (API failures, validation errors)
+- `send_cancel_and_end()` - For user cancellations
+
+**Why**: These utilities automatically show the main menu, allowing users to immediately take another action without typing `/start`.
+
+**Example - Market Order Wizard:**
+```python
+from src.bot.utils import send_success_and_end, send_error_and_end
+
+async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Execute the market order."""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        # Show progress
+        await query.edit_message_text("⏳ Placing order...")
+
+        # Do the work
+        response = await place_order_use_case.execute(request)
+
+        # Format success message
+        success_msg = (
+            f"✅ **Market Order Placed**\n\n"
+            f"**Coin**: {coin}\n"
+            f"**Status**: {response.status}"
+        )
+
+        # Clean up
+        context.user_data.clear()
+
+        # ✅ Automatically shows main menu!
+        return await send_success_and_end(update, success_msg)
+
+    except Exception as e:
+        logger.exception("Order failed")
+        context.user_data.clear()
+
+        # ✅ Automatically shows main menu!
+        return await send_error_and_end(update, f"❌ Failed: {str(e)}")
+```
+
+**Example - Cancellation Handler:**
+```python
+from src.bot.utils import send_cancel_and_end
+
+async def select_direction(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle direction selection."""
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "cancel":
+        # ✅ Automatically shows main menu!
+        return await send_cancel_and_end(update, "❌ Scale order cancelled.")
+
+    # ... continue wizard ...
+```
+
+**When creating new wizards:**
+1. ✅ Import the utilities: `from src.bot.utils import send_success_and_end, send_error_and_end, send_cancel_and_end`
+2. ✅ Use them for ALL `ConversationHandler.END` returns
+3. ✅ NEVER manually add `reply_markup=build_main_menu()` - the utilities handle it
+4. ✅ Prefix wizard handler files with `wizard_` if creating new ones
+
+**Benefits:**
+- ✨ Consistent UX across all wizards
+- 🐛 Prevents forgetting to show the main menu
+- 🧹 Cleaner, more maintainable code
+- 📝 Self-documenting pattern
+
 ## Troubleshooting
 
 **For comprehensive troubleshooting, always check `docs/telegram/faq.md` first!**

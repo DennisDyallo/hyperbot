@@ -1,8 +1,11 @@
 """
 Utility functions for Telegram bot.
 """
-from typing import Tuple
+from typing import Tuple, Optional
+from telegram import Update
+from telegram.ext import ConversationHandler
 from src.services.market_data_service import market_data_service
+from src.bot.menus import build_main_menu
 from src.config import logger
 
 
@@ -203,3 +206,139 @@ def format_dual_amount(coin_size: float, usd_value: float, coin: str) -> str:
     usd_str = format_usd_amount(usd_value)
 
     return f"{coin_str} (≈{usd_str})"
+
+
+# ============================================================================
+# Wizard Response Utilities
+# ============================================================================
+# These functions provide standardized response patterns for ConversationHandlers,
+# ensuring all wizards show the main menu after completion.
+
+
+async def send_success_and_end(
+    update: Update,
+    message: str,
+    parse_mode: Optional[str] = "Markdown"
+) -> int:
+    """
+    Send a success message with main menu and end the conversation.
+
+    **ALWAYS use this for successful wizard completions** (orders placed, positions closed, etc.).
+    This ensures users see the main menu and can immediately take another action.
+
+    Args:
+        update: Telegram update object
+        message: Success message to display
+        parse_mode: Telegram parse mode (default: Markdown)
+
+    Returns:
+        ConversationHandler.END
+
+    Example:
+        >>> # In your wizard's execute handler:
+        >>> return await send_success_and_end(
+        ...     update,
+        ...     "✅ **Order Placed**\\n\\nYour BTC order has been executed."
+        ... )
+    """
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            message,
+            parse_mode=parse_mode,
+            reply_markup=build_main_menu()
+        )
+    else:
+        await update.message.reply_text(
+            message,
+            parse_mode=parse_mode,
+            reply_markup=build_main_menu()
+        )
+
+    return ConversationHandler.END
+
+
+async def send_error_and_end(
+    update: Update,
+    error_message: str,
+    parse_mode: Optional[str] = "Markdown"
+) -> int:
+    """
+    Send an error message with main menu and end the conversation.
+
+    **ALWAYS use this for wizard errors** (API failures, validation errors, etc.).
+    This ensures users see the main menu even after errors.
+
+    Args:
+        update: Telegram update object
+        error_message: Error message to display (should start with ❌)
+        parse_mode: Telegram parse mode (default: Markdown)
+
+    Returns:
+        ConversationHandler.END
+
+    Example:
+        >>> # In your wizard's exception handler:
+        >>> except Exception as e:
+        ...     logger.exception("Order failed")
+        ...     return await send_error_and_end(
+        ...         update,
+        ...         f"❌ Failed to place order:\\n`{str(e)}`"
+        ...     )
+    """
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            error_message,
+            parse_mode=parse_mode,
+            reply_markup=build_main_menu()
+        )
+    else:
+        await update.message.reply_text(
+            error_message,
+            parse_mode=parse_mode,
+            reply_markup=build_main_menu()
+        )
+
+    return ConversationHandler.END
+
+
+async def send_cancel_and_end(
+    update: Update,
+    cancel_message: str = "❌ Operation cancelled.",
+    parse_mode: Optional[str] = None
+) -> int:
+    """
+    Send a cancellation message with main menu and end the conversation.
+
+    **ALWAYS use this when user explicitly cancels** the wizard.
+    This ensures users see the main menu after cancellation.
+
+    Args:
+        update: Telegram update object
+        cancel_message: Cancellation message (default: "❌ Operation cancelled.")
+        parse_mode: Telegram parse mode (default: None)
+
+    Returns:
+        ConversationHandler.END
+
+    Example:
+        >>> # In your wizard's cancel check:
+        >>> if query.data == "cancel":
+        ...     return await send_cancel_and_end(
+        ...         update,
+        ...         "❌ Scale order cancelled."
+        ...     )
+    """
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            cancel_message,
+            parse_mode=parse_mode,
+            reply_markup=build_main_menu()
+        )
+    else:
+        await update.message.reply_text(
+            cancel_message,
+            parse_mode=parse_mode,
+            reply_markup=build_main_menu()
+        )
+
+    return ConversationHandler.END

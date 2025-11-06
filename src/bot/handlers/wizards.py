@@ -27,6 +27,9 @@ from src.bot.utils import (
     convert_coin_to_usd,
     format_coin_amount,
     format_usd_amount,
+    send_success_and_end,
+    send_error_and_end,
+    send_cancel_and_end,
 )
 from src.services.order_service import order_service
 from src.services.position_service import position_service
@@ -310,24 +313,19 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✅ Order submitted to exchange!"
         )
 
-        await query.edit_message_text(
-            success_msg,
-            parse_mode="Markdown",
-            reply_markup=build_main_menu()
-        )
+        # Clean up user data
+        context.user_data.clear()
+
+        # Use utility function - automatically shows main menu!
+        return await send_success_and_end(update, success_msg)
 
     except Exception as e:
         logger.exception(f"Failed to place market order for {coin}")
-        await query.edit_message_text(
-            f"❌ Failed to place order:\n`{str(e)}`",
-            parse_mode="Markdown",
-            reply_markup=build_main_menu()
-        )
+        # Clean up user data
+        context.user_data.clear()
 
-    # Clean up user data
-    context.user_data.clear()
-
-    return ConversationHandler.END
+        # Use utility function - automatically shows main menu!
+        return await send_error_and_end(update, f"❌ Failed to place order:\n`{str(e)}`")
 
 
 async def wizard_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
