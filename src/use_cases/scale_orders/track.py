@@ -100,15 +100,15 @@ class ListScaleOrdersUseCase(BaseUseCase[ListScaleOrdersRequest, ListScaleOrders
                 filtered_orders = [o for o in filtered_orders if o.coin == request.coin]
 
             if request.active_only:
-                # Active = has at least one open order
+                # Active = has at least one open order (order_ids list not empty)
                 filtered_orders = [
                     o for o in filtered_orders
-                    if any(p.order_id for p in o.orders_placed if p.order_id)
+                    if len(o.order_ids) > 0
                 ]
 
             active_count = len([
                 o for o in all_orders
-                if any(p.order_id for p in o.orders_placed if p.order_id)
+                if len(o.order_ids) > 0
             ])
 
             logger.debug(
@@ -210,7 +210,7 @@ class GetScaleOrderStatusUseCase(BaseUseCase[GetScaleOrderStatusRequest, GetScal
 
             logger.debug(
                 f"Scale order {request.scale_order_id}: "
-                f"{status.filled_orders}/{status.num_orders} filled "
+                f"{len(status.filled_orders)}/{status.scale_order.num_orders} filled "
                 f"({status.fill_percentage:.1f}%)"
             )
 
@@ -241,7 +241,7 @@ class CancelScaleOrderRequest(BaseModel):
 
 class CancelScaleOrderResponse(BaseModel):
     """Response model for scale order cancellation."""
-    result: ScaleOrderCancel
+    result: dict
 
     class Config:
         json_schema_extra = {
@@ -294,18 +294,25 @@ class CancelScaleOrderUseCase(BaseUseCase[CancelScaleOrderRequest, CancelScaleOr
         try:
             logger.info(f"Cancelling scale order: {request.scale_order_id}")
 
-            # Cancel via service
-            result = await self.scale_order_service.cancel_scale_order(request.scale_order_id)
+            # Create cancel request object for service
+            from src.models.scale_order import ScaleOrderCancel
+            cancel_request = ScaleOrderCancel(
+                scale_order_id=request.scale_order_id,
+                cancel_all_orders=True
+            )
 
-            if result.success:
+            # Cancel via service
+            result = await self.scale_order_service.cancel_scale_order(cancel_request)
+
+            if result.get("errors") is None or len(result.get("errors", [])) == 0:
                 logger.info(
                     f"Successfully cancelled scale order {request.scale_order_id}: "
-                    f"{result.orders_cancelled} orders cancelled"
+                    f"{result['orders_cancelled']} orders cancelled"
                 )
             else:
                 logger.warning(
                     f"Scale order {request.scale_order_id} cancellation had errors: "
-                    f"{result.message}"
+                    f"{result.get('errors')}"
                 )
 
             return CancelScaleOrderResponse(result=result)
