@@ -220,3 +220,144 @@ class TestPortfolioValidator:
         assert result["risk_level"] == "CRITICAL"
         assert len(result["warnings"]) > 0
         assert "critical" in result["warnings"][0].lower()
+
+    # ===================================================================
+    # Additional edge case tests
+    # ===================================================================
+
+    def test_validate_positive_amount_custom_field_name(self):
+        """Test custom field name appears in error message."""
+        with pytest.raises(ValidationError, match="Price"):
+            OrderValidator.validate_positive_amount(0.0, "Price")
+
+    def test_validate_size_zero_fails(self):
+        """Test zero size fails validation."""
+        with pytest.raises(ValidationError, match="Order size must be greater than 0"):
+            OrderValidator.validate_size(0.0, "BTC")
+
+    def test_validate_size_negative_fails(self):
+        """Test negative size fails validation."""
+        with pytest.raises(ValidationError, match="Order size must be greater than 0"):
+            OrderValidator.validate_size(-0.5, "BTC")
+
+    def test_validate_price_zero_fails(self):
+        """Test zero price fails validation."""
+        with pytest.raises(ValidationError, match="Price must be greater than 0"):
+            OrderValidator.validate_price(0.0, "BTC")
+
+    def test_validate_price_negative_fails(self):
+        """Test negative price fails validation."""
+        with pytest.raises(ValidationError, match="Price must be greater than 0"):
+            OrderValidator.validate_price(-100.0, "BTC")
+
+    def test_validate_leverage_without_coin(self):
+        """Test leverage validation without coin symbol."""
+        result = OrderValidator.validate_leverage(3)
+        assert result["valid"] is True
+        assert result["risk_level"] == "LOW"
+
+    def test_validate_leverage_boundary_1x(self):
+        """Test leverage at minimum boundary (1x)."""
+        result = OrderValidator.validate_leverage(1)
+        assert result["valid"] is True
+
+    def test_validate_leverage_boundary_50x(self):
+        """Test leverage at maximum boundary (50x)."""
+        result = OrderValidator.validate_leverage(50)
+        assert result["valid"] is True
+        assert result["risk_level"] == "EXTREME"
+
+    def test_validate_coin_symbol_whitespace_only_fails(self):
+        """Test whitespace-only coin symbol fails."""
+        with pytest.raises(ValidationError, match="cannot be empty"):
+            OrderValidator.validate_coin_symbol("   ")
+
+    def test_validate_coin_symbol_case_insensitive(self):
+        """Test coin symbol validation is case-insensitive."""
+        # Should normalize to uppercase
+        OrderValidator.validate_coin_symbol("btc", ["BTC", "ETH"])
+        OrderValidator.validate_coin_symbol("BtC", ["BTC", "ETH"])
+
+    def test_validate_percentage_boundary_0(self):
+        """Test percentage at 0% boundary."""
+        OrderValidator.validate_percentage(0.0)
+
+    def test_validate_percentage_boundary_100(self):
+        """Test percentage at 100% boundary."""
+        OrderValidator.validate_percentage(100.0)
+
+    def test_validate_percentage_custom_field_name(self):
+        """Test custom field name in percentage error."""
+        with pytest.raises(ValidationError, match="Weight"):
+            OrderValidator.validate_percentage(150.0, "Weight")
+
+    def test_validate_slippage_high_warning(self):
+        """Test high slippage (>10%) logs warning but doesn't fail."""
+        # Should not raise, but should log warning
+        OrderValidator.validate_slippage(15.0)
+
+    def test_validate_slippage_zero(self):
+        """Test zero slippage is valid."""
+        OrderValidator.validate_slippage(0.0)
+
+    def test_validate_order_count_custom_range(self):
+        """Test order count with custom min/max."""
+        OrderValidator.validate_order_count(5, min_count=2, max_count=10)
+
+    def test_validate_order_count_custom_range_below_min_fails(self):
+        """Test order count below custom minimum fails."""
+        with pytest.raises(ValidationError, match="must be between 2 and 10"):
+            OrderValidator.validate_order_count(1, min_count=2, max_count=10)
+
+    def test_validate_order_count_custom_range_above_max_fails(self):
+        """Test order count above custom maximum fails."""
+        with pytest.raises(ValidationError, match="must be between 2 and 10"):
+            OrderValidator.validate_order_count(11, min_count=2, max_count=10)
+
+    def test_validate_weights_single_asset(self):
+        """Test weights validation with single asset at 100%."""
+        PortfolioValidator.validate_weights({"BTC": 100.0})
+
+    def test_validate_weights_floating_point_tolerance(self):
+        """Test weights validation allows small floating point errors."""
+        # Should pass due to 0.01% tolerance (33.33 + 33.33 + 33.34 = 100.00)
+        PortfolioValidator.validate_weights({"BTC": 33.33, "ETH": 33.33, "SOL": 33.34})
+
+    def test_validate_margin_ratio_boundary_30(self):
+        """Test margin ratio at 30% boundary (SAFE/LOW)."""
+        result = PortfolioValidator.validate_margin_ratio(30.0)
+        assert result["risk_level"] == "LOW"
+
+    def test_validate_margin_ratio_boundary_50(self):
+        """Test margin ratio at 50% boundary (LOW/MODERATE)."""
+        result = PortfolioValidator.validate_margin_ratio(50.0)
+        assert result["risk_level"] == "MODERATE"
+
+    def test_validate_margin_ratio_boundary_70(self):
+        """Test margin ratio at 70% boundary (MODERATE/HIGH)."""
+        result = PortfolioValidator.validate_margin_ratio(70.0)
+        assert result["risk_level"] == "HIGH"
+        assert result["safe"] is False
+
+    def test_validate_margin_ratio_boundary_90(self):
+        """Test margin ratio at 90% boundary (HIGH/CRITICAL)."""
+        result = PortfolioValidator.validate_margin_ratio(90.0)
+        assert result["risk_level"] == "CRITICAL"
+        assert result["safe"] is False
+
+    def test_validate_margin_ratio_zero(self):
+        """Test margin ratio at 0% (no margin used)."""
+        result = PortfolioValidator.validate_margin_ratio(0.0)
+        assert result["safe"] is True
+        assert result["risk_level"] == "SAFE"
+        assert len(result["warnings"]) == 0
+
+    def test_validate_price_tick_size_exact_multiple(self):
+        """Test price that is exact multiple of tick size."""
+        OrderValidator.validate_price(100.0, "BTC", tick_size=10.0)
+        OrderValidator.validate_price(1000.0, "BTC", tick_size=100.0)
+
+    def test_validate_price_tick_size_floating_point_tolerance(self):
+        """Test price validation tolerates floating point errors."""
+        # Price very close to tick size multiple (within 1e-10 tolerance)
+        OrderValidator.validate_price(100.00000000001, "BTC", tick_size=1.0)
