@@ -7,6 +7,7 @@ from src.bot.middleware import authorized_only
 from src.bot.menus import build_main_menu, build_back_button, build_positions_menu
 from src.services.account_service import account_service
 from src.services.position_service import position_service
+from src.services.market_data_service import market_data_service
 from src.config import logger, settings
 
 
@@ -175,6 +176,13 @@ async def positions_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pnl_pct = p["return_on_equity"] * 100
             leverage = p["leverage_value"]
 
+            # Get current price
+            try:
+                current_price = market_data_service.get_price(coin)
+            except Exception as e:
+                logger.warning(f"Failed to fetch price for {coin}: {e}")
+                current_price = None
+
             # Format PnL
             if pnl >= 0:
                 pnl_str = f"+${pnl:.2f} (+{pnl_pct:.2f}%)"
@@ -183,14 +191,23 @@ async def positions_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pnl_str = f"${pnl:.2f} ({pnl_pct:.2f}%)"
                 pnl_emoji = "🔴"
 
-            positions_msg += (
-                f"{side_emoji} **{coin}** {side}\n"
-                f"├─ Size: {abs(size):.4f}\n"
-                f"├─ Entry: ${entry_price:.2f}\n"
-                f"├─ Value: ${position_value:.2f}\n"
-                f"├─ PnL: {pnl_emoji} {pnl_str}\n"
+            # Build position display
+            position_lines = [
+                f"{side_emoji} **{coin}** {side}",
+                f"├─ Size: {abs(size):.4f}",
+            ]
+
+            if current_price:
+                position_lines.append(f"├─ Current: ${current_price:.2f}")
+
+            position_lines.extend([
+                f"├─ Entry: ${entry_price:.2f}",
+                f"├─ Value: ${position_value:.2f}",
+                f"├─ PnL: {pnl_emoji} {pnl_str}",
                 f"└─ Leverage: {leverage}x\n\n"
-            )
+            ])
+
+            positions_msg += "\n".join(position_lines)
 
         positions_msg += f"_Use /close <coin> to close a position_"
 
@@ -325,6 +342,13 @@ async def menu_positions_callback(update: Update, context: ContextTypes.DEFAULT_
             pnl_pct = p["return_on_equity"] * 100
             leverage = p["leverage_value"]
 
+            # Get current price
+            try:
+                current_price = market_data_service.get_price(coin)
+            except Exception as e:
+                logger.warning(f"Failed to fetch price for {coin}: {e}")
+                current_price = None
+
             # Format PnL
             if pnl >= 0:
                 pnl_str = f"+${pnl:.2f} (+{pnl_pct:.2f}%)"
@@ -333,14 +357,23 @@ async def menu_positions_callback(update: Update, context: ContextTypes.DEFAULT_
                 pnl_str = f"${pnl:.2f} ({pnl_pct:.2f}%)"
                 pnl_emoji = "🔴"
 
-            positions_msg += (
-                f"{side_emoji} **{coin}** {side}\n"
-                f"├─ Size: {abs(size):.4f}\n"
-                f"├─ Entry: ${entry_price:.2f}\n"
-                f"├─ Value: ${position_value:.2f}\n"
-                f"├─ PnL: {pnl_emoji} {pnl_str}\n"
+            # Build position display
+            position_lines = [
+                f"{side_emoji} **{coin}** {side}",
+                f"├─ Size: {abs(size):.4f}",
+            ]
+
+            if current_price:
+                position_lines.append(f"├─ Current: ${current_price:.2f}")
+
+            position_lines.extend([
+                f"├─ Entry: ${entry_price:.2f}",
+                f"├─ Value: ${position_value:.2f}",
+                f"├─ PnL: {pnl_emoji} {pnl_str}",
                 f"└─ Leverage: {leverage}x\n\n"
-            )
+            ])
+
+            positions_msg += "\n".join(position_lines)
 
         positions_msg += f"_Use 🎯 Close Position menu to close_"
 
