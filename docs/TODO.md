@@ -1,8 +1,22 @@
 # Hyperbot TODO List
 
+> **For architecture and strategic decisions**, see [PLAN.md](PLAN.md)
+
 **Last Updated**: 2025-11-06
 **Current Phase**: ✅ Phase 4 Complete - Code Consolidation & Use Case Layer
 **Previous Phase**: ✅ Phase 2D Complete - Leverage Management Service
+
+---
+
+## Purpose
+
+This file tracks **developer-level tasks** including:
+- Detailed implementation checklists with file paths
+- Progress tracking (✅ Completed / 🔄 In Progress / 🚫 Blocked)
+- Testing lessons learned and known issues
+- Session summaries and technical notes
+
+For high-level **architecture, goals, and ADRs**, see [PLAN.md](PLAN.md).
 
 ---
 
@@ -364,369 +378,19 @@ _No active tasks - Phase 4 Complete!_
 
 ## 📋 Up Next
 
-### Future Phases (Optional Enhancements)
+> **For detailed planning of future phases**, see [PLAN.md](PLAN.md) - Future Phases section
 
-#### Objectives
-- Eliminate 23 identified code duplication issues
-- Prevent API and Bot feature divergence
-- Establish Use Case Layer for shared business logic
-- Reduce codebase from 6,272 → ~5,400 LOC (-14%)
-- Achieve 100% feature parity between API and Bot
+### Potential Next Phases
 
-#### Analysis Results
-**Code Health Assessment**:
-- ✅ Service Layer: Clean, properly shared
-- ✅ Architecture: Well-structured
-- ⚠️ Code Duplication: 23 issues identified
-- ⚠️ Feature Divergence: API and Bot implementing features differently
+**Phase 1B.2**: Post-MVP Dashboard Features (orders, market data, charts)
+**Phase 2C**: Spot Trading Integration (currently PERPS only)
+**Phase 3**: Telegram Bot Enhancement (mobile interface)
+**Phase 1A.7**: Testing Infrastructure (increase coverage from 25% to >80%)
 
-**Key Issues**:
-1. Duplicate response parser in `position_service.py` and `order_service.py`
-2. Inconsistent service initialization across 10 service modules
-3. Repeated loading messages (15+ occurrences)
-4. API/Bot divergence in risk metrics, USD conversion, rebalancing weights, scale order tracking
-
-#### Phase 4.1: Foundation (Week 1)
-- [ ] **Create Use Case Infrastructure**
-  - [ ] Create `src/use_cases/` directory
-  - [ ] Create `src/use_cases/base.py` with `BaseUseCase` abstract class
-  - [ ] Create `src/use_cases/common/` directory
-
-- [ ] **Centralized Utilities**
-  - [ ] Create `src/use_cases/common/response_parser.py`
-    - [ ] Implement `parse_hyperliquid_response()` (single source of truth)
-    - [ ] Remove duplicate from `position_service.py:10-43`
-    - [ ] Remove duplicate from `order_service.py:23-61`
-  - [ ] Create `src/use_cases/common/usd_converter.py`
-    - [ ] Implement `USDConverter` class
-    - [ ] Move USD conversion logic from `src/bot/utils.py`
-    - [ ] Add support for both API and Bot
-  - [ ] Create `src/use_cases/common/validators.py`
-    - [ ] Implement `OrderValidator` class
-    - [ ] Centralize validation rules
-    - [ ] Support size, price, leverage validation
-
-- [ ] **Testing**
-  - [ ] Write unit tests for response parser
-  - [ ] Write unit tests for USD converter
-  - [ ] Write unit tests for validators
-  - [ ] Commit: "Phase 4.1: Foundation - Centralized Utilities"
-
-#### Phase 4.2: Trading Use Cases (Week 2)
-- [ ] **Create Trading Use Cases**
-  - [ ] Create `src/use_cases/trading/` directory
-  - [ ] Create `src/use_cases/trading/place_order.py`
-    - [ ] Implement `PlaceOrderUseCase` with USD conversion
-    - [ ] Add size validation and leverage management
-    - [ ] Add response formatting
-  - [ ] Create `src/use_cases/trading/close_position.py`
-    - [ ] Implement `ClosePositionUseCase`
-    - [ ] Add confirmation logic
-    - [ ] Add risk checks
-  - [ ] Create `src/use_cases/trading/market_order.py`
-    - [ ] Implement `MarketOrderUseCase`
-    - [ ] Add slippage handling
-    - [ ] Add size validation
-
-- [ ] **Migrate API Routes**
-  - [ ] Update `src/api/routes/orders.py` to use `PlaceOrderUseCase`
-  - [ ] Update `src/api/routes/positions.py` to use `ClosePositionUseCase`
-  - [ ] Test all API endpoints still work
-
-- [ ] **Migrate Bot Handlers**
-  - [ ] Update `src/bot/handlers/trading.py` to use trading use cases
-  - [ ] Update `src/bot/handlers/positions.py` to use trading use cases
-  - [ ] Test all bot commands still work
-
-- [ ] **Testing**
-  - [ ] Write unit tests for trading use cases
-  - [ ] Write integration tests for API routes
-  - [ ] Write integration tests for bot handlers
-  - [ ] Commit: "Phase 4.2: Trading Use Cases - API/Bot Migration"
-
-#### Phase 4.3: Portfolio Use Cases (Week 3)
-- [ ] **Create Portfolio Use Cases**
-  - [ ] Create `src/use_cases/portfolio/` directory
-  - [ ] Create `src/use_cases/portfolio/risk_analysis.py`
-    - [ ] Implement `RiskAnalysisUseCase`
-    - [ ] Calculate Cross Margin Ratio
-    - [ ] Calculate liquidation distance
-    - [ ] Calculate health scores
-  - [ ] Create `src/use_cases/portfolio/rebalance.py`
-    - [ ] Implement `RebalanceUseCase`
-    - [ ] Support custom weights (API feature)
-    - [ ] Support equal weight (Bot feature)
-    - [ ] Integrate leverage management
-  - [ ] Create `src/use_cases/portfolio/position_summary.py`
-    - [ ] Implement `PositionSummaryUseCase`
-    - [ ] Add formatting logic
-    - [ ] Add PnL calculations
-    - [ ] Include risk metrics
-
-- [ ] **Migrate API Routes**
-  - [ ] Update `src/api/routes/positions.py` to use portfolio use cases
-  - [ ] Update `src/api/routes/rebalance.py` to use `RebalanceUseCase`
-  - [ ] Add risk metrics to API responses
-
-- [ ] **Migrate Bot Handlers**
-  - [ ] Update `src/bot/handlers/basic.py` to use `PositionSummaryUseCase`
-  - [ ] Update `src/bot/handlers/advanced.py` to use `RebalanceUseCase`
-  - [ ] Add risk metrics display to bot
-  - [ ] Add custom weights support to bot rebalancing
-
-- [ ] **Testing**
-  - [ ] Write unit tests for portfolio use cases
-  - [ ] Test API endpoints with risk metrics
-  - [ ] Test bot commands with risk metrics
-  - [ ] Commit: "Phase 4.3: Portfolio Use Cases - Feature Parity"
-
-#### Phase 4.4: Scale Order Use Cases (Week 4)
-- [ ] **Create Scale Order Use Cases**
-  - [ ] Create `src/use_cases/scale_orders/` directory
-  - [ ] Create `src/use_cases/scale_orders/preview.py`
-    - [ ] Implement `PreviewScaleOrderUseCase`
-    - [ ] Share preview logic between API and Bot
-  - [ ] Create `src/use_cases/scale_orders/place.py`
-    - [ ] Implement `PlaceScaleOrderUseCase`
-    - [ ] Share placement logic between API and Bot
-  - [ ] Create `src/use_cases/scale_orders/track.py`
-    - [ ] Implement `TrackScaleOrderUseCase`
-    - [ ] Share tracking logic between API and Bot
-
-- [ ] **Migrate API Routes**
-  - [ ] Update `src/api/routes/scale_orders.py` to use scale order use cases
-  - [ ] Verify tracking functionality still works
-
-- [ ] **Migrate Bot Handlers**
-  - [ ] Update `src/bot/handlers/scale_orders.py` to use scale order use cases
-  - [ ] Add `/scale_status` command to bot
-  - [ ] Add scale order tracking UI to bot
-  - [ ] Add active scale orders display
-  - [ ] Add fill progress display
-  - [ ] Enable cancellation from bot
-
-- [ ] **Testing**
-  - [ ] Write unit tests for scale order use cases
-  - [ ] Test API scale order tracking
-  - [ ] Test bot scale order tracking
-  - [ ] Commit: "Phase 4.4: Scale Order Use Cases - Bot Tracking Added"
-
-#### Phase 4.5: Cleanup & Testing (Week 5)
-- [ ] **Remove Duplicate Code**
-  - [ ] Delete duplicate `_parse_hyperliquid_response()` from services
-  - [ ] Consolidate service initialization patterns
-  - [ ] Remove repeated loading messages
-  - [ ] Remove hardcoded leverage values
-  - [ ] Remove hardcoded rebalance weights
-
-- [ ] **Update All Tests**
-  - [ ] Update service tests to use centralized utilities
-  - [ ] Add use case tests (target >80% coverage)
-  - [ ] Add integration tests for API/Bot parity
-  - [ ] Verify all 56+ tests still passing
-
-- [ ] **Documentation**
-  - [ ] Update `docs/PLAN.md` with new architecture
-  - [ ] Document use case patterns in `docs/ARCHITECTURE.md`
-  - [ ] Add examples for adding new features
-  - [ ] Update `CLAUDE.md` with use case guidelines
-
-- [ ] **Verification**
-  - [ ] Run full test suite
-  - [ ] Verify code reduction achieved (6,272 → ~5,400 LOC)
-  - [ ] Verify all 23 duplicate blocks eliminated
-  - [ ] Verify API/Bot feature parity
-  - [ ] Commit: "Phase 4.5: Cleanup & Testing Complete"
-  - [ ] Final commit: "Phase 4 Complete: Code Consolidation & Use Case Layer"
-
-#### Expected Outcomes
-**Metrics**:
-- ✅ Code Reduction: 6,272 → ~5,400 LOC (-14%)
-- ✅ Duplication Eliminated: All 23 duplicate blocks removed
-- ✅ Test Coverage: Maintain >80% for use cases
-- ✅ Feature Parity: 100% between API and Bot
-
-**Benefits**:
-- ✅ Single Source of Truth: Features implemented once, used everywhere
-- ✅ No Divergence: API and Bot automatically stay in sync
-- ✅ Easier Testing: Use cases testable independently
-- ✅ Faster Development: Add feature once, appears in both interfaces
-- ✅ Better Maintainability: Update business logic in one place
-- ✅ Consistent Validation: Same rules enforced everywhere
-
-#### Success Criteria
-- [ ] All 23 duplicate code blocks eliminated
-- [ ] API and Bot use same use cases for all features
-- [ ] Risk metrics shown in both API and Bot
-- [ ] USD conversion available in both API and Bot
-- [ ] Rebalancing supports custom weights in both interfaces
-- [ ] Scale order tracking available in both interfaces
-- [ ] All existing tests passing
-- [ ] New use case tests added with >80% coverage
-- [ ] Code reduction of 10-15% achieved
-- [ ] Documentation updated
-
-#### File Structure After Phase 4
-```
-src/
-├── use_cases/               # NEW
-│   ├── base.py
-│   ├── common/
-│   │   ├── response_parser.py
-│   │   ├── usd_converter.py
-│   │   └── validators.py
-│   ├── trading/
-│   │   ├── place_order.py
-│   │   ├── close_position.py
-│   │   └── market_order.py
-│   ├── portfolio/
-│   │   ├── risk_analysis.py
-│   │   ├── rebalance.py
-│   │   └── position_summary.py
-│   └── scale_orders/
-│       ├── preview.py
-│       ├── place.py
-│       └── track.py
-├── api/
-│   └── routes/              # UPDATED (use use_cases)
-├── bot/
-│   └── handlers/            # UPDATED (use use_cases)
-├── services/                # UNCHANGED (stays lean)
-├── models/                  # UNCHANGED
-└── config.py                # UNCHANGED
-```
-
-#### Migration Strategy
-**Incremental Approach** (minimize risk):
-1. ✅ Create use case infrastructure (doesn't break anything)
-2. ✅ Migrate one feature at a time (test after each)
-3. ✅ Run full test suite after each phase
-4. ✅ Keep both old and new code until fully migrated
-5. ✅ Remove old code only when all tests pass
-
-**No Breaking Changes**:
-- API endpoints stay the same
-- Bot commands stay the same
-- User experience unchanged
-- Database schema unchanged
-
----
-
-### Other Future Phases
-
-**Phase 2C**: Spot Trading Integration
-**Phase 3**: Telegram Bot Integration (Enhancement)
-**Phase 1B.3**: Post-MVP Dashboard Features (orders, market data)
-**Phase 1A.7**: Testing Infrastructure
-
-### Phase 1A.7: Testing Infrastructure (Optional - May Defer)
-- [ ] Create `pytest.ini`
-- [ ] Write unit tests for services
-- [ ] Write integration tests for API endpoints
-- [ ] Create `tests/conftest.py` with fixtures
-- [ ] Create mock Hyperliquid fixture
-- [ ] Write unit tests:
-  - [ ] Order validation tests (critical!)
-  - [ ] Position closing validation tests (critical!)
-  - [ ] Input validation tests
-- [ ] Create `tests/integration/` directory
-- [ ] Write integration tests:
-  - [ ] Testnet connection test
-  - [ ] Account fetch test
-  - [ ] Position fetch test
-  - [ ] Market data test
-- [ ] Create manual test for order placement
-- [ ] Create test runner script: `scripts/run_tests.sh`
-- [ ] Create `docs/TESTING.md` with testing guide
-- [ ] Document testing strategy
-- [ ] Commit testing infrastructure
-
----
-
-## 🔮 Future Phases
-
-### Phase 1B: Web Dashboard (Split: MVP Now / Later)
-
-#### MVP (Now) - Estimated: 5-6 hours
-**Goal:** View account/positions + Close positions (individual & bulk)
-
-- [ ] **MVP.1: Foundation Setup** (30 min)
-  - [ ] Add dependencies: jinja2, python-multipart
-  - [ ] Create src/api/templates/ and src/static/css/
-  - [ ] Configure static files and Jinja2 in main.py
-  - [ ] Create base.html with Tailwind, HTMX, Alpine.js CDN
-  - [ ] Create basic navbar component
-  - [ ] Create src/api/routes/web.py for HTML routes
-
-- [ ] **MVP.2: Dashboard Page** (1 hour)
-  - [ ] Create dashboard.html template
-  - [ ] Add GET / route → renders dashboard
-  - [ ] Account Summary Card (balance, equity, margin, available)
-  - [ ] Positions Summary Widget (total, long/short, PnL)
-  - [ ] HTMX auto-refresh every 10s
-  - [ ] Responsive grid layout
-
-- [ ] **MVP.3: Positions Table** (1.5 hours)
-  - [ ] Create positions.html template
-  - [ ] Add GET /positions route
-  - [ ] Table: Coin | Side | Size | Entry | Current | Value | PnL | PnL% | Leverage | Actions
-  - [ ] Color coding: Green (profit), Red (loss)
-  - [ ] "Close" button per position
-  - [ ] Empty state handling
-  - [ ] HTMX auto-refresh table
-
-- [ ] **MVP.4: Close Individual Position** (45 min)
-  - [ ] Alpine.js confirmation modal component
-  - [ ] Wire "Close" button to modal
-  - [ ] HTMX POST to /api/positions/{coin}/close
-  - [ ] Loading spinner on button
-  - [ ] Success: Remove row with animation
-  - [ ] Error: Show toast notification
-
-- [ ] **MVP.5: Bulk Close Positions** (1.5 hours)
-  - [ ] Add bulk action buttons: "Close 33%", "Close 66%", "Close 100%"
-  - [ ] Create bulk close confirmation modal
-  - [ ] Show affected positions + estimated PnL impact
-  - [ ] Create POST /api/positions/bulk-close endpoint
-  - [ ] Implement bulk_close_positions() service method
-  - [ ] Wire buttons with HTMX
-  - [ ] Show progress indicator
-  - [ ] Success summary toast
-
-- [ ] **MVP.6: Navigation & Polish** (30 min)
-  - [ ] Navigation menu with active state
-  - [ ] Page headers/titles
-  - [ ] Loading states (skeletons, spinners)
-  - [ ] Mobile responsive layout
-  - [ ] Error handling (toasts, inline errors)
-  - [ ] "Last Updated" timestamp
-
-- [ ] **Test MVP and commit**
-
-#### Later (Post-MVP)
-- [ ] Orders page (view open orders)
-- [ ] Cancel orders functionality
-- [ ] Market order form
-- [ ] Limit order form
-- [ ] Dashboard: Market prices widget
-- [ ] Dashboard: Recent activity feed
-- [ ] Performance charts
-- [ ] Dark mode toggle
-- [ ] WebSocket live updates
-- [ ] Desktop notifications
-
-### Phase 2: Advanced Features
-- [ ] Rebalancing service
-- [ ] Scale order service
-- [ ] Position history tracking
-- [ ] Performance analytics
-
-### Phase 3: Telegram Bot
-- [ ] Telegram bot setup
-- [ ] Command handlers
-- [ ] Inline keyboards
-- [ ] Notifications
-- [ ] Confirmation dialogs
+**Decision needed**: Assess project priorities:
+- Feature expansion (Dashboard, Spot Trading)
+- Mobile interface (Telegram)
+- Technical debt (Testing coverage)
 
 ---
 
