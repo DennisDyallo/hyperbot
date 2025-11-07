@@ -192,7 +192,7 @@ class AccountSummaryBuilder:
             "total_account_value": self._total_account_value,
             "perps_account_value": self._perps_account_value,
             "spot_account_value": self._spot_account_value,
-            "available_balance": self._available_balance,
+            "total_raw_usd": self._available_balance,
             "margin_used": self._margin_used,
             "num_perp_positions": self._num_perp_positions,
             "num_spot_balances": self._num_spot_balances,

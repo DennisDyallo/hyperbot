@@ -51,7 +51,7 @@ class TestRiskAnalysisUseCase:
         return {
             "margin_summary": {
                 "account_value": 100000.0,
-                "available_balance": 70000.0,
+                "total_raw_usd": 70000.0,
                 "total_margin_used": 30000.0,
             },
             "crossMarginSummary": {"crossMaintenanceMarginUsed": "5000", "accountValue": "100000"},
@@ -120,7 +120,7 @@ class TestRiskAnalysisUseCase:
 
         # Mock portfolio risk assessment
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.LOW, portfolio_health_score=75, warnings=[]
+            overall_risk_level=RiskLevel.LOW, overall_health_score=75, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -159,7 +159,7 @@ class TestRiskAnalysisUseCase:
             warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest(include_cross_margin_ratio=True)
@@ -193,7 +193,7 @@ class TestRiskAnalysisUseCase:
             warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest(include_cross_margin_ratio=False)
@@ -239,7 +239,7 @@ class TestRiskAnalysisUseCase:
             ),
         ]
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.LOW, portfolio_health_score=70, warnings=[]
+            overall_risk_level=RiskLevel.LOW, overall_health_score=70, warnings=[]
         )
 
         request = RiskAnalysisRequest(coins=["BTC", "ETH"])
@@ -266,6 +266,8 @@ class TestRiskAnalysisUseCase:
                     "coin": "BTC",
                     "size": 1.0,
                     "entry_price": 50000.0,
+                    "leverage_value": 2,
+                    "leverage_type": "cross",
                     "leverage": {"value": 2, "type": "cross"},
                 }
             },
@@ -274,6 +276,8 @@ class TestRiskAnalysisUseCase:
                     "coin": "ETH",
                     "size": 1.0,
                     "entry_price": 3000.0,
+                    "leverage_value": 5,
+                    "leverage_type": "cross",
                     "leverage": {"value": 5, "type": "cross"},
                 }
             },
@@ -282,6 +286,8 @@ class TestRiskAnalysisUseCase:
                     "coin": "SOL",
                     "size": 1.0,
                     "entry_price": 150.0,
+                    "leverage_value": 10,
+                    "leverage_type": "cross",
                     "leverage": {"value": 10, "type": "cross"},
                 }
             },
@@ -290,6 +296,8 @@ class TestRiskAnalysisUseCase:
                     "coin": "AVAX",
                     "size": 1.0,
                     "entry_price": 40.0,
+                    "leverage_value": 20,
+                    "leverage_type": "cross",
                     "leverage": {"value": 20, "type": "cross"},
                 }
             },
@@ -337,7 +345,7 @@ class TestRiskAnalysisUseCase:
         ]
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
             overall_risk_level=RiskLevel.HIGH,
-            portfolio_health_score=50,
+            overall_health_score=50,
             warnings=["Multiple high-risk positions"],
         )
 
@@ -366,6 +374,8 @@ class TestRiskAnalysisUseCase:
                     "size": -0.5,  # Short
                     "entry_price": 52000.0,
                     "mark_price": 50000.0,
+                    "leverage_value": 3,
+                    "leverage_type": "isolated",
                     "leverage": {"value": 3, "type": "isolated"},
                 }
             }
@@ -383,7 +393,7 @@ class TestRiskAnalysisUseCase:
             warnings=["Price moved against short position"],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.MODERATE, portfolio_health_score=65, warnings=[]
+            overall_risk_level=RiskLevel.MODERATE, overall_health_score=65, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -413,6 +423,8 @@ class TestRiskAnalysisUseCase:
                     "coin": "BTC",
                     "size": 1.0,
                     "entry_price": 50000.0,
+                    "leverage_value": 2,
+                    "leverage_type": "cross",
                     "leverage": {"value": 2, "type": "cross"},
                 }
             },
@@ -421,6 +433,8 @@ class TestRiskAnalysisUseCase:
                     "coin": "ETH",
                     "size": -10.0,
                     "entry_price": 3000.0,
+                    "leverage_value": 2,
+                    "leverage_type": "cross",
                     "leverage": {"value": 2, "type": "cross"},
                 }
             },
@@ -438,7 +452,7 @@ class TestRiskAnalysisUseCase:
             warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -462,6 +476,8 @@ class TestRiskAnalysisUseCase:
                     "size": 1.0,
                     "entry_price": 48000.0,
                     "mark_price": 49500.0,
+                    "leverage_value": 2,
+                    "leverage_type": "cross",
                     "leverage": {"value": 2, "type": "cross"},
                 }
             }
@@ -479,7 +495,7 @@ class TestRiskAnalysisUseCase:
             warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -499,6 +515,8 @@ class TestRiskAnalysisUseCase:
                     "size": 1.0,
                     "entry_price": 48000.0,
                     # No mark_price field
+                    "leverage_value": 2,
+                    "leverage_type": "cross",
                     "leverage": {"value": 2, "type": "cross"},
                 }
             }
@@ -516,7 +534,7 @@ class TestRiskAnalysisUseCase:
             warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -549,7 +567,7 @@ class TestRiskAnalysisUseCase:
             warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -568,14 +586,14 @@ class TestRiskAnalysisUseCase:
         use_case.account_service.get_account_info.return_value = {
             "margin_summary": {
                 "account_value": 0.0,
-                "available_balance": 0.0,
+                "total_raw_usd": 0.0,
                 "total_margin_used": 0.0,
             }
         }
         use_case.market_data.get_all_prices.return_value = {}
 
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=100, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=100, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -595,7 +613,7 @@ class TestRiskAnalysisUseCase:
         account_info_no_cross = {
             "margin_summary": {
                 "account_value": 100000.0,
-                "available_balance": 70000.0,
+                "total_raw_usd": 70000.0,
                 "total_margin_used": 30000.0,
             }
             # No crossMarginSummary
@@ -617,7 +635,7 @@ class TestRiskAnalysisUseCase:
             warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest(include_cross_margin_ratio=True)
@@ -665,7 +683,7 @@ class TestRiskAnalysisUseCase:
             ),
         ]
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.LOW, portfolio_health_score=80, warnings=[]
+            overall_risk_level=RiskLevel.LOW, overall_health_score=80, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -699,7 +717,7 @@ class TestRiskAnalysisUseCase:
         use_case.market_data.get_all_prices.return_value = {}
 
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=100, warnings=[]
+            overall_risk_level=RiskLevel.SAFE, overall_health_score=100, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -737,7 +755,7 @@ class TestRiskAnalysisUseCase:
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
             overall_risk_level=RiskLevel.MODERATE,
-            portfolio_health_score=65,
+            overall_health_score=65,
             warnings=["High margin utilization", "Multiple correlated positions"],
         )
 

@@ -855,6 +855,132 @@ vulture src/ .vulture_whitelist.py --sort-by-size --min-confidence=80
 
 ## Testing Best Practices
 
+### 🎯 Testing Hierarchy - SOURCE OF TRUTH
+
+**⚠️ CRITICAL**: There are TWO levels of tests with different priorities:
+
+#### 1️⃣ Integration Tests (scripts/) - PRIMARY SOURCE OF TRUTH
+
+**Location**: `scripts/` directory
+**Priority**: **HIGHEST** - These are the ultimate validation
+**Environment**: **MUST run on Testnet** (`HYPERLIQUID_TESTNET=true`)
+
+**Why they're the source of truth:**
+- Test against **real Hyperliquid API** (testnet)
+- Validate **end-to-end workflows** with actual network calls
+- Catch integration issues that unit tests miss
+- Prove the bot works in a real environment
+
+**Integration test scripts:**
+```bash
+scripts/
+├── test_hyperliquid.py              # Basic API connectivity
+├── test_market_data.py              # Market data fetching
+├── test_order_operations.py         # Order placement/cancellation
+├── test_position_structure.py       # Position data structure
+├── test_leverage_rebalance.py       # Leverage adjustment
+├── test_portfolio_use_cases.py      # Portfolio operations
+├── test_scale_order_use_cases.py    # Scale order execution
+└── manual_test_rebalancing.py       # Manual rebalancing tests
+```
+
+**How to run integration tests:**
+```bash
+# 🚨 ALWAYS set testnet environment variable
+export HYPERLIQUID_TESTNET=true
+
+# Run individual integration test
+uv run python scripts/test_order_operations.py
+uv run python scripts/test_portfolio_use_cases.py
+
+# Run all integration tests (if you have a test runner script)
+./scripts/run_all_tests.sh  # Must set HYPERLIQUID_TESTNET=true inside
+```
+
+**Integration test requirements:**
+- ✅ Must run on Hyperliquid testnet
+- ✅ Must use real API calls (no mocking)
+- ✅ Must validate actual API responses
+- ✅ Must test complete workflows (e.g., open position → adjust leverage → close)
+- ✅ Must pass before ANY commit to main
+
+---
+
+#### 2️⃣ Unit Tests (tests/) - SECOND IN LINE
+
+**Location**: `tests/` directory
+**Priority**: **High** - Validate individual components
+**Environment**: Runs with mocked dependencies
+
+**Why they're important:**
+- Fast feedback during development
+- Test edge cases and error handling
+- Validate business logic in isolation
+- Enable refactoring with confidence
+
+**How to run unit tests:**
+```bash
+# Run all unit tests
+uv run pytest tests/ -v
+
+# Run specific service tests
+uv run pytest tests/services/test_leverage_service.py -v
+
+# Run with coverage
+uv run pytest tests/ --cov=src --cov-report=term-missing
+
+# Run wizard tests
+uv run pytest tests/bot/test_wizards.py -v
+```
+
+---
+
+### 🔄 Workflow After Each Meaningful Change
+
+**After ANY meaningful change (new feature, refactor, bug fix), you MUST:**
+
+```bash
+# Step 1: Run unit tests
+uv run pytest tests/ -v
+
+# Step 2: Run integration tests on testnet
+export HYPERLIQUID_TESTNET=true
+uv run python scripts/test_order_operations.py
+uv run python scripts/test_portfolio_use_cases.py
+uv run python scripts/test_scale_order_use_cases.py
+# ... run other relevant integration tests
+
+# Step 3: Only commit if BOTH pass
+git add -A
+git commit -m "Your commit message"
+```
+
+**❌ NEVER commit if:**
+- Integration tests fail
+- Unit tests fail
+- You didn't run integration tests on testnet
+
+**✅ ALWAYS:**
+- Set `HYPERLIQUID_TESTNET=true` before running integration tests
+- Run relevant integration tests for the area you changed
+- Verify both unit and integration tests pass
+- Check that integration tests use real API calls (no mocking in scripts/)
+
+---
+
+### 📊 Test Priority Matrix
+
+| Test Type | Priority | Speed | Real API | Use Case |
+|-----------|----------|-------|----------|----------|
+| **Integration** (scripts/) | 🔴 **HIGHEST** | Slow (network calls) | ✅ Yes (testnet) | Validate end-to-end workflows |
+| **Unit** (tests/) | 🟡 High | Fast (mocked) | ❌ No (mocked) | Validate business logic |
+
+**Rule of thumb:**
+1. **Integration tests prove it works** - Source of truth
+2. **Unit tests prove it's correct** - Fast feedback
+
+---
+
 ### Critical Testing Patterns (MUST READ)
 
 **⚠️ IMPORTANT**: These patterns were learned through extensive debugging. Follow them to avoid common testing pitfalls.
@@ -1226,14 +1352,16 @@ For more troubleshooting help:
 
 ## Remember
 
-1. **Always read the docs first** - Don't guess at API usage
-2. **Test on testnet** - Never develop on mainnet
-3. **Security first** - Validate, authenticate, confirm
-4. **User experience matters** - Clear messages, progress indicators, good errors
-5. **Log everything** - Debugging is easier with good logs
-6. **Handle errors gracefully** - Users should never see stack traces
-7. **Follow testing best practices** - Use service singleton mocking pattern, match API response structures exactly
-8. **Reference this file** - When in doubt, check Claude.md
+1. **Integration tests are the source of truth** - Always run scripts/ on testnet (`HYPERLIQUID_TESTNET=true`) after meaningful changes
+2. **Run both test levels** - Unit tests (tests/) for fast feedback, integration tests (scripts/) for validation
+3. **Always read the docs first** - Don't guess at API usage
+4. **Test on testnet** - Never develop on mainnet
+5. **Security first** - Validate, authenticate, confirm
+6. **User experience matters** - Clear messages, progress indicators, good errors
+7. **Log everything** - Debugging is easier with good logs
+8. **Handle errors gracefully** - Users should never see stack traces
+9. **Follow testing best practices** - Use service singleton mocking pattern, match API response structures exactly
+10. **Reference this file** - When in doubt, check Claude.md
 
 ---
 

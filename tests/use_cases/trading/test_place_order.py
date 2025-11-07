@@ -15,7 +15,6 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
-from src.use_cases.common.validators import ValidationError
 from src.use_cases.trading.place_order import (
     PlaceOrderRequest,
     PlaceOrderUseCase,
@@ -53,7 +52,11 @@ class TestPlaceOrderUseCase:
 
             use_case.order_service.place_market_order.return_value = {
                 "status": "success",
-                "price": 50100.0,  # Execution price with slippage
+                "result": {
+                    "response": {
+                        "data": {"statuses": [{"filled": {"avgPx": "50100.0", "totalSz": "0.1"}}]}
+                    }
+                },
             }
 
             request = PlaceOrderRequest(coin="BTC", is_buy=True, usd_amount=1000.0, is_market=True)
@@ -79,7 +82,11 @@ class TestPlaceOrderUseCase:
 
             use_case.order_service.place_market_order.return_value = {
                 "status": "success",
-                "price": 2990.0,  # Execution price
+                "result": {
+                    "response": {
+                        "data": {"statuses": [{"filled": {"avgPx": "2990.0", "totalSz": "0.1"}}]}
+                    }
+                },
             }
 
             request = PlaceOrderRequest(
@@ -103,7 +110,11 @@ class TestPlaceOrderUseCase:
         use_case.market_data.get_price.return_value = 50000.0
         use_case.order_service.place_market_order.return_value = {
             "status": "success",
-            "price": 50050.0,
+            "result": {
+                "response": {
+                    "data": {"statuses": [{"filled": {"avgPx": "50050.0", "totalSz": "0.1"}}]}
+                }
+            },
         }
 
         request = PlaceOrderRequest(coin="BTC", is_buy=True, coin_size=0.5, is_market=True)
@@ -127,65 +138,69 @@ class TestPlaceOrderUseCase:
     async def test_limit_buy_with_usd_amount_success(self, use_case):
         """Test limit buy order with USD amount."""
         with patch.object(use_case.usd_converter, "convert_usd_to_coin") as mock_convert:
-            mock_convert.return_value = (0.02, 50000.0)
+            with patch("src.use_cases.trading.place_order.market_data_service") as mock_mds:
+                mock_convert.return_value = (0.02, 50000.0)
+                mock_mds.get_asset_metadata.return_value = {"szDecimals": 0}  # Integer prices
 
+                use_case.order_service.place_limit_order.return_value = {
+                    "status": "success",
+                    "order_id": 12345,
+                }
+
+                request = PlaceOrderRequest(
+                    coin="BTC",
+                    is_buy=True,
+                    usd_amount=1000.0,
+                    is_market=False,
+                    limit_price=49000.0,  # Buy below market
+                )
+
+                response = await use_case.execute(request)
+
+                assert response.status == "success"
+                assert response.order_type == "LIMIT"
+                assert response.price == 49000.0
+                assert response.order_id == 12345
+
+                use_case.order_service.place_limit_order.assert_called_once_with(
+                    coin="BTC",
+                    is_buy=True,
+                    size=0.02,
+                    limit_price=49000.0,
+                    reduce_only=False,
+                    time_in_force="Gtc",
+                )
+
+    @pytest.mark.asyncio
+    async def test_limit_sell_with_coin_size_success(self, use_case):
+        """Test limit sell order with coin size."""
+        with patch("src.use_cases.trading.place_order.market_data_service") as mock_mds:
+            use_case.market_data.get_price.return_value = 3000.0
+            mock_mds.get_asset_metadata.return_value = {"szDecimals": 0}  # Integer prices
             use_case.order_service.place_limit_order.return_value = {
                 "status": "success",
-                "order_id": 12345,
+                "order_id": 99999,
             }
 
             request = PlaceOrderRequest(
-                coin="BTC",
-                is_buy=True,
-                usd_amount=1000.0,
+                coin="ETH",
+                is_buy=False,
+                coin_size=10.0,
                 is_market=False,
-                limit_price=49000.0,  # Buy below market
+                limit_price=3100.0,  # Sell above market
+                time_in_force="Ioc",
             )
 
             response = await use_case.execute(request)
 
             assert response.status == "success"
             assert response.order_type == "LIMIT"
-            assert response.price == 49000.0
-            assert response.order_id == 12345
+            assert response.order_id == 99999
+            assert response.price == 3100.0
 
-            use_case.order_service.place_limit_order.assert_called_once_with(
-                coin="BTC",
-                is_buy=True,
-                size=0.02,
-                price=49000.0,
-                reduce_only=False,
-                time_in_force="Gtc",
-            )
-
-    @pytest.mark.asyncio
-    async def test_limit_sell_with_coin_size_success(self, use_case):
-        """Test limit sell order with coin size."""
-        use_case.market_data.get_price.return_value = 3000.0
-        use_case.order_service.place_limit_order.return_value = {
-            "status": "success",
-            "order_id": 99999,
-        }
-
-        request = PlaceOrderRequest(
-            coin="ETH",
-            is_buy=False,
-            coin_size=10.0,
-            is_market=False,
-            limit_price=3100.0,  # Sell above market
-            time_in_force="Ioc",
-        )
-
-        response = await use_case.execute(request)
-
-        assert response.status == "success"
-        assert response.order_type == "LIMIT"
-        assert response.order_id == 99999
-        assert response.price == 3100.0
-
-        use_case.order_service.place_limit_order.assert_called_once()
-        call_kwargs = use_case.order_service.place_limit_order.call_args.kwargs
-        assert call_kwargs["time_in_force"] == "Ioc"
+            use_case.order_service.place_limit_order.assert_called_once()
+            call_kwargs = use_case.order_service.place_limit_order.call_args.kwargs
+            assert call_kwargs["time_in_force"] == "Ioc"
 
     # ===================================================================
     # Validation Error tests
@@ -196,7 +211,10 @@ class TestPlaceOrderUseCase:
         """Test that missing both size parameters fails."""
         request = PlaceOrderRequest(coin="BTC", is_buy=True, is_market=True)
 
-        with pytest.raises(ValidationError, match="Must specify either usd_amount or coin_size"):
+        with pytest.raises(
+            RuntimeError,
+            match="Order validation failed.*Must specify either usd_amount or coin_size",
+        ):
             await use_case.execute(request)
 
     @pytest.mark.asyncio
@@ -207,7 +225,8 @@ class TestPlaceOrderUseCase:
         )
 
         with pytest.raises(
-            ValidationError, match="Specify either usd_amount or coin_size, not both"
+            RuntimeError,
+            match="Order validation failed.*Specify either usd_amount or coin_size, not both",
         ):
             await use_case.execute(request)
 
@@ -224,7 +243,7 @@ class TestPlaceOrderUseCase:
             # Missing limit_price!
         )
 
-        with pytest.raises(ValidationError, match="Limit price required"):
+        with pytest.raises(RuntimeError, match="Order validation failed.*Limit price required"):
             await use_case.execute(request)
 
     @pytest.mark.asyncio
@@ -237,7 +256,7 @@ class TestPlaceOrderUseCase:
             is_market=True,
         )
 
-        with pytest.raises(ValidationError, match="cannot be empty"):
+        with pytest.raises(RuntimeError, match="Order validation failed.*cannot be empty"):
             await use_case.execute(request)
 
     @pytest.mark.asyncio
@@ -301,11 +320,13 @@ class TestPlaceOrderUseCase:
     @pytest.mark.asyncio
     async def test_invalid_price_for_coin_size_fails(self, use_case):
         """Test that invalid price from market data fails."""
+        # Clear side_effect so return_value takes effect
+        use_case.market_data.get_price.side_effect = None
         use_case.market_data.get_price.return_value = 0.0  # Invalid price
 
         request = PlaceOrderRequest(coin="BTC", is_buy=True, coin_size=0.5, is_market=True)
 
-        with pytest.raises(RuntimeError, match="Failed to place order"):
+        with pytest.raises(RuntimeError, match="Failed to place order.*Invalid price"):
             await use_case.execute(request)
 
     # ===================================================================
@@ -318,7 +339,11 @@ class TestPlaceOrderUseCase:
         use_case.market_data.get_price.return_value = 50000.0
         use_case.order_service.place_market_order.return_value = {
             "status": "success",
-            "price": 50000.0,
+            "result": {
+                "response": {
+                    "data": {"statuses": [{"filled": {"avgPx": "50000.0", "totalSz": "0.1"}}]}
+                }
+            },
         }
 
         request = PlaceOrderRequest(
@@ -340,7 +365,11 @@ class TestPlaceOrderUseCase:
         use_case.market_data.get_price.return_value = 50000.0
         use_case.order_service.place_market_order.return_value = {
             "status": "success",
-            "price": 50000.0,
+            "result": {
+                "response": {
+                    "data": {"statuses": [{"filled": {"avgPx": "50000.0", "totalSz": "0.1"}}]}
+                }
+            },
         }
 
         request = PlaceOrderRequest(
@@ -360,25 +389,27 @@ class TestPlaceOrderUseCase:
     async def test_custom_time_in_force_passed_to_limit_order(self, use_case):
         """Test custom time_in_force is passed to limit order."""
         with patch.object(use_case.usd_converter, "convert_usd_to_coin") as mock_convert:
-            mock_convert.return_value = (0.02, 50000.0)
-            use_case.order_service.place_limit_order.return_value = {
-                "status": "success",
-                "order_id": 12345,
-            }
+            with patch("src.use_cases.trading.place_order.market_data_service") as mock_mds:
+                mock_convert.return_value = (0.02, 50000.0)
+                mock_mds.get_asset_metadata.return_value = {"szDecimals": 0}  # Integer prices
+                use_case.order_service.place_limit_order.return_value = {
+                    "status": "success",
+                    "order_id": 12345,
+                }
 
-            request = PlaceOrderRequest(
-                coin="BTC",
-                is_buy=True,
-                usd_amount=1000.0,
-                is_market=False,
-                limit_price=49000.0,
-                time_in_force="Alo",  # ALO time-in-force
-            )
+                request = PlaceOrderRequest(
+                    coin="BTC",
+                    is_buy=True,
+                    usd_amount=1000.0,
+                    is_market=False,
+                    limit_price=49000.0,
+                    time_in_force="Alo",  # ALO time-in-force
+                )
 
-            await use_case.execute(request)
+                await use_case.execute(request)
 
-            call_kwargs = use_case.order_service.place_limit_order.call_args.kwargs
-            assert call_kwargs["time_in_force"] == "Alo"
+                call_kwargs = use_case.order_service.place_limit_order.call_args.kwargs
+                assert call_kwargs["time_in_force"] == "Alo"
 
     # ===================================================================
     # Response Building tests
@@ -390,7 +421,11 @@ class TestPlaceOrderUseCase:
         use_case.market_data.get_price.return_value = 50000.0
         use_case.order_service.place_market_order.return_value = {
             "status": "success",
-            "price": 50100.0,
+            "result": {
+                "response": {
+                    "data": {"statuses": [{"filled": {"avgPx": "50100.0", "totalSz": "0.1"}}]}
+                }
+            },
         }
 
         request = PlaceOrderRequest(coin="BTC", is_buy=True, coin_size=0.5, is_market=True)
@@ -417,7 +452,11 @@ class TestPlaceOrderUseCase:
         use_case.market_data.get_price.return_value = 50000.0
         use_case.order_service.place_market_order.return_value = {
             "status": "success",
-            "price": 50000.0,
+            "result": {
+                "response": {
+                    "data": {"statuses": [{"filled": {"avgPx": "50000.0", "totalSz": "0.1"}}]}
+                }
+            },
         }
 
         request = PlaceOrderRequest(coin="BTC", is_buy=True, coin_size=0.5, is_market=True)
@@ -430,20 +469,22 @@ class TestPlaceOrderUseCase:
     async def test_limit_order_has_order_id(self, use_case):
         """Test limit orders include order_id."""
         with patch.object(use_case.usd_converter, "convert_usd_to_coin") as mock_convert:
-            mock_convert.return_value = (0.02, 50000.0)
-            use_case.order_service.place_limit_order.return_value = {
-                "status": "success",
-                "order_id": 98765,
-            }
+            with patch("src.use_cases.trading.place_order.market_data_service") as mock_mds:
+                mock_convert.return_value = (0.02, 50000.0)
+                mock_mds.get_asset_metadata.return_value = {"szDecimals": 0}  # Integer prices
+                use_case.order_service.place_limit_order.return_value = {
+                    "status": "success",
+                    "order_id": 98765,
+                }
 
-            request = PlaceOrderRequest(
-                coin="BTC",
-                is_buy=True,
-                usd_amount=1000.0,
-                is_market=False,
-                limit_price=49000.0,
-            )
+                request = PlaceOrderRequest(
+                    coin="BTC",
+                    is_buy=True,
+                    usd_amount=1000.0,
+                    is_market=False,
+                    limit_price=49000.0,
+                )
 
-            response = await use_case.execute(request)
+                response = await use_case.execute(request)
 
-            assert response.order_id == 98765
+                assert response.order_id == 98765

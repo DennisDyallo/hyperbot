@@ -51,7 +51,7 @@ class TestPositionSummaryUseCase:
         return {
             "margin_summary": {
                 "account_value": 100000.0,
-                "available_balance": 70000.0,
+                "total_raw_usd": 70000.0,
                 "total_margin_used": 30000.0,
             }
         }
@@ -374,7 +374,7 @@ class TestPositionSummaryUseCase:
         use_case.account_service.get_account_info.return_value = {
             "margin_summary": {
                 "account_value": 0.0,
-                "available_balance": 0.0,
+                "total_raw_usd": 0.0,
                 "total_margin_used": 0.0,
             }
         }
@@ -403,7 +403,7 @@ class TestPositionSummaryUseCase:
         use_case.account_service.get_account_info.return_value = {
             "margin_summary": {
                 "account_value": 100000.0,
-                "available_balance": 100000.0,
+                "total_raw_usd": 100000.0,
                 "total_margin_used": 0.0,
             }
         }

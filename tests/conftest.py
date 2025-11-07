@@ -64,7 +64,9 @@ def mock_position_data() -> dict[str, Any]:
             "position_value": 449.66,
             "unrealized_pnl": 5.25,
             "return_on_equity": 0.0117,
-            "leverage": 2.5,
+            "leverage_value": 3,
+            "leverage_type": "cross",
+            "leverage": {"value": 3, "type": "cross"},
             "liquidation_price": 95000.0,
         }
     }
@@ -78,7 +80,7 @@ def mock_account_summary() -> dict[str, Any]:
         "total_account_value": 10942.58,
         "perps_account_value": 2850.25,
         "spot_account_value": 8092.33,
-        "available_balance": 8500.00,
+        "total_raw_usd": 8500.00,
         "margin_used": 2442.58,
         "num_perp_positions": 3,
         "num_spot_balances": 5,

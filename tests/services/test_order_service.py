@@ -186,7 +186,12 @@ class TestOrderService:
         assert result["order_type"] == "limit"
         assert result["time_in_force"] == "Gtc"
         mock_exchange.order.assert_called_once_with(
-            name="BTC", is_buy=True, sz=0.5, limit_px=50000.0, order_type={"limit": {"tif": "Gtc"}}
+            name="BTC",
+            is_buy=True,
+            sz=0.5,
+            limit_px=50000.0,
+            order_type={"limit": {"tif": "Gtc"}},
+            reduce_only=False,
         )
 
     def test_place_limit_order_sell_success(self, service, mock_settings):

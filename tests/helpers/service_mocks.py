@@ -11,7 +11,7 @@ Reference: docs/CLAUDE.md - Testing Best Practices > Service Singleton Mocking P
 
 from contextlib import contextmanager
 from typing import Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 
 def create_service_with_mocks(
@@ -138,13 +138,34 @@ class ServiceMockBuilder:
         """
         Create a mock OrderService with common methods.
 
-        Note: Uses AsyncMock to support both sync and async usage patterns.
-        Some code awaits these methods (use cases), others call synchronously (services).
+        Note: OrderService methods are SYNCHRONOUS (not async).
+        They call the Hyperliquid SDK which is synchronous.
+
+        Returns dict with structure:
+            {
+                "status": "success",
+                "result": {  # Raw Hyperliquid API response
+                    "response": {
+                        "data": {
+                            "statuses": [{"filled": {"avgPx": "50000.0", "totalSz": "0.1"}}]
+                        }
+                    }
+                }
+            }
         """
         mock = Mock()
-        mock.place_market_order = AsyncMock()
-        mock.place_limit_order = AsyncMock()
-        mock.cancel_order = AsyncMock()
+        mock.place_market_order = Mock(
+            return_value={
+                "status": "success",
+                "result": {
+                    "response": {
+                        "data": {"statuses": [{"filled": {"avgPx": "50000.0", "totalSz": "0.1"}}]}
+                    }
+                },
+            }
+        )
+        mock.place_limit_order = Mock(return_value={"status": "success", "order_id": 12345})
+        mock.cancel_order = Mock(return_value={"status": "success"})
         return mock
 
     @staticmethod

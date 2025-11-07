@@ -5,7 +5,7 @@ Tests position closing logic that handles actual trading operations.
 CRITICAL - bugs here = positions not closed properly.
 """
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 import pytest
 from pydantic import ValidationError as PydanticValidationError
@@ -38,8 +38,8 @@ class TestClosePositionUseCase:
     def use_case(self):
         """Create ClosePositionUseCase with mocked dependencies."""
         mock_position = ServiceMockBuilder.position_service()
-        # get_position is sync, close_position is async
-        mock_position.close_position = AsyncMock()
+        # All position_service methods are synchronous (not async)
+        mock_position.close_position = Mock()
 
         # Create market_data_service with custom prices matching test expectations
         mock_market_data = ServiceMockBuilder.market_data_service(
