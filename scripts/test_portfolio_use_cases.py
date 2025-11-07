@@ -103,10 +103,15 @@ async def test_risk_analysis():
         if response.positions:
             logger.info(f"\nPosition Risk Details ({len(response.positions)}):")
             for risk in response.positions[:3]:  # Show first 3
+                liq_dist = (
+                    f"{risk.liquidation_distance_pct:.1f}%"
+                    if risk.liquidation_distance_pct is not None
+                    else "N/A"
+                )
                 logger.info(
                     f"  {risk.coin}: {risk.risk_level} "
                     f"(Health: {risk.health_score}/100, "
-                    f"Liq Distance: {risk.liquidation_distance_pct:.1f}%)"
+                    f"Liq Distance: {liq_dist})"
                 )
 
         return True

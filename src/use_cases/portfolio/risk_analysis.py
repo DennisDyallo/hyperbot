@@ -43,8 +43,8 @@ class PositionRiskDetail(BaseModel):
     # Risk metrics
     risk_level: str
     health_score: int
-    liquidation_price: float
-    liquidation_distance_pct: float
+    liquidation_price: float | None
+    liquidation_distance_pct: float | None
     warnings: list[str]
 
 

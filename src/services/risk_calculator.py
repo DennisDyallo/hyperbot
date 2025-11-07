@@ -191,7 +191,7 @@ class RiskCalculator:
             return RiskLevel.SAFE
 
     def determine_risk_level(
-        self, liquidation_distance_pct: float | None,  # noqa: ARG002 margin_utilization_pct: float = 0
+        self, liquidation_distance_pct: float | None, margin_utilization_pct: float = 0
     ) -> RiskLevel:
         """
         Determine risk level from liquidation distance.
