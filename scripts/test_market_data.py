@@ -2,6 +2,7 @@
 """
 Test market data service functionality.
 """
+
 import sys
 from pathlib import Path
 
@@ -25,8 +26,8 @@ def main():
         logger.info("\n1. Testing get_all_prices()...")
         prices = market_data_service.get_all_prices()
         logger.info(f"   ✓ Fetched {len(prices)} trading pairs")
-        logger.info(f"   Sample prices:")
-        for i, (coin, price) in enumerate(list(prices.items())[:5]):
+        logger.info("   Sample prices:")
+        for _i, (coin, price) in enumerate(list(prices.items())[:5]):
             logger.info(f"     - {coin}: ${price:,.2f}")
         if len(prices) > 5:
             logger.info(f"     ... and {len(prices) - 5} more")
@@ -40,10 +41,10 @@ def main():
         logger.info("\n3. Testing get_market_info()...")
         market_info = market_data_service.get_market_info()
         universe = market_info.get("universe", [])
-        logger.info(f"   ✓ Market info retrieved")
+        logger.info("   ✓ Market info retrieved")
         logger.info(f"   Total trading pairs: {len(universe)}")
         if universe:
-            logger.info(f"   Sample pair metadata:")
+            logger.info("   Sample pair metadata:")
             btc_meta = next((a for a in universe if a.get("name") == "BTC"), None)
             if btc_meta:
                 logger.info(f"     - Name: {btc_meta.get('name')}")
@@ -54,7 +55,7 @@ def main():
         logger.info("\n4. Testing get_asset_metadata('BTC')...")
         btc_metadata = market_data_service.get_asset_metadata("BTC")
         if btc_metadata:
-            logger.info(f"   ✓ BTC Metadata:")
+            logger.info("   ✓ BTC Metadata:")
             logger.info(f"     - Tick size (szDecimals): {btc_metadata.get('szDecimals')}")
             logger.info(f"     - Max leverage: {btc_metadata.get('maxLeverage')}")
             logger.info(f"     - Only isolated: {btc_metadata.get('onlyIsolated')}")
@@ -64,7 +65,7 @@ def main():
         # Test 5: Get order book
         logger.info("\n5. Testing get_order_book('BTC')...")
         order_book = market_data_service.get_order_book("BTC")
-        logger.info(f"   ✓ Order book retrieved")
+        logger.info("   ✓ Order book retrieved")
         levels = order_book.get("levels", [[], []])
         if levels and len(levels) >= 2:
             bids = levels[0]

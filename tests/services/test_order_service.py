@@ -7,12 +7,15 @@ MIGRATED: Now using tests/helpers for service mocking.
 - create_service_with_mocks replaces manual fixture boilerplate
 - ServiceMockBuilder provides pre-configured hyperliquid mock
 """
-import pytest
+
 from unittest.mock import Mock, patch
+
+import pytest
+
 from src.services.order_service import OrderService
 
 # Import helpers for cleaner service mocking
-from tests.helpers import create_service_with_mocks, ServiceMockBuilder
+from tests.helpers import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestOrderService:
@@ -21,7 +24,7 @@ class TestOrderService:
     @pytest.fixture
     def mock_settings(self):
         """Mock settings with wallet address."""
-        with patch('src.services.order_service.settings') as mock_settings:
+        with patch("src.services.order_service.settings") as mock_settings:
             mock_settings.HYPERLIQUID_WALLET_ADDRESS = "0x1234567890abcdef"
             yield mock_settings
 
@@ -30,10 +33,8 @@ class TestOrderService:
         """Create OrderService instance with mocked dependencies."""
         return create_service_with_mocks(
             OrderService,
-            'src.services.order_service',
-            {
-                'hyperliquid_service': ServiceMockBuilder.hyperliquid_service()
-            }
+            "src.services.order_service",
+            {"hyperliquid_service": ServiceMockBuilder.hyperliquid_service()},
         )
 
     # ===================================================================
@@ -45,7 +46,7 @@ class TestOrderService:
         mock_info = Mock()
         mock_info.open_orders.return_value = [
             {"coin": "BTC", "oid": 123, "side": "B", "sz": 0.5, "limitPx": 50000},
-            {"coin": "ETH", "oid": 124, "side": "A", "sz": 10.0, "limitPx": 3000}
+            {"coin": "ETH", "oid": 124, "side": "A", "sz": 10.0, "limitPx": 3000},
         ]
         service.hyperliquid.get_info_client.return_value = mock_info
 
@@ -91,10 +92,7 @@ class TestOrderService:
         mock_exchange = Mock()
         mock_exchange.market_open.return_value = {
             "status": "ok",
-            "response": {
-                "type": "order",
-                "data": {"statuses": [{"filled": {"totalSz": "0.1"}}]}
-            }
+            "response": {"type": "order", "data": {"statuses": [{"filled": {"totalSz": "0.1"}}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -114,10 +112,7 @@ class TestOrderService:
         mock_exchange = Mock()
         mock_exchange.market_open.return_value = {
             "status": "ok",
-            "response": {
-                "type": "order",
-                "data": {"statuses": [{"filled": {"totalSz": "0.5"}}]}
-            }
+            "response": {"type": "order", "data": {"statuses": [{"filled": {"totalSz": "0.5"}}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -150,13 +145,7 @@ class TestOrderService:
         # Hyperliquid returns "ok" but error is in nested statuses array
         mock_exchange.market_open.return_value = {
             "status": "ok",
-            "response": {
-                "data": {
-                    "statuses": [
-                        {"error": "Insufficient margin"}
-                    ]
-                }
-            }
+            "response": {"data": {"statuses": [{"error": "Insufficient margin"}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -181,10 +170,7 @@ class TestOrderService:
         mock_exchange = Mock()
         mock_exchange.order.return_value = {
             "status": "ok",
-            "response": {
-                "type": "order",
-                "data": {"statuses": [{"resting": {"oid": 12345}}]}
-            }
+            "response": {"type": "order", "data": {"statuses": [{"resting": {"oid": 12345}}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -200,11 +186,7 @@ class TestOrderService:
         assert result["order_type"] == "limit"
         assert result["time_in_force"] == "Gtc"
         mock_exchange.order.assert_called_once_with(
-            name="BTC",
-            is_buy=True,
-            sz=0.5,
-            limit_px=50000.0,
-            order_type={"limit": {"tif": "Gtc"}}
+            name="BTC", is_buy=True, sz=0.5, limit_px=50000.0, order_type={"limit": {"tif": "Gtc"}}
         )
 
     def test_place_limit_order_sell_success(self, service, mock_settings):
@@ -212,16 +194,11 @@ class TestOrderService:
         mock_exchange = Mock()
         mock_exchange.order.return_value = {
             "status": "ok",
-            "response": {
-                "type": "order",
-                "data": {"statuses": [{"resting": {"oid": 12346}}]}
-            }
+            "response": {"type": "order", "data": {"statuses": [{"resting": {"oid": 12346}}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
-        result = service.place_limit_order(
-            coin="ETH", is_buy=False, size=10.0, limit_price=3000.0
-        )
+        result = service.place_limit_order(coin="ETH", is_buy=False, size=10.0, limit_price=3000.0)
 
         assert result["status"] == "success"
         assert result["side"] == "sell"
@@ -232,7 +209,7 @@ class TestOrderService:
         mock_exchange = Mock()
         mock_exchange.order.return_value = {
             "status": "ok",
-            "response": {"type": "order", "data": {"statuses": [{"filled": {}}]}}
+            "response": {"type": "order", "data": {"statuses": [{"filled": {}}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -249,7 +226,7 @@ class TestOrderService:
         mock_exchange = Mock()
         mock_exchange.order.return_value = {
             "status": "ok",
-            "response": {"type": "order", "data": {"statuses": [{"resting": {}}]}}
+            "response": {"type": "order", "data": {"statuses": [{"resting": {}}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -299,13 +276,7 @@ class TestOrderService:
         # Hyperliquid returns "ok" but error is in nested statuses array
         mock_exchange.order.return_value = {
             "status": "ok",
-            "response": {
-                "data": {
-                    "statuses": [
-                        {"error": "Price not divisible by tick size"}
-                    ]
-                }
-            }
+            "response": {"data": {"statuses": [{"error": "Price not divisible by tick size"}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -321,7 +292,7 @@ class TestOrderService:
         mock_exchange = Mock()
         mock_exchange.cancel.return_value = {
             "status": "ok",
-            "response": {"type": "cancel", "data": {"statuses": ["success"]}}
+            "response": {"type": "cancel", "data": {"statuses": ["success"]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -345,13 +316,7 @@ class TestOrderService:
         # Hyperliquid returns "ok" but error is in nested statuses array
         mock_exchange.cancel.return_value = {
             "status": "ok",
-            "response": {
-                "data": {
-                    "statuses": [
-                        {"error": "Order not found"}
-                    ]
-                }
-            }
+            "response": {"data": {"statuses": [{"error": "Order not found"}]}},
         }
         service.hyperliquid.get_exchange_client.return_value = mock_exchange
 
@@ -378,14 +343,14 @@ class TestOrderService:
         mock_info.open_orders.return_value = [
             {"coin": "BTC", "oid": 123},
             {"coin": "ETH", "oid": 124},
-            {"coin": "SOL", "oid": 125}
+            {"coin": "SOL", "oid": 125},
         ]
 
         # Mock exchange cancel calls
         mock_exchange = Mock()
         mock_exchange.cancel.return_value = {
             "status": "ok",
-            "response": {"type": "cancel", "data": {"statuses": ["success"]}}
+            "response": {"type": "cancel", "data": {"statuses": ["success"]}},
         }
 
         service.hyperliquid.get_info_client.return_value = mock_info
@@ -423,7 +388,7 @@ class TestOrderService:
         mock_exchange = Mock()
         mock_exchange.cancel.side_effect = [
             {"status": "ok", "response": {"type": "cancel", "data": {"statuses": ["success"]}}},
-            {"status": "err", "response": {"type": "error", "error": "Order not found"}}
+            {"status": "err", "response": {"type": "error", "error": "Order not found"}},
         ]
 
         service.hyperliquid.get_info_client.return_value = mock_info

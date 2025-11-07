@@ -2,17 +2,13 @@
 Rebalance API routes.
 Handles portfolio rebalancing with risk management.
 """
-from typing import Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Body
+
+from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from src.use_cases.portfolio import RebalanceUseCase, RebalanceRequest as UseCaseRebalanceRequest, RiskAnalysisUseCase, RiskAnalysisRequest
-from src.services.rebalance_service import rebalance_service
-from src.services.risk_calculator import risk_calculator
-from src.services.position_service import position_service
-from src.services.account_service import account_service
-from src.services.market_data_service import market_data_service
 from src.config import logger
+from src.use_cases.portfolio import RebalanceRequest as UseCaseRebalanceRequest
+from src.use_cases.portfolio import RebalanceUseCase, RiskAnalysisRequest, RiskAnalysisUseCase
 
 router = APIRouter(prefix="/api/rebalance", tags=["Rebalance"])
 
@@ -24,13 +20,17 @@ risk_analysis_use_case = RiskAnalysisUseCase()
 class RebalanceRequest(BaseModel):
     """Request body for rebalancing."""
 
-    target_weights: Dict[str, float] = Field(
+    target_weights: dict[str, float] = Field(
         description="Target allocation percentages (e.g., {'BTC': 50, 'ETH': 30, 'SOL': 20})"
     )
-    leverage: int = Field(3, ge=1, le=50, description="Leverage multiplier (default 3x, conservative)")
+    leverage: int = Field(
+        3, ge=1, le=50, description="Leverage multiplier (default 3x, conservative)"
+    )
     dry_run: bool = Field(True, description="Preview only, don't execute (default True)")
     min_trade_usd: float = Field(10.0, ge=0, description="Minimum trade size in USD (default $10)")
-    max_slippage: float = Field(0.05, ge=0, le=0.5, description="Maximum acceptable slippage (default 5%)")
+    max_slippage: float = Field(
+        0.05, ge=0, le=0.5, description="Maximum acceptable slippage (default 5%)"
+    )
 
 
 class RebalancePreviewResponse(BaseModel):
@@ -40,11 +40,11 @@ class RebalancePreviewResponse(BaseModel):
     message: str
 
     # Allocation changes
-    initial_allocation: Dict[str, float]
-    target_allocation: Dict[str, float]
+    initial_allocation: dict[str, float]
+    target_allocation: dict[str, float]
 
     # Planned trades
-    planned_trades: List[Dict]
+    planned_trades: list[dict]
 
     # Trade summary
     total_trades: int
@@ -52,13 +52,13 @@ class RebalancePreviewResponse(BaseModel):
     total_usd_volume: float
 
     # Risk warnings
-    high_risk_coins: List[str]
+    high_risk_coins: list[str]
     critical_risk_prevented: bool
-    warnings: List[str]
+    warnings: list[str]
 
 
 @router.post("/preview", response_model=RebalancePreviewResponse)
-async def preview_rebalance(request: RebalanceRequest = Body(...)):
+async def preview_rebalance(request: RebalanceRequest = Body(...)):  # noqa: B008
     """
     Preview rebalancing without executing trades.
 
@@ -83,7 +83,7 @@ async def preview_rebalance(request: RebalanceRequest = Body(...)):
             leverage=request.leverage,
             dry_run=True,
             min_trade_usd=request.min_trade_usd,
-            max_slippage=request.max_slippage
+            max_slippage=request.max_slippage,
         )
 
         result = await rebalance_use_case.execute(use_case_request)
@@ -94,16 +94,18 @@ async def preview_rebalance(request: RebalanceRequest = Body(...)):
         # Format trades for response
         trades_data = []
         for trade in result.planned_trades:
-            trades_data.append({
-                "coin": trade.coin,
-                "action": trade.action,
-                "current_allocation_pct": trade.current_allocation_pct,
-                "target_allocation_pct": trade.target_allocation_pct,
-                "diff_pct": trade.diff_pct,
-                "trade_usd_value": trade.trade_usd_value,
-                "current_usd_value": trade.current_usd_value,
-                "target_usd_value": trade.target_usd_value,
-            })
+            trades_data.append(
+                {
+                    "coin": trade.coin,
+                    "action": trade.action,
+                    "current_allocation_pct": trade.current_allocation_pct,
+                    "target_allocation_pct": trade.target_allocation_pct,
+                    "diff_pct": trade.diff_pct,
+                    "trade_usd_value": trade.trade_usd_value,
+                    "current_usd_value": trade.current_usd_value,
+                    "target_usd_value": trade.target_usd_value,
+                }
+            )
 
         response = RebalancePreviewResponse(
             success=True,
@@ -116,7 +118,7 @@ async def preview_rebalance(request: RebalanceRequest = Body(...)):
             total_usd_volume=result.total_usd_volume,
             high_risk_coins=result.high_risk_coins,
             critical_risk_prevented=result.critical_risk_prevented,
-            warnings=result.warnings
+            warnings=result.warnings,
         )
 
         logger.info(f"Preview generated: {result.actionable_trades} actionable trades")
@@ -124,14 +126,14 @@ async def preview_rebalance(request: RebalanceRequest = Body(...)):
 
     except ValueError as e:
         logger.error(f"Validation error in rebalance preview: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to generate rebalance preview: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate preview")
+        raise HTTPException(status_code=500, detail="Failed to generate preview") from e
 
 
 @router.post("/execute")
-async def execute_rebalance(request: RebalanceRequest = Body(...)):
+async def execute_rebalance(request: RebalanceRequest = Body(...)):  # noqa: B008
     """
     Execute portfolio rebalancing.
 
@@ -166,7 +168,7 @@ async def execute_rebalance(request: RebalanceRequest = Body(...)):
             leverage=request.leverage,
             dry_run=request.dry_run,
             min_trade_usd=request.min_trade_usd,
-            max_slippage=request.max_slippage
+            max_slippage=request.max_slippage,
         )
 
         result = await rebalance_use_case.execute(use_case_request)
@@ -211,7 +213,7 @@ async def execute_rebalance(request: RebalanceRequest = Body(...)):
                 "failed": result.failed_trades,
                 "skipped": result.skipped_trades,
             },
-            "errors": result.errors
+            "errors": result.errors,
         }
 
         logger.info(
@@ -223,15 +225,17 @@ async def execute_rebalance(request: RebalanceRequest = Body(...)):
 
     except ValueError as e:
         logger.error(f"Validation error in rebalance execution: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to execute rebalance: {e}")
-        raise HTTPException(status_code=500, detail="Failed to execute rebalance")
+        raise HTTPException(status_code=500, detail="Failed to execute rebalance") from e
 
 
 @router.get("/risk-summary")
 async def get_risk_summary(
-    include_cross_margin_ratio: bool = Query(True, description="Include Hyperliquid's cross margin ratio metric")
+    include_cross_margin_ratio: bool = Query(
+        True, description="Include Hyperliquid's cross margin ratio metric"
+    ),
 ):
     """
     Get current portfolio risk assessment.
@@ -250,7 +254,7 @@ async def get_risk_summary(
         # Use RiskAnalysisUseCase for unified logic
         use_case_request = RiskAnalysisRequest(
             coins=None,  # Analyze all positions
-            include_cross_margin_ratio=include_cross_margin_ratio
+            include_cross_margin_ratio=include_cross_margin_ratio,
         )
 
         result = await risk_analysis_use_case.execute(use_case_request)
@@ -258,20 +262,26 @@ async def get_risk_summary(
         # Format position risks
         position_risks = []
         for pos in result.positions:
-            position_risks.append({
-                "coin": pos.coin,
-                "size": round(pos.size, 6),
-                "side": pos.side,
-                "entry_price": round(pos.entry_price, 2),
-                "current_price": round(pos.current_price, 2),
-                "leverage": pos.leverage,
-                "leverage_type": pos.leverage_type,
-                "risk_level": pos.risk_level,
-                "health_score": pos.health_score,
-                "liquidation_price": round(pos.liquidation_price, 2) if pos.liquidation_price else None,
-                "liquidation_distance_pct": round(pos.liquidation_distance_pct, 2) if pos.liquidation_distance_pct else None,
-                "warnings": pos.warnings
-            })
+            position_risks.append(
+                {
+                    "coin": pos.coin,
+                    "size": round(pos.size, 6),
+                    "side": pos.side,
+                    "entry_price": round(pos.entry_price, 2),
+                    "current_price": round(pos.current_price, 2),
+                    "leverage": pos.leverage,
+                    "leverage_type": pos.leverage_type,
+                    "risk_level": pos.risk_level,
+                    "health_score": pos.health_score,
+                    "liquidation_price": round(pos.liquidation_price, 2)
+                    if pos.liquidation_price
+                    else None,
+                    "liquidation_distance_pct": round(pos.liquidation_distance_pct, 2)
+                    if pos.liquidation_distance_pct
+                    else None,
+                    "warnings": pos.warnings,
+                }
+            )
 
         # Build response
         response = {
@@ -286,7 +296,7 @@ async def get_risk_summary(
                     "LOW": result.low_risk_positions,
                     "MODERATE": result.moderate_risk_positions,
                     "HIGH": result.high_risk_positions,
-                    "CRITICAL": result.critical_positions
+                    "CRITICAL": result.critical_positions,
                 },
                 "account_value": round(result.account_value, 2),
                 "total_margin_used": round(result.total_margin_used, 2),
@@ -294,15 +304,19 @@ async def get_risk_summary(
                 "available_margin": round(result.available_margin, 2),
                 "critical_positions": result.critical_positions,
                 "high_risk_positions": result.high_risk_positions,
-                "warnings": result.portfolio_warnings
+                "warnings": result.portfolio_warnings,
             },
-            "position_risks": position_risks
+            "position_risks": position_risks,
         }
 
         # Add cross margin ratio if available
         if result.cross_margin_ratio_pct is not None:
-            response["portfolio_risk"]["cross_margin_ratio_pct"] = round(result.cross_margin_ratio_pct, 2)
-            response["portfolio_risk"]["cross_maintenance_margin"] = round(result.cross_maintenance_margin, 2)
+            response["portfolio_risk"]["cross_margin_ratio_pct"] = round(
+                result.cross_margin_ratio_pct, 2
+            )
+            response["portfolio_risk"]["cross_maintenance_margin"] = round(
+                result.cross_maintenance_margin, 2
+            )
             response["portfolio_risk"]["cross_account_value"] = round(result.cross_account_value, 2)
 
         logger.debug(
@@ -314,4 +328,4 @@ async def get_risk_summary(
 
     except Exception as e:
         logger.error(f"Failed to get risk summary: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get risk summary")
+        raise HTTPException(status_code=500, detail="Failed to get risk summary") from e

@@ -8,14 +8,16 @@ MIGRATED: Now using tests/helpers for service mocking.
 - create_service_with_mocks replaces manual fixture boilerplate
 - AsyncMock configured manually for scale_order_service (no builder yet)
 """
+
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
+
+from src.models.scale_order import ScaleOrderConfig, ScaleOrderPreview
 from src.use_cases.scale_orders.preview import (
     PreviewScaleOrderRequest,
-    PreviewScaleOrderResponse,
-    PreviewScaleOrderUseCase
+    PreviewScaleOrderUseCase,
 )
-from src.models.scale_order import ScaleOrderConfig, ScaleOrderPreview
 
 # Import helpers for cleaner service mocking
 from tests.helpers import create_service_with_mocks
@@ -33,10 +35,8 @@ class TestPreviewScaleOrderUseCase:
 
         return create_service_with_mocks(
             PreviewScaleOrderUseCase,
-            'src.use_cases.scale_orders.preview',
-            {
-                'scale_order_service': mock_scale_order
-            }
+            "src.use_cases.scale_orders.preview",
+            {"scale_order_service": mock_scale_order},
         )
 
     @pytest.fixture
@@ -55,7 +55,7 @@ class TestPreviewScaleOrderUseCase:
             start_price=50000.0,
             end_price=48000.0,
             distribution_type="linear",
-            time_in_force="Gtc"
+            time_in_force="Gtc",
         )
 
     @pytest.fixture
@@ -69,7 +69,7 @@ class TestPreviewScaleOrderUseCase:
             start_price=3000.0,
             end_price=3300.0,
             distribution_type="linear",
-            time_in_force="Gtc"
+            time_in_force="Gtc",
         )
 
     # ===================================================================
@@ -93,10 +93,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 49500.0, "size": 0.040, "notional": 1980.0},
                 {"price": 49000.0, "size": 0.041, "notional": 2009.0},
                 {"price": 48500.0, "size": 0.041, "notional": 1988.5},
-                {"price": 48000.0, "size": 0.042, "notional": 2016.0}
+                {"price": 48000.0, "size": 0.042, "notional": 2016.0},
             ],
             estimated_avg_price=49000.0,
-            price_range_pct=4.0
+            price_range_pct=4.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -131,10 +131,10 @@ class TestPreviewScaleOrderUseCase:
             orders=[
                 {"price": 3000.0, "size": 0.533, "notional": 1599.0},
                 {"price": 3150.0, "size": 0.533, "notional": 1678.95},
-                {"price": 3300.0, "size": 0.534, "notional": 1762.2}
+                {"price": 3300.0, "size": 0.534, "notional": 1762.2},
             ],
             estimated_avg_price=3150.0,
-            price_range_pct=9.5
+            price_range_pct=9.5,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -152,9 +152,7 @@ class TestPreviewScaleOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_preview_linear_distribution(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_preview_linear_distribution(self, use_case, mock_scale_order_service):
         """Test preview with linear distribution (equal sizes)."""
         config = ScaleOrderConfig(
             coin="BTC",
@@ -163,7 +161,7 @@ class TestPreviewScaleOrderUseCase:
             num_orders=5,
             start_price=50000.0,
             end_price=48000.0,
-            distribution_type="linear"
+            distribution_type="linear",
         )
 
         preview = ScaleOrderPreview(
@@ -177,10 +175,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 49500.0, "size": 0.020, "notional": 990.0},
                 {"price": 49000.0, "size": 0.020, "notional": 980.0},
                 {"price": 48500.0, "size": 0.021, "notional": 1018.5},
-                {"price": 48000.0, "size": 0.021, "notional": 1008.0}
+                {"price": 48000.0, "size": 0.021, "notional": 1008.0},
             ],
             estimated_avg_price=49000.0,
-            price_range_pct=4.0
+            price_range_pct=4.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -193,9 +191,7 @@ class TestPreviewScaleOrderUseCase:
         assert all(0.019 <= size <= 0.022 for size in sizes)
 
     @pytest.mark.asyncio
-    async def test_preview_geometric_distribution(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_preview_geometric_distribution(self, use_case, mock_scale_order_service):
         """Test preview with geometric distribution (weighted sizes)."""
         config = ScaleOrderConfig(
             coin="BTC",
@@ -205,7 +201,7 @@ class TestPreviewScaleOrderUseCase:
             start_price=50000.0,
             end_price=48000.0,
             distribution_type="geometric",
-            geometric_ratio=1.5
+            geometric_ratio=1.5,
         )
 
         # Geometric distribution: sizes increase by ratio
@@ -220,10 +216,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 49500.0, "size": 0.015, "notional": 742.5},
                 {"price": 49000.0, "size": 0.023, "notional": 1127.0},
                 {"price": 48500.0, "size": 0.034, "notional": 1649.0},
-                {"price": 48000.0, "size": 0.051, "notional": 2448.0}
+                {"price": 48000.0, "size": 0.051, "notional": 2448.0},
             ],
             estimated_avg_price=48500.0,
-            price_range_pct=4.0
+            price_range_pct=4.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -240,9 +236,7 @@ class TestPreviewScaleOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_preview_minimum_orders(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_preview_minimum_orders(self, use_case, mock_scale_order_service):
         """Test preview with minimum orders (2)."""
         config = ScaleOrderConfig(
             coin="BTC",
@@ -250,7 +244,7 @@ class TestPreviewScaleOrderUseCase:
             total_usd_amount=1000.0,
             num_orders=2,
             start_price=50000.0,
-            end_price=49000.0
+            end_price=49000.0,
         )
 
         preview = ScaleOrderPreview(
@@ -261,10 +255,10 @@ class TestPreviewScaleOrderUseCase:
             num_orders=2,
             orders=[
                 {"price": 50000.0, "size": 0.010, "notional": 500.0},
-                {"price": 49000.0, "size": 0.0104, "notional": 509.6}
+                {"price": 49000.0, "size": 0.0104, "notional": 509.6},
             ],
             estimated_avg_price=49500.0,
-            price_range_pct=2.0
+            price_range_pct=2.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -276,9 +270,7 @@ class TestPreviewScaleOrderUseCase:
         assert len(response.preview.orders) == 2
 
     @pytest.mark.asyncio
-    async def test_preview_many_orders(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_preview_many_orders(self, use_case, mock_scale_order_service):
         """Test preview with many orders (20)."""
         config = ScaleOrderConfig(
             coin="ETH",
@@ -286,7 +278,7 @@ class TestPreviewScaleOrderUseCase:
             total_usd_amount=20000.0,
             num_orders=20,
             start_price=3000.0,
-            end_price=2800.0
+            end_price=2800.0,
         )
 
         # Generate 20 orders
@@ -303,7 +295,7 @@ class TestPreviewScaleOrderUseCase:
             num_orders=20,
             orders=orders,
             estimated_avg_price=2900.0,
-            price_range_pct=6.9
+            price_range_pct=6.9,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -334,10 +326,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 49500.0, "size": 0.040, "notional": 1980.0},
                 {"price": 49000.0, "size": 0.041, "notional": 2009.0},
                 {"price": 48500.0, "size": 0.041, "notional": 1988.5},
-                {"price": 48000.0, "size": 0.042, "notional": 2016.0}
+                {"price": 48000.0, "size": 0.042, "notional": 2016.0},
             ],
             estimated_avg_price=49000.0,  # Weighted average
-            price_range_pct=4.0
+            price_range_pct=4.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -365,10 +357,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 49500.0, "size": 0.040, "notional": 1980.0},
                 {"price": 49000.0, "size": 0.041, "notional": 2009.0},
                 {"price": 48500.0, "size": 0.041, "notional": 1988.5},
-                {"price": 48000.0, "size": 0.042, "notional": 2016.0}
+                {"price": 48000.0, "size": 0.042, "notional": 2016.0},
             ],
             estimated_avg_price=49000.0,
-            price_range_pct=4.0  # (50000-48000)/50000 * 100
+            price_range_pct=4.0,  # (50000-48000)/50000 * 100
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -398,10 +390,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 49500.0, "size": 0.040, "notional": 1980.0},
                 {"price": 49000.0, "size": 0.041, "notional": 2009.0},
                 {"price": 48500.0, "size": 0.041, "notional": 1988.5},
-                {"price": 48000.0, "size": 0.042, "notional": 2016.0}
+                {"price": 48000.0, "size": 0.042, "notional": 2016.0},
             ],
             estimated_avg_price=49000.0,
-            price_range_pct=4.0
+            price_range_pct=4.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -434,10 +426,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 49500.0, "size": 0.040, "notional": 1980.0},
                 {"price": 49000.0, "size": 0.041, "notional": 2009.0},
                 {"price": 48500.0, "size": 0.041, "notional": 1988.5},
-                {"price": 48000.0, "size": 0.042, "notional": 2016.0}
+                {"price": 48000.0, "size": 0.042, "notional": 2016.0},
             ],
             estimated_avg_price=49000.0,
-            price_range_pct=4.0
+            price_range_pct=4.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -454,9 +446,7 @@ class TestPreviewScaleOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_invalid_config_raises_value_error(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_invalid_config_raises_value_error(self, use_case, mock_scale_order_service):
         """Test invalid configuration raises ValueError."""
         mock_scale_order_service.preview_scale_order.side_effect = ValueError(
             "num_orders must be between 2 and 20"
@@ -470,7 +460,7 @@ class TestPreviewScaleOrderUseCase:
             total_usd_amount=10000.0,
             num_orders=5,
             start_price=50000.0,
-            end_price=48000.0
+            end_price=48000.0,
         )
 
         request = PreviewScaleOrderRequest(config=config)
@@ -495,9 +485,7 @@ class TestPreviewScaleOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_preview_small_usd_amount(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_preview_small_usd_amount(self, use_case, mock_scale_order_service):
         """Test preview with small USD amount."""
         config = ScaleOrderConfig(
             coin="BTC",
@@ -505,7 +493,7 @@ class TestPreviewScaleOrderUseCase:
             total_usd_amount=100.0,  # Small amount
             num_orders=2,
             start_price=50000.0,
-            end_price=49000.0
+            end_price=49000.0,
         )
 
         preview = ScaleOrderPreview(
@@ -516,10 +504,10 @@ class TestPreviewScaleOrderUseCase:
             num_orders=2,
             orders=[
                 {"price": 50000.0, "size": 0.001, "notional": 50.0},
-                {"price": 49000.0, "size": 0.00104, "notional": 50.96}
+                {"price": 49000.0, "size": 0.00104, "notional": 50.96},
             ],
             estimated_avg_price=49500.0,
-            price_range_pct=2.0
+            price_range_pct=2.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -531,9 +519,7 @@ class TestPreviewScaleOrderUseCase:
         assert response.preview.total_coin_size < 0.01
 
     @pytest.mark.asyncio
-    async def test_preview_large_usd_amount(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_preview_large_usd_amount(self, use_case, mock_scale_order_service):
         """Test preview with large USD amount."""
         config = ScaleOrderConfig(
             coin="BTC",
@@ -541,7 +527,7 @@ class TestPreviewScaleOrderUseCase:
             total_usd_amount=1000000.0,  # $1M
             num_orders=10,
             start_price=50000.0,
-            end_price=45000.0
+            end_price=45000.0,
         )
 
         # Generate 10 orders
@@ -559,7 +545,7 @@ class TestPreviewScaleOrderUseCase:
             num_orders=10,
             orders=orders,
             estimated_avg_price=47500.0,
-            price_range_pct=10.0
+            price_range_pct=10.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -571,9 +557,7 @@ class TestPreviewScaleOrderUseCase:
         assert response.preview.num_orders == 10
 
     @pytest.mark.asyncio
-    async def test_preview_narrow_price_range(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_preview_narrow_price_range(self, use_case, mock_scale_order_service):
         """Test preview with narrow price range."""
         config = ScaleOrderConfig(
             coin="BTC",
@@ -581,7 +565,7 @@ class TestPreviewScaleOrderUseCase:
             total_usd_amount=10000.0,
             num_orders=5,
             start_price=50000.0,
-            end_price=49900.0  # Only 0.2% range
+            end_price=49900.0,  # Only 0.2% range
         )
 
         preview = ScaleOrderPreview(
@@ -595,10 +579,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 49975.0, "size": 0.040, "notional": 1999.0},
                 {"price": 49950.0, "size": 0.040, "notional": 1998.0},
                 {"price": 49925.0, "size": 0.040, "notional": 1997.0},
-                {"price": 49900.0, "size": 0.040, "notional": 1996.0}
+                {"price": 49900.0, "size": 0.040, "notional": 1996.0},
             ],
             estimated_avg_price=49950.0,
-            price_range_pct=0.2
+            price_range_pct=0.2,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 
@@ -609,9 +593,7 @@ class TestPreviewScaleOrderUseCase:
         assert response.preview.price_range_pct == 0.2
 
     @pytest.mark.asyncio
-    async def test_preview_wide_price_range(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_preview_wide_price_range(self, use_case, mock_scale_order_service):
         """Test preview with wide price range."""
         config = ScaleOrderConfig(
             coin="BTC",
@@ -619,7 +601,7 @@ class TestPreviewScaleOrderUseCase:
             total_usd_amount=10000.0,
             num_orders=5,
             start_price=50000.0,
-            end_price=40000.0  # 20% range
+            end_price=40000.0,  # 20% range
         )
 
         preview = ScaleOrderPreview(
@@ -633,10 +615,10 @@ class TestPreviewScaleOrderUseCase:
                 {"price": 47500.0, "size": 0.042, "notional": 1995.0},
                 {"price": 45000.0, "size": 0.044, "notional": 1980.0},
                 {"price": 42500.0, "size": 0.047, "notional": 1997.5},
-                {"price": 40000.0, "size": 0.050, "notional": 2000.0}
+                {"price": 40000.0, "size": 0.050, "notional": 2000.0},
             ],
             estimated_avg_price=45000.0,
-            price_range_pct=20.0
+            price_range_pct=20.0,
         )
         mock_scale_order_service.preview_scale_order.return_value = preview
 

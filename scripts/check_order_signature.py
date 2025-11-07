@@ -2,8 +2,9 @@
 """
 Check order() method signature to understand spot vs perps.
 """
-import sys
+
 import inspect
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -18,7 +19,7 @@ def main():
         exchange = hyperliquid_service.get_exchange_client()
 
         # Get method signatures
-        for method_name in ['order', 'market_open', 'market_close']:
+        for method_name in ["order", "market_open", "market_close"]:
             if hasattr(exchange, method_name):
                 method = getattr(exchange, method_name)
                 sig = inspect.signature(method)
@@ -28,6 +29,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

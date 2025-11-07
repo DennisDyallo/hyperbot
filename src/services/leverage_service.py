@@ -33,51 +33,56 @@ Usage:
         is_long=True
     )
 """
-from typing import Dict, List, Optional, Tuple
+
 from dataclasses import dataclass
 from enum import Enum
-from src.services.hyperliquid_service import hyperliquid_service
-from src.services.position_service import position_service
-from src.services.market_data_service import market_data_service
-from src.services.account_service import account_service
+
 from src.config import logger, settings
+from src.services.account_service import account_service
+from src.services.hyperliquid_service import hyperliquid_service
+from src.services.market_data_service import market_data_service
+from src.services.position_service import position_service
 
 
 class LeverageWarningLevel(str, Enum):
     """Warning levels for leverage validation."""
-    OK = "OK"                    # <= 5x (recommended)
-    HIGH = "HIGH"                # 6x-10x (requires confirmation)
-    EXTREME = "EXTREME"          # > 10x (scary warning)
+
+    OK = "OK"  # <= 5x (recommended)
+    HIGH = "HIGH"  # 6x-10x (requires confirmation)
+    EXTREME = "EXTREME"  # > 10x (scary warning)
 
 
 @dataclass
 class LeverageValidation:
     """Result of leverage validation."""
+
     is_valid: bool
     warning_level: LeverageWarningLevel
     message: str
     can_proceed: bool  # Always True for soft limits
 
     # Additional info
-    current_leverage: Optional[int] = None
-    exchange_max_leverage: Optional[int] = None
+    current_leverage: int | None = None
+    exchange_max_leverage: int | None = None
     has_open_position: bool = False
 
 
 @dataclass
 class LeverageSetting:
     """Leverage setting for a coin."""
+
     coin: str
     leverage: int
     leverage_type: str  # "cross" or "isolated"
     source: str  # "position" (from open position) or "exchange" (default) or "unknown"
     can_change: bool  # False if position exists
-    position_value: Optional[float] = None  # USD value if position exists
+    position_value: float | None = None  # USD value if position exists
 
 
 @dataclass
 class LiquidationEstimate:
     """Estimated liquidation price and risk for a planned position."""
+
     coin: str
     entry_price: float
     size: float
@@ -92,7 +97,7 @@ class LiquidationEstimate:
 
     # Risk assessment
     risk_level: str  # "LOW", "MODERATE", "HIGH", "EXTREME"
-    warning: Optional[str] = None
+    warning: str | None = None
 
 
 class LeverageService:
@@ -125,7 +130,7 @@ class LeverageService:
 
         logger.debug("LeverageService initialized")
 
-    def get_coin_leverage(self, coin: str) -> Optional[int]:
+    def get_coin_leverage(self, coin: str) -> int | None:
         """
         Get current leverage setting for a coin.
 
@@ -156,7 +161,7 @@ class LeverageService:
             logger.error(f"Failed to get leverage for {coin}: {e}")
             return None
 
-    def get_all_leverage_settings(self) -> List[LeverageSetting]:
+    def get_all_leverage_settings(self) -> list[LeverageSetting]:
         """
         Get leverage settings for all coins with open positions.
 
@@ -178,7 +183,7 @@ class LeverageService:
                     leverage_type=leverage_info.get("type", "cross"),
                     source="position",
                     can_change=False,  # Cannot change leverage on open positions
-                    position_value=abs(float(pos.get("position_value", 0)))
+                    position_value=abs(float(pos.get("position_value", 0))),
                 )
                 settings.append(setting)
 
@@ -190,11 +195,8 @@ class LeverageService:
             return []
 
     def set_coin_leverage(
-        self,
-        coin: str,
-        leverage: int,
-        is_cross: bool = True
-    ) -> Tuple[bool, str]:
+        self, coin: str, leverage: int, is_cross: bool = True
+    ) -> tuple[bool, str]:
         """
         Set leverage for a coin.
 
@@ -225,17 +227,14 @@ class LeverageService:
             if not validation.can_proceed:
                 return False, validation.message
 
-            logger.info(
-                f"Setting leverage for {coin}: {leverage}x "
-                f"(cross={is_cross})"
-            )
+            logger.info(f"Setting leverage for {coin}: {leverage}x (cross={is_cross})")
 
             # Call Hyperliquid API
             exchange = self.hyperliquid.get_exchange_client()
             result = exchange.update_leverage(
                 leverage=leverage,
                 name=coin,  # SDK uses 'name' parameter, not 'coin'
-                is_cross=is_cross
+                is_cross=is_cross,
             )
 
             logger.info(f"Leverage set successfully for {coin}: {result}")
@@ -252,11 +251,7 @@ class LeverageService:
             logger.error(error_msg)
             return False, error_msg
 
-    def validate_leverage(
-        self,
-        leverage: int,
-        coin: Optional[str] = None
-    ) -> LeverageValidation:
+    def validate_leverage(self, leverage: int, coin: str | None = None) -> LeverageValidation:
         """
         Validate leverage value against limits and recommendations.
 
@@ -276,7 +271,7 @@ class LeverageService:
                     is_valid=False,
                     warning_level=LeverageWarningLevel.OK,
                     message="Leverage must be at least 1x",
-                    can_proceed=False
+                    can_proceed=False,
                 )
 
             # Check if position exists for this coin
@@ -297,7 +292,7 @@ class LeverageService:
                     message=f"{leverage}x leverage - within recommended range",
                     can_proceed=True,
                     current_leverage=current_lev,
-                    has_open_position=has_position
+                    has_open_position=has_position,
                 )
 
             elif leverage <= 10:
@@ -312,7 +307,7 @@ class LeverageService:
                     ),
                     can_proceed=True,  # Soft limit - allow with warning
                     current_leverage=current_lev,
-                    has_open_position=has_position
+                    has_open_position=has_position,
                 )
 
             else:
@@ -327,7 +322,7 @@ class LeverageService:
                     ),
                     can_proceed=True,  # Soft limit - allow but with scary warning
                     current_leverage=current_lev,
-                    has_open_position=has_position
+                    has_open_position=has_position,
                 )
 
         except Exception as e:
@@ -336,16 +331,11 @@ class LeverageService:
                 is_valid=False,
                 warning_level=LeverageWarningLevel.OK,
                 message=f"Validation error: {str(e)}",
-                can_proceed=False
+                can_proceed=False,
             )
 
     def estimate_liquidation_price(
-        self,
-        coin: str,
-        entry_price: float,
-        size: float,
-        leverage: int,
-        is_long: bool
+        self, coin: str, entry_price: float, size: float, leverage: int, is_long: bool
     ) -> LiquidationEstimate:
         """
         Estimate liquidation price for a planned position.
@@ -413,7 +403,7 @@ class LeverageService:
                 position_value=round(position_value, 2),
                 margin_required=round(margin_required, 2),
                 risk_level=risk_level,
-                warning=warning
+                warning=warning,
             )
 
             logger.debug(
@@ -438,14 +428,12 @@ class LeverageService:
                 position_value=size * entry_price,
                 margin_required=(size * entry_price) / leverage,
                 risk_level="UNKNOWN",
-                warning="⚠️ Could not estimate liquidation price"
+                warning="⚠️ Could not estimate liquidation price",
             )
 
     def get_leverage_for_order(
-        self,
-        coin: str,
-        default_leverage: Optional[int] = None
-    ) -> Tuple[Optional[int], bool]:
+        self, coin: str, default_leverage: int | None = None
+    ) -> tuple[int | None, bool]:
         """
         Get appropriate leverage for placing an order.
 
@@ -470,23 +458,17 @@ class LeverageService:
 
             if current_leverage is not None:
                 # Position exists - use current leverage
-                logger.debug(
-                    f"Position exists for {coin} with {current_leverage}x leverage"
-                )
+                logger.debug(f"Position exists for {coin} with {current_leverage}x leverage")
                 return current_leverage, False
 
             # No position - need to set leverage before order
             if default_leverage is not None:
-                logger.debug(
-                    f"No position for {coin}, will use default {default_leverage}x"
-                )
+                logger.debug(f"No position for {coin}, will use default {default_leverage}x")
                 return default_leverage, True
 
             # Use system default
             system_default = settings.DEFAULT_LEVERAGE
-            logger.debug(
-                f"No position for {coin}, will use system default {system_default}x"
-            )
+            logger.debug(f"No position for {coin}, will use system default {system_default}x")
             return system_default, True
 
         except Exception as e:

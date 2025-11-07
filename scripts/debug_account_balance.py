@@ -3,8 +3,9 @@
 Debug script to inspect raw Hyperliquid API responses for account balance.
 Helps identify why balances aren't showing up correctly.
 """
-import sys
+
 import json
+import sys
 from pathlib import Path
 
 # Add src to path
@@ -67,7 +68,7 @@ def main():
         if "assetPositions" in user_state:
             logger.info(f"\n📈 Asset Positions: {len(user_state['assetPositions'])} positions")
             for i, asset_pos in enumerate(user_state["assetPositions"]):
-                logger.info(f"\n  Position {i+1}:")
+                logger.info(f"\n  Position {i + 1}:")
                 print(json.dumps(asset_pos, indent=4))
         else:
             logger.warning("❌ No 'assetPositions' in response")
@@ -77,7 +78,7 @@ def main():
         logger.info("CHECKING FOR SPOT BALANCE FIELDS:")
         logger.info("=" * 80)
 
-        for key in user_state.keys():
+        for key in user_state:
             if "spot" in key.lower() or "balance" in key.lower():
                 logger.info(f"✓ Found key: {key}")
                 logger.info(f"  Value: {user_state[key]}")
@@ -86,12 +87,13 @@ def main():
         logger.info("\n" + "=" * 80)
         logger.info("ALL TOP-LEVEL KEYS IN RESPONSE:")
         logger.info("=" * 80)
-        for key in user_state.keys():
+        for key in user_state:
             logger.info(f"  - {key}")
 
     except Exception as e:
         logger.error(f"Failed to fetch user_state: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

@@ -3,7 +3,9 @@
 Script to check all available data from Hyperliquid API.
 This helps us match the official GUI metrics.
 """
+
 import json
+
 from hyperliquid.info import Info
 from hyperliquid.utils import constants
 
@@ -22,7 +24,7 @@ print(json.dumps(user_state, indent=2))
 print("\n" + "=" * 80)
 print("AVAILABLE TOP-LEVEL KEYS")
 print("=" * 80)
-for key in user_state.keys():
+for key in user_state:
     print(f"  - {key}")
 
 if "marginSummary" in user_state:

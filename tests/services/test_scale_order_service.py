@@ -4,15 +4,18 @@ Unit tests for ScaleOrderService.
 Tests scale order calculation logic, order placement, cancellation,
 and status tracking. CRITICAL - bugs here = incorrect trade execution.
 """
+
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
-from src.services.scale_order_service import ScaleOrderService, scale_order_service
+
 from src.models.scale_order import (
-    ScaleOrderConfig,
-    ScaleOrderCancel,
     ScaleOrder,
+    ScaleOrderCancel,
+    ScaleOrderConfig,
 )
-from tests.helpers.service_mocks import create_service_with_mocks, ServiceMockBuilder
+from src.services.scale_order_service import ScaleOrderService, scale_order_service
+from tests.helpers.service_mocks import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestScaleOrderServiceCalculations:
@@ -30,9 +33,7 @@ class TestScaleOrderServiceCalculations:
     def test_calculate_price_levels_single_order(self, service):
         """Test price calculation for single order."""
         levels = service._calculate_price_levels(
-            start_price=50000.0,
-            end_price=48000.0,
-            num_orders=1
+            start_price=50000.0, end_price=48000.0, num_orders=1
         )
 
         assert len(levels) == 1
@@ -41,9 +42,7 @@ class TestScaleOrderServiceCalculations:
     def test_calculate_price_levels_linear_distribution(self, service):
         """Test linear price distribution."""
         levels = service._calculate_price_levels(
-            start_price=50000.0,
-            end_price=48000.0,
-            num_orders=5
+            start_price=50000.0, end_price=48000.0, num_orders=5
         )
 
         assert len(levels) == 5
@@ -57,9 +56,7 @@ class TestScaleOrderServiceCalculations:
     def test_calculate_price_levels_buy_ascending(self, service):
         """Test price levels for buy orders (ascending prices)."""
         levels = service._calculate_price_levels(
-            start_price=48000.0,
-            end_price=50000.0,
-            num_orders=3
+            start_price=48000.0, end_price=50000.0, num_orders=3
         )
 
         assert levels[0] == 48000.0
@@ -74,9 +71,7 @@ class TestScaleOrderServiceCalculations:
         """Test linear distribution gives equal USD per order."""
         price_levels = [50000.0, 49000.0, 48000.0]
         sizes = service._calculate_linear_sizes(
-            total_usd_amount=30000.0,
-            price_levels=price_levels,
-            num_orders=3
+            total_usd_amount=30000.0, price_levels=price_levels, num_orders=3
         )
 
         assert len(sizes) == 3
@@ -89,12 +84,10 @@ class TestScaleOrderServiceCalculations:
         """Test total USD amount is correct with linear distribution."""
         price_levels = [50000.0, 49500.0, 49000.0, 48500.0, 48000.0]
         sizes = service._calculate_linear_sizes(
-            total_usd_amount=50000.0,
-            price_levels=price_levels,
-            num_orders=5
+            total_usd_amount=50000.0, price_levels=price_levels, num_orders=5
         )
 
-        total_usd = sum(size * price for size, price in zip(sizes, price_levels))
+        total_usd = sum(size * price for size, price in zip(sizes, price_levels, strict=False))
         assert total_usd == pytest.approx(50000.0)
 
     # ===================================================================
@@ -104,10 +97,7 @@ class TestScaleOrderServiceCalculations:
     def test_calculate_geometric_sizes_single_order(self, service):
         """Test geometric calculation for single order."""
         sizes = service._calculate_geometric_sizes(
-            total_usd_amount=10000.0,
-            price_levels=[50000.0],
-            num_orders=1,
-            ratio=1.5
+            total_usd_amount=10000.0, price_levels=[50000.0], num_orders=1, ratio=1.5
         )
 
         assert len(sizes) == 1
@@ -117,14 +107,11 @@ class TestScaleOrderServiceCalculations:
         """Test geometric distribution weights USD towards first orders."""
         price_levels = [50000.0, 49000.0, 48000.0]
         sizes = service._calculate_geometric_sizes(
-            total_usd_amount=30000.0,
-            price_levels=price_levels,
-            num_orders=3,
-            ratio=1.5
+            total_usd_amount=30000.0, price_levels=price_levels, num_orders=3, ratio=1.5
         )
 
         # Calculate USD amounts
-        usd_amounts = [size * price for size, price in zip(sizes, price_levels)]
+        usd_amounts = [size * price for size, price in zip(sizes, price_levels, strict=False)]
 
         # First order should have less USD than second (ratio 1.5)
         assert usd_amounts[0] < usd_amounts[1]
@@ -137,13 +124,10 @@ class TestScaleOrderServiceCalculations:
         """Test total USD is exact after adjustment for floating point errors."""
         price_levels = [50000.0, 49500.0, 49000.0, 48500.0, 48000.0]
         sizes = service._calculate_geometric_sizes(
-            total_usd_amount=50000.0,
-            price_levels=price_levels,
-            num_orders=5,
-            ratio=1.5
+            total_usd_amount=50000.0, price_levels=price_levels, num_orders=5, ratio=1.5
         )
 
-        total_usd = sum(size * price for size, price in zip(sizes, price_levels))
+        total_usd = sum(size * price for size, price in zip(sizes, price_levels, strict=False))
         # Should be exact due to adjustment logic
         assert total_usd == pytest.approx(50000.0, abs=0.01)
 
@@ -153,12 +137,9 @@ class TestScaleOrderServiceCalculations:
 
         # Test ratio 2.0 (more aggressive)
         sizes = service._calculate_geometric_sizes(
-            total_usd_amount=30000.0,
-            price_levels=price_levels,
-            num_orders=3,
-            ratio=2.0
+            total_usd_amount=30000.0, price_levels=price_levels, num_orders=3, ratio=2.0
         )
-        usd_amounts = [size * price for size, price in zip(sizes, price_levels)]
+        usd_amounts = [size * price for size, price in zip(sizes, price_levels, strict=False)]
         assert usd_amounts[1] / usd_amounts[0] == pytest.approx(2.0, rel=0.01)
 
     # ===================================================================
@@ -210,7 +191,7 @@ class TestScaleOrderServicePreview:
             num_orders=5,
             start_price=50000.0,
             end_price=48000.0,
-            distribution_type="linear"
+            distribution_type="linear",
         )
 
     @pytest.fixture
@@ -224,7 +205,7 @@ class TestScaleOrderServicePreview:
             start_price=3000.0,
             end_price=3300.0,
             distribution_type="geometric",
-            geometric_ratio=1.5
+            geometric_ratio=1.5,
         )
 
     @pytest.mark.asyncio
@@ -281,8 +262,8 @@ class TestScaleOrderServicePlacement:
 
         return create_service_with_mocks(
             ScaleOrderService,
-            'src.services.scale_order_service',
-            {'hyperliquid_service': mock_hyperliquid}
+            "src.services.scale_order_service",
+            {"hyperliquid_service": mock_hyperliquid},
         )
 
     @pytest.fixture
@@ -295,7 +276,7 @@ class TestScaleOrderServicePlacement:
             num_orders=3,
             start_price=50000.0,
             end_price=48000.0,
-            distribution_type="linear"
+            distribution_type="linear",
         )
 
     @pytest.mark.asyncio
@@ -304,7 +285,7 @@ class TestScaleOrderServicePlacement:
         service.hyperliquid.is_initialized.return_value = False
         service.hyperliquid.place_limit_order.return_value = {
             "status": "ok",
-            "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}
+            "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}},
         }
 
         await service.place_scale_order(sample_config)
@@ -316,7 +297,7 @@ class TestScaleOrderServicePlacement:
         """Test placing all orders successfully."""
         service.hyperliquid.place_limit_order.return_value = {
             "status": "ok",
-            "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}
+            "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}},
         }
 
         result = await service.place_scale_order(sample_config)
@@ -332,7 +313,7 @@ class TestScaleOrderServicePlacement:
         """Test scale order is stored after placement."""
         service.hyperliquid.place_limit_order.return_value = {
             "status": "ok",
-            "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}
+            "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}},
         }
 
         result = await service.place_scale_order(sample_config)
@@ -351,7 +332,7 @@ class TestScaleOrderServicePlacement:
         service.hyperliquid.place_limit_order.side_effect = [
             {"status": "ok", "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}},
             {"status": "error", "response": {"message": "Insufficient margin"}},
-            {"status": "ok", "response": {"data": {"statuses": [{"resting": {"oid": 1003}}]}}}
+            {"status": "ok", "response": {"data": {"statuses": [{"resting": {"oid": 1003}}]}}},
         ]
 
         result = await service.place_scale_order(sample_config)
@@ -367,7 +348,7 @@ class TestScaleOrderServicePlacement:
         """Test all orders failing."""
         service.hyperliquid.place_limit_order.return_value = {
             "status": "error",
-            "response": {"message": "Order rejected"}
+            "response": {"message": "Order rejected"},
         }
 
         result = await service.place_scale_order(sample_config)
@@ -382,7 +363,7 @@ class TestScaleOrderServicePlacement:
         """Test average price calculation for placed orders."""
         service.hyperliquid.place_limit_order.return_value = {
             "status": "ok",
-            "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}}
+            "response": {"data": {"statuses": [{"resting": {"oid": 1001}}]}},
         }
 
         result = await service.place_scale_order(sample_config)
@@ -403,8 +384,8 @@ class TestScaleOrderServiceCancellation:
 
         svc = create_service_with_mocks(
             ScaleOrderService,
-            'src.services.scale_order_service',
-            {'hyperliquid_service': mock_hyperliquid}
+            "src.services.scale_order_service",
+            {"hyperliquid_service": mock_hyperliquid},
         )
 
         # Add a sample scale order to storage
@@ -420,7 +401,7 @@ class TestScaleOrderServiceCancellation:
             distribution_type="linear",
             order_ids=[1001, 1002, 1003],
             orders_placed=3,
-            status="active"
+            status="active",
         )
         svc._scale_orders["scale_123"] = scale_order
 
@@ -429,10 +410,7 @@ class TestScaleOrderServiceCancellation:
     @pytest.mark.asyncio
     async def test_cancel_not_found_raises_value_error(self, service):
         """Test cancelling non-existent scale order raises ValueError."""
-        cancel_request = ScaleOrderCancel(
-            scale_order_id="nonexistent",
-            cancel_all_orders=True
-        )
+        cancel_request = ScaleOrderCancel(scale_order_id="nonexistent", cancel_all_orders=True)
 
         with pytest.raises(ValueError, match="Scale order nonexistent not found"):
             await service.cancel_scale_order(cancel_request)
@@ -440,10 +418,7 @@ class TestScaleOrderServiceCancellation:
     @pytest.mark.asyncio
     async def test_cancel_without_cancelling_orders(self, service):
         """Test cancel_all_orders=False just marks as cancelled."""
-        cancel_request = ScaleOrderCancel(
-            scale_order_id="scale_123",
-            cancel_all_orders=False
-        )
+        cancel_request = ScaleOrderCancel(scale_order_id="scale_123", cancel_all_orders=False)
 
         result = await service.cancel_scale_order(cancel_request)
 
@@ -460,10 +435,7 @@ class TestScaleOrderServiceCancellation:
         """Test cancelling all orders successfully."""
         service.hyperliquid.cancel_order.return_value = {"status": "ok"}
 
-        cancel_request = ScaleOrderCancel(
-            scale_order_id="scale_123",
-            cancel_all_orders=True
-        )
+        cancel_request = ScaleOrderCancel(scale_order_id="scale_123", cancel_all_orders=True)
 
         result = await service.cancel_scale_order(cancel_request)
 
@@ -480,13 +452,10 @@ class TestScaleOrderServiceCancellation:
         service.hyperliquid.cancel_order.side_effect = [
             {"status": "ok"},
             {"status": "error", "response": {"message": "Order already filled"}},
-            {"status": "ok"}
+            {"status": "ok"},
         ]
 
-        cancel_request = ScaleOrderCancel(
-            scale_order_id="scale_123",
-            cancel_all_orders=True
-        )
+        cancel_request = ScaleOrderCancel(scale_order_id="scale_123", cancel_all_orders=True)
 
         result = await service.cancel_scale_order(cancel_request)
 
@@ -501,10 +470,7 @@ class TestScaleOrderServiceCancellation:
         """Test cancel handles exceptions gracefully."""
         service.hyperliquid.cancel_order.side_effect = Exception("Network error")
 
-        cancel_request = ScaleOrderCancel(
-            scale_order_id="scale_123",
-            cancel_all_orders=True
-        )
+        cancel_request = ScaleOrderCancel(scale_order_id="scale_123", cancel_all_orders=True)
 
         result = await service.cancel_scale_order(cancel_request)
 
@@ -524,8 +490,8 @@ class TestScaleOrderServiceStatus:
 
         svc = create_service_with_mocks(
             ScaleOrderService,
-            'src.services.scale_order_service',
-            {'hyperliquid_service': mock_hyperliquid}
+            "src.services.scale_order_service",
+            {"hyperliquid_service": mock_hyperliquid},
         )
 
         # Add a sample scale order
@@ -541,7 +507,7 @@ class TestScaleOrderServiceStatus:
             distribution_type="linear",
             order_ids=[1001, 1002, 1003, 1004, 1005],
             orders_placed=5,
-            status="active"
+            status="active",
         )
         svc._scale_orders["scale_123"] = scale_order
 
@@ -561,7 +527,7 @@ class TestScaleOrderServiceStatus:
             {"oid": 1002, "coin": "BTC"},
             {"oid": 1003, "coin": "BTC"},
             {"oid": 1004, "coin": "BTC"},
-            {"oid": 1005, "coin": "BTC"}
+            {"oid": 1005, "coin": "BTC"},
         ]
 
         status = await service.get_scale_order_status("scale_123")
@@ -578,7 +544,7 @@ class TestScaleOrderServiceStatus:
         service.hyperliquid.get_open_orders.return_value = [
             {"oid": 1001, "coin": "BTC"},
             {"oid": 1003, "coin": "BTC"},
-            {"oid": 1005, "coin": "BTC"}
+            {"oid": 1005, "coin": "BTC"},
         ]
 
         status = await service.get_scale_order_status("scale_123")
@@ -626,7 +592,7 @@ class TestScaleOrderServiceListAndGet:
                 distribution_type="linear",
                 order_ids=[1000 + i, 2000 + i],
                 orders_placed=5,
-                status="active"
+                status="active",
             )
             svc._scale_orders[f"scale_{i}"] = scale_order
 
@@ -671,5 +637,5 @@ class TestScaleOrderServiceSingleton:
 
     def test_singleton_has_hyperliquid_reference(self):
         """Test singleton has hyperliquid service reference."""
-        assert hasattr(scale_order_service, 'hyperliquid')
+        assert hasattr(scale_order_service, "hyperliquid")
         assert scale_order_service.hyperliquid is not None

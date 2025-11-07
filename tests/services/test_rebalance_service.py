@@ -9,18 +9,20 @@ REFACTORED: Now using tests/helpers for service mocking.
 - ServiceMockBuilder provides pre-configured mocks
 - Result: Eliminated 17 duplicate fixtures, cleaner test code
 """
-import pytest
+
 from unittest.mock import Mock, patch
+
+import pytest
+
 from src.services.rebalance_service import (
     RebalanceService,
-    TradeAction,
     RebalanceTrade,
-    rebalance_service
+    TradeAction,
+    rebalance_service,
 )
-from src.services.risk_calculator import RiskLevel
 
 # Import helpers for cleaner service mocking
-from tests.helpers import create_service_with_mocks, ServiceMockBuilder
+from tests.helpers import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestRebalanceServiceValidation:
@@ -33,12 +35,12 @@ class TestRebalanceServiceValidation:
         mock_market_data.get_all_prices.return_value = {
             "BTC": 50000.0,
             "ETH": 3000.0,
-            "SOL": 150.0
+            "SOL": 150.0,
         }
         return create_service_with_mocks(
             RebalanceService,
-            'src.services.rebalance_service',
-            {'market_data_service': mock_market_data}
+            "src.services.rebalance_service",
+            {"market_data_service": mock_market_data},
         )
 
     def test_validate_weights_sum_100(self, service):
@@ -100,8 +102,8 @@ class TestRebalanceServiceCurrentAllocation:
         """Create service with mocked position service."""
         return create_service_with_mocks(
             RebalanceService,
-            'src.services.rebalance_service',
-            {'position_service': ServiceMockBuilder.position_service()}
+            "src.services.rebalance_service",
+            {"position_service": ServiceMockBuilder.position_service()},
         )
 
     def test_calculate_allocation_no_positions(self, service):
@@ -126,7 +128,7 @@ class TestRebalanceServiceCurrentAllocation:
         """Test allocation with multiple positions."""
         service.position_service.list_positions.return_value = [
             {"position": {"coin": "BTC", "position_value": "6000.0"}},
-            {"position": {"coin": "ETH", "position_value": "4000.0"}}
+            {"position": {"coin": "ETH", "position_value": "4000.0"}},
         ]
 
         allocation = service.calculate_current_allocation()
@@ -138,7 +140,7 @@ class TestRebalanceServiceCurrentAllocation:
         """Test allocation uses absolute values (short positions)."""
         service.position_service.list_positions.return_value = [
             {"position": {"coin": "BTC", "position_value": "-6000.0"}},  # Short
-            {"position": {"coin": "ETH", "position_value": "4000.0"}}   # Long
+            {"position": {"coin": "ETH", "position_value": "4000.0"}},  # Long
         ]
 
         allocation = service.calculate_current_allocation()
@@ -175,17 +177,17 @@ class TestRebalanceServiceCalculateRequiredTrades:
         mock_market_data.get_all_prices.return_value = {
             "BTC": 50000.0,
             "ETH": 3000.0,
-            "SOL": 150.0
+            "SOL": 150.0,
         }
 
         return create_service_with_mocks(
             RebalanceService,
-            'src.services.rebalance_service',
+            "src.services.rebalance_service",
             {
-                'position_service': ServiceMockBuilder.position_service(),
-                'account_service': mock_account,
-                'market_data_service': mock_market_data
-            }
+                "position_service": ServiceMockBuilder.position_service(),
+                "account_service": mock_account,
+                "market_data_service": mock_market_data,
+            },
         )
 
     def test_calculate_trades_open_new_positions(self, service):
@@ -233,7 +235,7 @@ class TestRebalanceServiceCalculateRequiredTrades:
         # Current: 80% BTC, 20% ETH
         service.position_service.list_positions.return_value = [
             {"position": {"coin": "BTC", "position_value": "8000.0"}},
-            {"position": {"coin": "ETH", "position_value": "2000.0"}}
+            {"position": {"coin": "ETH", "position_value": "2000.0"}},
         ]
 
         # Target: 60% BTC, 40% ETH
@@ -255,7 +257,7 @@ class TestRebalanceServiceCalculateRequiredTrades:
         # Current: 60.5% BTC, 39.5% ETH
         service.position_service.list_positions.return_value = [
             {"position": {"coin": "BTC", "position_value": "6050.0"}},
-            {"position": {"coin": "ETH", "position_value": "3950.0"}}
+            {"position": {"coin": "ETH", "position_value": "3950.0"}},
         ]
 
         # Target: 60% BTC, 40% ETH (diff < 1% tolerance)
@@ -270,13 +272,15 @@ class TestRebalanceServiceCalculateRequiredTrades:
         # Current: 50.1% BTC, 49.9% ETH
         service.position_service.list_positions.return_value = [
             {"position": {"coin": "BTC", "position_value": "5010.0"}},
-            {"position": {"coin": "ETH", "position_value": "4990.0"}}
+            {"position": {"coin": "ETH", "position_value": "4990.0"}},
         ]
 
         # Target: 50% BTC, 50% ETH
         # Diff = $10, but min_trade_usd = 20
         target_weights = {"BTC": 50.0, "ETH": 50.0}
-        trades = service.calculate_required_trades(target_weights, min_trade_usd=20.0, tolerance_pct=0.0)
+        trades = service.calculate_required_trades(
+            target_weights, min_trade_usd=20.0, tolerance_pct=0.0
+        )
 
         # Should be skipped due to min trade size
         assert all(t.action == TradeAction.SKIP for t in trades)
@@ -298,7 +302,7 @@ class TestRebalanceServiceCalculateRequiredTrades:
         # Current: 70% BTC, 30% ETH
         service.position_service.list_positions.return_value = [
             {"position": {"coin": "BTC", "position_value": "7000.0"}},
-            {"position": {"coin": "ETH", "position_value": "3000.0"}}
+            {"position": {"coin": "ETH", "position_value": "3000.0"}},
         ]
 
         # Target: 50% BTC, 30% ETH, 20% SOL
@@ -329,7 +333,7 @@ class TestRebalanceServiceLeverageMethods:
 
     def test_get_position_leverage_delegates(self, service):
         """Test get_position_leverage delegates to leverage_service."""
-        with patch('src.services.rebalance_service.leverage_service') as mock_leverage:
+        with patch("src.services.rebalance_service.leverage_service") as mock_leverage:
             mock_leverage.get_coin_leverage.return_value = 5
 
             result = service.get_position_leverage("BTC")
@@ -339,7 +343,7 @@ class TestRebalanceServiceLeverageMethods:
 
     def test_get_position_leverage_returns_none(self, service):
         """Test get_position_leverage returns None for no position."""
-        with patch('src.services.rebalance_service.leverage_service') as mock_leverage:
+        with patch("src.services.rebalance_service.leverage_service") as mock_leverage:
             mock_leverage.get_coin_leverage.return_value = None
 
             result = service.get_position_leverage("ETH")
@@ -348,22 +352,26 @@ class TestRebalanceServiceLeverageMethods:
 
     def test_set_leverage_for_coin_success(self, service):
         """Test set_leverage_for_coin delegates successfully."""
-        with patch('src.services.rebalance_service.leverage_service') as mock_leverage:
-            mock_leverage.set_coin_leverage.return_value = (True, "Leverage set successfully")
+        with patch("src.services.rebalance_service.leverage_service") as mock_leverage:
+            mock_leverage.set_coin_leverage.return_value = (
+                True,
+                "Leverage set successfully",
+            )
 
             result = service.set_leverage_for_coin("BTC", 3)
 
             assert result is True
             mock_leverage.set_coin_leverage.assert_called_once_with(
-                coin="BTC",
-                leverage=3,
-                is_cross=True
+                coin="BTC", leverage=3, is_cross=True
             )
 
     def test_set_leverage_for_coin_failure(self, service):
         """Test set_leverage_for_coin handles failure."""
-        with patch('src.services.rebalance_service.leverage_service') as mock_leverage:
-            mock_leverage.set_coin_leverage.return_value = (False, "Position already exists")
+        with patch("src.services.rebalance_service.leverage_service") as mock_leverage:
+            mock_leverage.set_coin_leverage.return_value = (
+                False,
+                "Position already exists",
+            )
 
             result = service.set_leverage_for_coin("ETH", 5)
 
@@ -371,16 +379,14 @@ class TestRebalanceServiceLeverageMethods:
 
     def test_set_leverage_for_coin_isolated(self, service):
         """Test setting isolated margin leverage."""
-        with patch('src.services.rebalance_service.leverage_service') as mock_leverage:
+        with patch("src.services.rebalance_service.leverage_service") as mock_leverage:
             mock_leverage.set_coin_leverage.return_value = (True, "Success")
 
             result = service.set_leverage_for_coin("SOL", 10, is_cross=False)
 
             assert result is True
             mock_leverage.set_coin_leverage.assert_called_once_with(
-                coin="SOL",
-                leverage=10,
-                is_cross=False
+                coin="SOL", leverage=10, is_cross=False
             )
 
 
@@ -400,12 +406,12 @@ class TestRebalanceServiceExecuteTrade:
 
         return create_service_with_mocks(
             RebalanceService,
-            'src.services.rebalance_service',
+            "src.services.rebalance_service",
             {
-                'market_data_service': mock_market_data,
-                'position_service': ServiceMockBuilder.position_service(),
-                'order_service': mock_order
-            }
+                "market_data_service": mock_market_data,
+                "position_service": ServiceMockBuilder.position_service(),
+                "order_service": mock_order,
+            },
         )
 
     def test_execute_trade_skip(self, service):
@@ -419,7 +425,7 @@ class TestRebalanceServiceExecuteTrade:
             current_usd_value=5000.0,
             target_usd_value=5050.0,
             trade_usd_value=50.0,
-            trade_size=None
+            trade_size=None,
         )
 
         service.execute_trade(trade)
@@ -433,7 +439,7 @@ class TestRebalanceServiceExecuteTrade:
         service.position_service.close_position.return_value = {
             "status": "success",
             "coin": "BTC",
-            "size_closed": 0.1
+            "size_closed": 0.1,
         }
 
         trade = RebalanceTrade(
@@ -445,7 +451,7 @@ class TestRebalanceServiceExecuteTrade:
             current_usd_value=2000.0,
             target_usd_value=0.0,
             trade_usd_value=-2000.0,
-            trade_size=None
+            trade_size=None,
         )
 
         service.execute_trade(trade)
@@ -456,14 +462,14 @@ class TestRebalanceServiceExecuteTrade:
         service.position_service.close_position.assert_called_once_with(
             coin="BTC",
             size=None,  # None means close full position
-            slippage=0.05
+            slippage=0.05,
         )
 
     def test_execute_trade_open(self, service):
         """Test executing an OPEN trade."""
         service.order_service.place_market_order.return_value = {
             "status": "ok",
-            "response": {"type": "order"}
+            "response": {"type": "order"},
         }
 
         trade = RebalanceTrade(
@@ -475,7 +481,7 @@ class TestRebalanceServiceExecuteTrade:
             current_usd_value=0.0,
             target_usd_value=3000.0,
             trade_usd_value=3000.0,
-            trade_size=None
+            trade_size=None,
         )
 
         service.execute_trade(trade)
@@ -484,10 +490,7 @@ class TestRebalanceServiceExecuteTrade:
         assert trade.success is True
         assert trade.trade_size == pytest.approx(0.06)  # $3000 / $50000
         service.order_service.place_market_order.assert_called_once_with(
-            coin="ETH",
-            is_buy=True,
-            size=pytest.approx(0.06),
-            slippage=0.05
+            coin="ETH", is_buy=True, size=pytest.approx(0.06), slippage=0.05
         )
 
     def test_execute_trade_increase(self, service):
@@ -503,7 +506,7 @@ class TestRebalanceServiceExecuteTrade:
             current_usd_value=4000.0,
             target_usd_value=6000.0,
             trade_usd_value=2000.0,
-            trade_size=None
+            trade_size=None,
         )
 
         service.execute_trade(trade)
@@ -511,10 +514,7 @@ class TestRebalanceServiceExecuteTrade:
         assert trade.success is True
         assert trade.trade_size == pytest.approx(0.04)
         service.order_service.place_market_order.assert_called_once_with(
-            coin="BTC",
-            is_buy=True,
-            size=pytest.approx(0.04),
-            slippage=0.05
+            coin="BTC", is_buy=True, size=pytest.approx(0.04), slippage=0.05
         )
 
     def test_execute_trade_decrease(self, service):
@@ -530,7 +530,7 @@ class TestRebalanceServiceExecuteTrade:
             current_usd_value=3000.0,
             target_usd_value=1000.0,
             trade_usd_value=-2000.0,
-            trade_size=None
+            trade_size=None,
         )
 
         service.execute_trade(trade)
@@ -541,7 +541,7 @@ class TestRebalanceServiceExecuteTrade:
             coin="SOL",
             is_buy=False,  # Sell to decrease
             size=pytest.approx(0.04),
-            slippage=0.05
+            slippage=0.05,
         )
 
     def test_execute_trade_with_leverage_setting(self, service):
@@ -558,10 +558,10 @@ class TestRebalanceServiceExecuteTrade:
             target_usd_value=5000.0,
             trade_usd_value=5000.0,
             trade_size=None,
-            target_leverage=3
+            target_leverage=3,
         )
 
-        with patch.object(service, 'set_leverage_for_coin') as mock_set_leverage:
+        with patch.object(service, "set_leverage_for_coin") as mock_set_leverage:
             mock_set_leverage.return_value = True
 
             service.execute_trade(trade)
@@ -582,7 +582,7 @@ class TestRebalanceServiceExecuteTrade:
             current_usd_value=0.0,
             target_usd_value=3000.0,
             trade_usd_value=3000.0,
-            trade_size=None
+            trade_size=None,
         )
 
         service.execute_trade(trade)
@@ -604,7 +604,7 @@ class TestRebalanceServiceExecuteTrade:
             current_usd_value=0.0,
             target_usd_value=5000.0,
             trade_usd_value=5000.0,
-            trade_size=None
+            trade_size=None,
         )
 
         service.execute_trade(trade, slippage=0.10)
@@ -628,24 +628,24 @@ class TestRebalanceServicePreview:
         mock_market_data.get_all_prices.return_value = {
             "BTC": 50000.0,
             "ETH": 3000.0,
-            "SOL": 150.0
+            "SOL": 150.0,
         }
 
         return create_service_with_mocks(
             RebalanceService,
-            'src.services.rebalance_service',
+            "src.services.rebalance_service",
             {
-                'position_service': ServiceMockBuilder.position_service(),
-                'account_service': mock_account,
-                'market_data_service': mock_market_data
-            }
+                "position_service": ServiceMockBuilder.position_service(),
+                "account_service": mock_account,
+                "market_data_service": mock_market_data,
+            },
         )
 
     def test_preview_rebalance_success(self, service):
         """Test preview_rebalance returns correct structure."""
         service.position_service.list_positions.return_value = [
             {"position": {"coin": "BTC", "position_value": "8000.0"}},
-            {"position": {"coin": "ETH", "position_value": "2000.0"}}
+            {"position": {"coin": "ETH", "position_value": "2000.0"}},
         ]
 
         target_weights = {"BTC": 60.0, "ETH": 40.0}
@@ -665,7 +665,7 @@ class TestRebalanceServicePreview:
         # Current: 50% BTC, 50% ETH
         service.position_service.list_positions.return_value = [
             {"position": {"coin": "BTC", "position_value": "5000.0"}},
-            {"position": {"coin": "ETH", "position_value": "5000.0"}}
+            {"position": {"coin": "ETH", "position_value": "5000.0"}},
         ]
 
         # Target: 50.5% BTC, 49.5% ETH (within tolerance)
@@ -717,11 +717,7 @@ class TestRebalanceServicePreview:
         ]
 
         target_weights = {"BTC": 80.0, "ETH": 20.0}
-        result = service.preview_rebalance(
-            target_weights,
-            leverage=5,
-            min_trade_usd=100.0
-        )
+        result = service.preview_rebalance(target_weights, leverage=5, min_trade_usd=100.0)
 
         assert result.success is True
         assert len(result.planned_trades) == 2
@@ -737,8 +733,8 @@ class TestRebalanceServiceSingleton:
 
     def test_singleton_has_dependencies(self):
         """Test singleton has all required dependencies."""
-        assert hasattr(rebalance_service, 'position_service')
-        assert hasattr(rebalance_service, 'account_service')
-        assert hasattr(rebalance_service, 'order_service')
-        assert hasattr(rebalance_service, 'market_data_service')
-        assert hasattr(rebalance_service, 'risk_calculator')
+        assert hasattr(rebalance_service, "position_service")
+        assert hasattr(rebalance_service, "account_service")
+        assert hasattr(rebalance_service, "order_service")
+        assert hasattr(rebalance_service, "market_data_service")
+        assert hasattr(rebalance_service, "risk_calculator")

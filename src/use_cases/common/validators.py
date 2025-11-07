@@ -4,8 +4,8 @@ Centralized validation utilities for orders, positions, and trading operations.
 This module provides consistent validation logic across API and Bot interfaces.
 All validation rules are defined here to ensure they stay in sync.
 """
-from typing import Optional
-from src.config import settings, logger
+
+from src.config import logger, settings
 
 
 class ValidationError(ValueError):
@@ -15,6 +15,7 @@ class ValidationError(ValueError):
     Raised when validation fails. Provides clear error messages
     that can be displayed to users.
     """
+
     pass
 
 
@@ -47,7 +48,7 @@ class OrderValidator:
             raise ValidationError(f"{field_name} must be greater than 0")
 
     @staticmethod
-    def validate_size(size: float, coin: str, min_size: Optional[float] = None) -> None:
+    def validate_size(size: float, coin: str, min_size: float | None = None) -> None:
         """
         Validate order size.
 
@@ -67,12 +68,10 @@ class OrderValidator:
         OrderValidator.validate_positive_amount(size, "Order size")
 
         if min_size is not None and size < min_size:
-            raise ValidationError(
-                f"Order size {size} is below minimum {min_size} for {coin}"
-            )
+            raise ValidationError(f"Order size {size} is below minimum {min_size} for {coin}")
 
     @staticmethod
-    def validate_price(price: float, coin: str, tick_size: Optional[float] = None) -> None:
+    def validate_price(price: float, coin: str, tick_size: float | None = None) -> None:
         """
         Validate order price.
 
@@ -100,7 +99,7 @@ class OrderValidator:
                 )
 
     @staticmethod
-    def validate_leverage(leverage: int, coin: Optional[str] = None) -> dict:
+    def validate_leverage(leverage: int, coin: str | None = None) -> dict:
         """
         Validate leverage value and return risk assessment.
 
@@ -158,14 +157,10 @@ class OrderValidator:
             f"Risk: {risk_level}, Warnings: {len(warnings)}"
         )
 
-        return {
-            "valid": True,
-            "risk_level": risk_level,
-            "warnings": warnings
-        }
+        return {"valid": True, "risk_level": risk_level, "warnings": warnings}
 
     @staticmethod
-    def validate_coin_symbol(coin: str, valid_coins: Optional[list] = None) -> None:
+    def validate_coin_symbol(coin: str, valid_coins: list | None = None) -> None:
         """
         Validate coin symbol.
 
@@ -231,7 +226,9 @@ class OrderValidator:
         OrderValidator.validate_percentage(slippage, "Slippage")
 
         if slippage > 10:
-            logger.warning(f"High slippage tolerance: {slippage}%. Orders may execute at poor prices")
+            logger.warning(
+                f"High slippage tolerance: {slippage}%. Orders may execute at poor prices"
+            )
 
     @staticmethod
     def validate_order_count(count: int, min_count: int = 1, max_count: int = 20) -> None:
@@ -252,9 +249,7 @@ class OrderValidator:
             ValidationError: Order count must be between 1 and 20
         """
         if count < min_count or count > max_count:
-            raise ValidationError(
-                f"Order count must be between {min_count} and {max_count}"
-            )
+            raise ValidationError(f"Order count must be between {min_count} and {max_count}")
 
 
 class PortfolioValidator:
@@ -287,9 +282,7 @@ class PortfolioValidator:
 
         # Allow for small floating point errors
         if abs(total_weight - 100.0) > 0.01:
-            raise ValidationError(
-                f"Weights must sum to 100% (got {total_weight:.2f}%)"
-            )
+            raise ValidationError(f"Weights must sum to 100% (got {total_weight:.2f}%)")
 
         # Validate individual weights
         for coin, weight in weights.items():
@@ -341,14 +334,9 @@ class PortfolioValidator:
         elif margin_ratio >= 50:
             risk_level = "MODERATE"
             warnings.append(
-                f"Margin ratio is moderate ({margin_ratio:.2f}%). "
-                "Monitor positions closely"
+                f"Margin ratio is moderate ({margin_ratio:.2f}%). Monitor positions closely"
             )
         elif margin_ratio >= 30:
             risk_level = "LOW"
 
-        return {
-            "safe": safe,
-            "risk_level": risk_level,
-            "warnings": warnings
-        }
+        return {"safe": safe, "risk_level": risk_level, "warnings": warnings}

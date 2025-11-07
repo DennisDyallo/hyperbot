@@ -5,8 +5,8 @@ Provides factories and builders for creating realistic Telegram Update and Conte
 used in bot handler tests. Reduces boilerplate and enforces consistent mock structure.
 """
 
-from typing import Optional, Dict, Any
-from unittest.mock import Mock, AsyncMock
+from typing import Any
+from unittest.mock import AsyncMock, Mock
 
 
 class UpdateBuilder:
@@ -41,27 +41,27 @@ class UpdateBuilder:
         self._text = None
         self._callback_data = None
 
-    def with_message(self) -> 'UpdateBuilder':
+    def with_message(self) -> "UpdateBuilder":
         """Add a message to the update."""
         self._has_message = True
         self._has_callback = False
         return self
 
-    def with_callback_query(self, data: str) -> 'UpdateBuilder':
+    def with_callback_query(self, data: str) -> "UpdateBuilder":
         """Add a callback query to the update."""
         self._has_callback = True
         self._has_message = False
         self._callback_data = data
         return self
 
-    def with_user(self, id: int, username: Optional[str] = None) -> 'UpdateBuilder':
+    def with_user(self, id: int, username: str | None = None) -> "UpdateBuilder":
         """Set the user ID and optional username."""
         self._user_id = id
         if username:
             self._username = username
         return self
 
-    def with_text(self, text: str) -> 'UpdateBuilder':
+    def with_text(self, text: str) -> "UpdateBuilder":
         """Set message text (requires with_message)."""
         self._text = text
         return self
@@ -112,12 +112,12 @@ class ContextBuilder:
         self._user_data = {}
         self._args = []
 
-    def with_user_data(self, data: Dict[str, Any]) -> 'ContextBuilder':
+    def with_user_data(self, data: dict[str, Any]) -> "ContextBuilder":
         """Set user_data dictionary."""
         self._user_data = data
         return self
 
-    def with_args(self, args: list) -> 'ContextBuilder':
+    def with_args(self, args: list) -> "ContextBuilder":
         """Set command args list."""
         self._args = args
         return self
@@ -141,9 +141,7 @@ class TelegramMockFactory:
 
     @staticmethod
     def create_command_update(
-        command: str = "/start",
-        user_id: int = 1383283890,
-        username: str = "testuser"
+        command: str = "/start", user_id: int = 1383283890, username: str = "testuser"
     ) -> Mock:
         """
         Create Update mock for a command (e.g., /start, /help).
@@ -156,17 +154,13 @@ class TelegramMockFactory:
         Returns:
             Mock Update with message containing command
         """
-        return UpdateBuilder()             \
-            .with_message()                \
-            .with_user(user_id, username)  \
-            .with_text(command)            \
-            .build()
+        return (
+            UpdateBuilder().with_message().with_user(user_id, username).with_text(command).build()
+        )
 
     @staticmethod
     def create_text_update(
-        text: str,
-        user_id: int = 1383283890,
-        username: str = "testuser"
+        text: str, user_id: int = 1383283890, username: str = "testuser"
     ) -> Mock:
         """
         Create Update mock for a text message.
@@ -179,17 +173,11 @@ class TelegramMockFactory:
         Returns:
             Mock Update with message containing text
         """
-        return UpdateBuilder()             \
-            .with_message()                \
-            .with_user(user_id, username)  \
-            .with_text(text)               \
-            .build()
+        return UpdateBuilder().with_message().with_user(user_id, username).with_text(text).build()
 
     @staticmethod
     def create_callback_update(
-        callback_data: str,
-        user_id: int = 1383283890,
-        username: str = "testuser"
+        callback_data: str, user_id: int = 1383283890, username: str = "testuser"
     ) -> Mock:
         """
         Create Update mock for a callback query (inline button press).
@@ -202,10 +190,9 @@ class TelegramMockFactory:
         Returns:
             Mock Update with callback_query
         """
-        return UpdateBuilder()                  \
-            .with_callback_query(callback_data) \
-            .with_user(user_id, username)       \
-            .build()
+        return (
+            UpdateBuilder().with_callback_query(callback_data).with_user(user_id, username).build()
+        )
 
     @staticmethod
     def create_authorized_update(command: str = "/start") -> Mock:
@@ -219,9 +206,7 @@ class TelegramMockFactory:
             Mock Update from authorized user
         """
         return TelegramMockFactory.create_command_update(
-            command=command,
-            user_id=1383283890,
-            username="authorized_user"
+            command=command, user_id=1383283890, username="authorized_user"
         )
 
     @staticmethod
@@ -236,13 +221,11 @@ class TelegramMockFactory:
             Mock Update from unauthorized user
         """
         return TelegramMockFactory.create_command_update(
-            command=command,
-            user_id=999999999,
-            username="unauthorized_user"
+            command=command, user_id=999999999, username="unauthorized_user"
         )
 
     @staticmethod
-    def create_context(user_data: Optional[Dict[str, Any]] = None) -> Mock:
+    def create_context(user_data: dict[str, Any] | None = None) -> Mock:
         """
         Create Context mock.
 
@@ -255,16 +238,12 @@ class TelegramMockFactory:
         if user_data is None:
             user_data = {}
 
-        return ContextBuilder()         \
-            .with_user_data(user_data)  \
-            .build()
+        return ContextBuilder().with_user_data(user_data).build()
 
 
 # Convenience functions for backwards compatibility with existing fixtures
 def mock_telegram_update(
-    user_id: int = 1383283890,
-    username: str = "testuser",
-    text: Optional[str] = None
+    user_id: int = 1383283890, username: str = "testuser", text: str | None = None
 ) -> Mock:
     """
     Legacy function for creating Update mocks.
@@ -278,9 +257,7 @@ def mock_telegram_update(
 
 
 def mock_telegram_callback_query(
-    data: str = "menu_main",
-    user_id: int = 1383283890,
-    username: str = "testuser"
+    data: str = "menu_main", user_id: int = 1383283890, username: str = "testuser"
 ) -> Mock:
     """
     Legacy function for creating callback query Update mocks.
@@ -290,7 +267,7 @@ def mock_telegram_callback_query(
     return TelegramMockFactory.create_callback_update(data, user_id, username)
 
 
-def mock_telegram_context(user_data: Optional[Dict[str, Any]] = None) -> Mock:
+def mock_telegram_context(user_data: dict[str, Any] | None = None) -> Mock:
     """
     Legacy function for creating Context mocks.
 

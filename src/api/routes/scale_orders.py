@@ -1,31 +1,28 @@
 """
 API routes for scale order management.
 """
+
 from fastapi import APIRouter, HTTPException, status
-from typing import List
+
 from src.models.scale_order import (
+    ScaleOrder,
     ScaleOrderConfig,
     ScaleOrderPreview,
     ScaleOrderResult,
-    ScaleOrder,
-    ScaleOrderCancel,
     ScaleOrderStatus,
 )
 from src.use_cases.scale_orders import (
-    PreviewScaleOrderUseCase,
-    PreviewScaleOrderRequest,
-    PlaceScaleOrderUseCase,
-    PlaceScaleOrderRequest,
-    ListScaleOrdersUseCase,
-    ListScaleOrdersRequest,
-    GetScaleOrderStatusUseCase,
-    GetScaleOrderStatusRequest,
+    CancelScaleOrderRequest,
     CancelScaleOrderUseCase,
-    CancelScaleOrderRequest
+    GetScaleOrderStatusRequest,
+    GetScaleOrderStatusUseCase,
+    ListScaleOrdersRequest,
+    ListScaleOrdersUseCase,
+    PlaceScaleOrderRequest,
+    PlaceScaleOrderUseCase,
+    PreviewScaleOrderRequest,
+    PreviewScaleOrderUseCase,
 )
-from src.services.scale_order_service import scale_order_service
-from src.config import logger
-
 
 router = APIRouter(prefix="/api/scale-orders", tags=["scale_orders"])
 
@@ -82,15 +79,12 @@ async def preview_scale_order(config: ScaleOrderConfig):
         return response.preview
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate preview: {str(e)}"
-        )
+            detail=f"Failed to generate preview: {str(e)}",
+        ) from e
 
 
 @router.post("/place", response_model=ScaleOrderResult, status_code=status.HTTP_201_CREATED)
@@ -147,7 +141,7 @@ async def place_scale_order(config: ScaleOrderConfig):
         if result.failed_orders == result.num_orders:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"All orders failed. Check order details."
+                detail="All orders failed. Check order details.",
             )
 
         return result
@@ -155,23 +149,17 @@ async def place_scale_order(config: ScaleOrderConfig):
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to place scale order: {str(e)}"
-        )
+            detail=f"Failed to place scale order: {str(e)}",
+        ) from e
 
 
-@router.get("/", response_model=List[ScaleOrder], status_code=status.HTTP_200_OK)
+@router.get("/", response_model=list[ScaleOrder], status_code=status.HTTP_200_OK)
 async def list_scale_orders():
     """
     List all scale orders.
@@ -211,8 +199,8 @@ async def list_scale_orders():
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list scale orders: {str(e)}"
-        )
+            detail=f"Failed to list scale orders: {str(e)}",
+        ) from e
 
 
 @router.get("/{scale_order_id}", response_model=ScaleOrderStatus, status_code=status.HTTP_200_OK)
@@ -249,19 +237,16 @@ async def get_scale_order_status(scale_order_id: str):
         return response.status
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get scale order status: {str(e)}"
-        )
+            detail=f"Failed to get scale order status: {str(e)}",
+        ) from e
 
 
 @router.delete("/{scale_order_id}", status_code=status.HTTP_200_OK)
-async def cancel_scale_order(scale_order_id: str, cancel_all_orders: bool = True):
+async def cancel_scale_order(scale_order_id: str, cancel_all_orders: bool = True):  # noqa: ARG001
     """
     Cancel a scale order.
 
@@ -288,17 +273,11 @@ async def cancel_scale_order(scale_order_id: str, cancel_all_orders: bool = True
         return response.result
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to cancel scale order: {str(e)}"
-        )
+            detail=f"Failed to cancel scale order: {str(e)}",
+        ) from e

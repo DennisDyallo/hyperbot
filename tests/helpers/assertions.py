@@ -4,16 +4,14 @@ Common assertion helpers.
 Provides reusable assertion functions to reduce boilerplate and improve test readability.
 """
 
-import pytest
-from typing import Any, List
+from typing import Any
 from unittest.mock import Mock
+
+import pytest
 
 
 def assert_float_approx(
-    actual: float,
-    expected: float,
-    precision: float = 0.01,
-    msg: str = None
+    actual: float, expected: float, precision: float = 0.01, msg: str = None
 ) -> None:
     """
     Assert that two floats are approximately equal.
@@ -33,15 +31,12 @@ def assert_float_approx(
     if msg:
         assert actual == pytest.approx(expected, abs=precision), msg
     else:
-        assert actual == pytest.approx(expected, abs=precision), \
+        assert actual == pytest.approx(expected, abs=precision), (
             f"Expected {expected} ± {precision}, got {actual}"
+        )
 
 
-def assert_telegram_message_contains(
-    mock_reply: Mock,
-    *keywords: str,
-    call_index: int = 0
-) -> None:
+def assert_telegram_message_contains(mock_reply: Mock, *keywords: str, call_index: int = 0) -> None:
     """
     Assert that a Telegram reply message contains all specified keywords.
 
@@ -68,22 +63,19 @@ def assert_telegram_message_contains(
     # Message could be first positional arg or 'text' kwarg
     if call_args.args:
         message_text = call_args.args[0]
-    elif 'text' in call_args.kwargs:
-        message_text = call_args.kwargs['text']
+    elif "text" in call_args.kwargs:
+        message_text = call_args.kwargs["text"]
     else:
         raise AssertionError("Could not find message text in call args")
 
     # Check all keywords are present
     missing = [kw for kw in keywords if kw not in message_text]
 
-    assert not missing, \
-        f"Message missing keywords: {missing}\nMessage was: {message_text}"
+    assert not missing, f"Message missing keywords: {missing}\nMessage was: {message_text}"
 
 
 def assert_service_called_with_params(
-    mock_service: Mock,
-    method: str,
-    **expected_params: Any
+    mock_service: Mock, method: str, **expected_params: Any
 ) -> None:
     """
     Assert that a service method was called with expected parameters.
@@ -110,8 +102,7 @@ def assert_service_called_with_params(
     call_kwargs = method_mock.call_args.kwargs
 
     for param_name, expected_value in expected_params.items():
-        assert param_name in call_kwargs, \
-            f"Parameter '{param_name}' not found in call kwargs"
+        assert param_name in call_kwargs, f"Parameter '{param_name}' not found in call kwargs"
 
         actual_value = call_kwargs[param_name]
 
@@ -119,8 +110,9 @@ def assert_service_called_with_params(
         if isinstance(expected_value, float) and isinstance(actual_value, float):
             assert_float_approx(actual_value, expected_value)
         else:
-            assert actual_value == expected_value, \
+            assert actual_value == expected_value, (
                 f"Parameter '{param_name}': expected {expected_value}, got {actual_value}"
+            )
 
 
 def assert_mock_called_n_times(mock: Mock, n: int, msg: str = None) -> None:
@@ -139,14 +131,10 @@ def assert_mock_called_n_times(mock: Mock, n: int, msg: str = None) -> None:
     if msg:
         assert actual_calls == n, msg
     else:
-        assert actual_calls == n, \
-            f"Expected {n} calls, got {actual_calls}"
+        assert actual_calls == n, f"Expected {n} calls, got {actual_calls}"
 
 
-def assert_dict_contains(
-    data: dict,
-    **expected_items: Any
-) -> None:
+def assert_dict_contains(data: dict, **expected_items: Any) -> None:
     """
     Assert that a dictionary contains all expected key-value pairs.
 
@@ -166,8 +154,9 @@ def assert_dict_contains(
         if isinstance(expected_value, float) and isinstance(actual_value, float):
             assert_float_approx(actual_value, expected_value)
         else:
-            assert actual_value == expected_value, \
+            assert actual_value == expected_value, (
                 f"Key '{key}': expected {expected_value}, got {actual_value}"
+            )
 
 
 def assert_response_success(response: Any, expected_status: str = "success") -> None:
@@ -182,12 +171,13 @@ def assert_response_success(response: Any, expected_status: str = "success") -> 
         >>> response = await use_case.execute(request)
         >>> assert_response_success(response)
     """
-    assert hasattr(response, 'status'), "Response missing 'status' attribute"
-    assert response.status == expected_status, \
+    assert hasattr(response, "status"), "Response missing 'status' attribute"
+    assert response.status == expected_status, (
         f"Expected status '{expected_status}', got '{response.status}'"
+    )
 
 
-def assert_list_length(items: List, expected_length: int, msg: str = None) -> None:
+def assert_list_length(items: list, expected_length: int, msg: str = None) -> None:
     """
     Assert that a list has the expected length.
 
@@ -203,8 +193,9 @@ def assert_list_length(items: List, expected_length: int, msg: str = None) -> No
     if msg:
         assert actual_length == expected_length, msg
     else:
-        assert actual_length == expected_length, \
+        assert actual_length == expected_length, (
             f"Expected list length {expected_length}, got {actual_length}"
+        )
 
 
 def assert_no_exceptions_raised(func, *args, **kwargs) -> Any:
@@ -225,10 +216,10 @@ def assert_no_exceptions_raised(func, *args, **kwargs) -> Any:
     try:
         return func(*args, **kwargs)
     except Exception as e:
-        raise AssertionError(f"Unexpected exception raised: {type(e).__name__}: {e}")
+        raise AssertionError(f"Unexpected exception raised: {type(e).__name__}: {e}") from e
 
 
-def assert_all_elements_match(items: List[Any], condition) -> None:
+def assert_all_elements_match(items: list[Any], condition) -> None:
     """
     Assert that all elements in a list match a condition.
 
@@ -244,11 +235,11 @@ def assert_all_elements_match(items: List[Any], condition) -> None:
         ... )
     """
     for i, item in enumerate(items):
-        assert condition(item), \
-            f"Item at index {i} does not match condition: {item}"
+        assert condition(item), f"Item at index {i} does not match condition: {item}"
 
 
 # Convenience assertion for common patterns
+
 
 def assert_error_message_contains(error: Exception, *keywords: str) -> None:
     """
@@ -266,5 +257,4 @@ def assert_error_message_contains(error: Exception, *keywords: str) -> None:
     error_msg = str(error)
     missing = [kw for kw in keywords if kw not in error_msg]
 
-    assert not missing, \
-        f"Error message missing keywords: {missing}\nError was: {error_msg}"
+    assert not missing, f"Error message missing keywords: {missing}\nError was: {error_msg}"

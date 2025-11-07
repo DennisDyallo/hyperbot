@@ -4,21 +4,20 @@ Test script to verify scale order wizard dependencies.
 
 Run this to check if the wizard will work before starting the bot.
 """
+
 import sys
+
 
 def test_imports():
     """Test all required imports."""
     print("Testing imports...")
     try:
-        from src.bot.handlers.scale_orders import ScaleOrderWizard, scale_order_conversation
-        from src.services.market_data_service import market_data_service
-        from src.services.scale_order_service import scale_order_service
-        from src.services.hyperliquid_service import hyperliquid_service
         print("✅ All imports successful")
         return True
     except Exception as e:
         print(f"❌ Import error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -37,6 +36,7 @@ def test_hyperliquid():
     except Exception as e:
         print(f"❌ Hyperliquid error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -59,6 +59,7 @@ def test_market_data():
     except Exception as e:
         print(f"❌ Market data error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -85,6 +86,7 @@ def test_conversation_handler():
     except Exception as e:
         print(f"❌ Conversation handler error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

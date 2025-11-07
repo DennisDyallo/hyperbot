@@ -4,20 +4,20 @@ Scale Order Service for placing multiple limit orders at different price levels.
 Scale orders allow gradual position building or exit by placing a series of
 limit orders distributed across a price range.
 """
-from typing import Dict, List, Optional
+
 from datetime import datetime
+
+from src.config import logger
 from src.models.scale_order import (
+    OrderPlacement,
+    ScaleOrder,
+    ScaleOrderCancel,
     ScaleOrderConfig,
     ScaleOrderPreview,
     ScaleOrderResult,
-    ScaleOrder,
-    OrderPlacement,
-    ScaleOrderCancel,
     ScaleOrderStatus,
 )
 from src.services.hyperliquid_service import hyperliquid_service
-from src.config import logger
-import math
 
 
 class ScaleOrderService:
@@ -27,14 +27,11 @@ class ScaleOrderService:
         """Initialize scale order service."""
         self.hyperliquid = hyperliquid_service
         # In-memory storage for scale orders (in production, use database)
-        self._scale_orders: Dict[str, ScaleOrder] = {}
+        self._scale_orders: dict[str, ScaleOrder] = {}
 
     def _calculate_price_levels(
-        self,
-        start_price: float,
-        end_price: float,
-        num_orders: int
-    ) -> List[float]:
+        self, start_price: float, end_price: float, num_orders: int
+    ) -> list[float]:
         """
         Calculate price levels for scale order.
 
@@ -56,10 +53,10 @@ class ScaleOrderService:
     def _calculate_geometric_sizes(
         self,
         total_usd_amount: float,
-        price_levels: List[float],
+        price_levels: list[float],
         num_orders: int,
-        ratio: float = 1.5
-    ) -> List[float]:
+        ratio: float = 1.5,
+    ) -> list[float]:
         """
         Calculate sizes with geometric distribution (weighted USD towards first orders).
 
@@ -78,11 +75,11 @@ class ScaleOrderService:
         # Calculate geometric series sum for USD distribution
         # S = a * (1 - r^n) / (1 - r)
         # We need to find 'a' such that S = total_usd_amount
-        geometric_sum = (1 - ratio ** num_orders) / (1 - ratio)
+        geometric_sum = (1 - ratio**num_orders) / (1 - ratio)
         first_usd = total_usd_amount / geometric_sum
 
         # Generate USD amounts per order
-        usd_amounts = [first_usd * (ratio ** i) for i in range(num_orders)]
+        usd_amounts = [first_usd * (ratio**i) for i in range(num_orders)]
 
         # Ensure exact total (adjust for floating point errors)
         actual_total_usd = sum(usd_amounts)
@@ -91,16 +88,13 @@ class ScaleOrderService:
             usd_amounts = [u * adjustment for u in usd_amounts]
 
         # Convert USD amounts to coin sizes at each price level
-        sizes = [usd / price for usd, price in zip(usd_amounts, price_levels)]
+        sizes = [usd / price for usd, price in zip(usd_amounts, price_levels, strict=False)]
 
         return sizes
 
     def _calculate_linear_sizes(
-        self,
-        total_usd_amount: float,
-        price_levels: List[float],
-        num_orders: int
-    ) -> List[float]:
+        self, total_usd_amount: float, price_levels: list[float], num_orders: int
+    ) -> list[float]:
         """
         Calculate sizes with linear distribution (equal USD per order).
 
@@ -173,24 +167,17 @@ class ScaleOrderService:
 
         # Calculate price levels
         price_levels = self._calculate_price_levels(
-            config.start_price,
-            config.end_price,
-            config.num_orders
+            config.start_price, config.end_price, config.num_orders
         )
 
         # Calculate sizes (coin quantities from USD amounts)
         if config.distribution_type == "geometric":
             sizes = self._calculate_geometric_sizes(
-                config.total_usd_amount,
-                price_levels,
-                config.num_orders,
-                config.geometric_ratio
+                config.total_usd_amount, price_levels, config.num_orders, config.geometric_ratio
             )
         else:
             sizes = self._calculate_linear_sizes(
-                config.total_usd_amount,
-                price_levels,
-                config.num_orders
+                config.total_usd_amount, price_levels, config.num_orders
             )
 
         # Round values
@@ -202,12 +189,8 @@ class ScaleOrderService:
 
         # Create order list
         orders = [
-            {
-                "price": price,
-                "size": size,
-                "notional": price * size
-            }
-            for price, size in zip(price_levels, sizes)
+            {"price": price, "size": size, "notional": price * size}
+            for price, size in zip(price_levels, sizes, strict=False)
         ]
 
         # Calculate estimated average price
@@ -225,7 +208,7 @@ class ScaleOrderService:
             num_orders=config.num_orders,
             orders=orders,
             estimated_avg_price=estimated_avg_price,
-            price_range_pct=price_range_pct
+            price_range_pct=price_range_pct,
         )
 
     async def place_scale_order(self, config: ScaleOrderConfig) -> ScaleOrderResult:
@@ -269,8 +252,8 @@ class ScaleOrderService:
         preview = await self.preview_scale_order(config)
 
         # Place each order
-        placements: List[OrderPlacement] = []
-        successful_order_ids: List[int] = []
+        placements: list[OrderPlacement] = []
+        successful_order_ids: list[int] = []
 
         for order in preview.orders:
             try:
@@ -281,8 +264,12 @@ class ScaleOrderService:
                     size=order["size"],
                     price=order["price"],
                     reduce_only=config.reduce_only,
-                    time_in_force=config.time_in_force
+                    time_in_force=config.time_in_force,
                 )
+
+                # Handle result - ensure it's a dict
+                if not isinstance(result, dict):
+                    raise ValueError(f"Unexpected result type: {type(result)}, value: {result}")
 
                 # Check if successful
                 if result.get("status") == "ok":
@@ -292,24 +279,28 @@ class ScaleOrderService:
                         order_id = statuses[0]["resting"]["oid"]
                         successful_order_ids.append(order_id)
 
-                        placements.append(OrderPlacement(
-                            order_id=order_id,
-                            price=order["price"],
-                            size=order["size"],
-                            status="success"
-                        ))
+                        placements.append(
+                            OrderPlacement(
+                                order_id=order_id,
+                                price=order["price"],
+                                size=order["size"],
+                                status="success",
+                            )
+                        )
                         logger.info(
                             f"✓ Order {len(placements)}/{config.num_orders}: "
                             f"{config.coin} {order['size']} @ ${order['price']}"
                         )
                     else:
                         # Order executed immediately (filled)
-                        placements.append(OrderPlacement(
-                            order_id=None,
-                            price=order["price"],
-                            size=order["size"],
-                            status="success"
-                        ))
+                        placements.append(
+                            OrderPlacement(
+                                order_id=None,
+                                price=order["price"],
+                                size=order["size"],
+                                status="success",
+                            )
+                        )
                         logger.info(
                             f"✓ Order {len(placements)}/{config.num_orders}: "
                             f"{config.coin} {order['size']} @ ${order['price']} (filled immediately)"
@@ -317,26 +308,30 @@ class ScaleOrderService:
                 else:
                     # Order failed
                     error_msg = result.get("response", {}).get("message", "Unknown error")
-                    placements.append(OrderPlacement(
-                        order_id=None,
-                        price=order["price"],
-                        size=order["size"],
-                        status="failed",
-                        error=error_msg
-                    ))
+                    placements.append(
+                        OrderPlacement(
+                            order_id=None,
+                            price=order["price"],
+                            size=order["size"],
+                            status="failed",
+                            error=error_msg,
+                        )
+                    )
                     logger.warning(
                         f"✗ Order {len(placements)}/{config.num_orders} failed: {error_msg}"
                     )
 
             except Exception as e:
                 logger.error(f"Failed to place order at ${order['price']}: {e}")
-                placements.append(OrderPlacement(
-                    order_id=None,
-                    price=order["price"],
-                    size=order["size"],
-                    status="failed",
-                    error=str(e)
-                ))
+                placements.append(
+                    OrderPlacement(
+                        order_id=None,
+                        price=order["price"],
+                        size=order["size"],
+                        status="failed",
+                        error=str(e),
+                    )
+                )
 
         # Calculate results
         orders_placed = sum(1 for p in placements if p.status == "success")
@@ -346,11 +341,7 @@ class ScaleOrderService:
         # Calculate average price of placed orders
         average_price = None
         if orders_placed > 0:
-            total_notional = sum(
-                p.price * p.size
-                for p in placements
-                if p.status == "success"
-            )
+            total_notional = sum(p.price * p.size for p in placements if p.status == "success")
             average_price = total_notional / total_placed_size
 
         # Determine overall status
@@ -373,7 +364,7 @@ class ScaleOrderService:
             orders_failed=orders_failed,
             average_price=average_price,
             total_placed_size=total_placed_size,
-            status=status
+            status=status,
         )
 
         # Store scale order
@@ -389,7 +380,7 @@ class ScaleOrderService:
             distribution_type=config.distribution_type,
             order_ids=successful_order_ids,
             orders_placed=orders_placed,
-            status="active" if status in ["completed", "partial"] else "failed"
+            status="active" if status in ["completed", "partial"] else "failed",
         )
         self._scale_orders[scale_order.id] = scale_order
 
@@ -401,7 +392,7 @@ class ScaleOrderService:
 
         return result
 
-    async def cancel_scale_order(self, cancel_request: ScaleOrderCancel) -> Dict:
+    async def cancel_scale_order(self, cancel_request: ScaleOrderCancel) -> dict:
         """
         Cancel a scale order (cancel all open orders in the group).
 
@@ -427,11 +418,7 @@ class ScaleOrderService:
             # Just mark as cancelled
             scale_order.status = "cancelled"
             scale_order.updated_at = datetime.now()
-            return {
-                "scale_order_id": scale_order_id,
-                "orders_cancelled": 0,
-                "status": "cancelled"
-            }
+            return {"scale_order_id": scale_order_id, "orders_cancelled": 0, "status": "cancelled"}
 
         # Cancel all open orders
         cancelled_count = 0
@@ -440,14 +427,15 @@ class ScaleOrderService:
         for order_id in scale_order.order_ids:
             try:
                 result = await self.hyperliquid.cancel_order(
-                    coin=scale_order.coin,
-                    order_id=order_id
+                    coin=scale_order.coin, order_id=order_id
                 )
 
                 if result.get("status") == "ok":
                     cancelled_count += 1
                 else:
-                    errors.append(f"Order {order_id}: {result.get('response', {}).get('message', 'Unknown error')}")
+                    errors.append(
+                        f"Order {order_id}: {result.get('response', {}).get('message', 'Unknown error')}"
+                    )
 
             except Exception as e:
                 logger.error(f"Failed to cancel order {order_id}: {e}")
@@ -467,7 +455,7 @@ class ScaleOrderService:
             "orders_cancelled": cancelled_count,
             "total_orders": len(scale_order.order_ids),
             "errors": errors if errors else None,
-            "status": "cancelled"
+            "status": "cancelled",
         }
 
     async def get_scale_order_status(self, scale_order_id: str) -> ScaleOrderStatus:
@@ -494,8 +482,7 @@ class ScaleOrderService:
 
         # Filter for this scale order's orders
         open_orders = [
-            order for order in all_open_orders
-            if order.get("oid") in scale_order.order_ids
+            order for order in all_open_orders if order.get("oid") in scale_order.order_ids
         ]
 
         # Calculate filled orders (orders that were placed but no longer open)
@@ -506,10 +493,17 @@ class ScaleOrderService:
         scale_order.orders_filled = len(filled_order_ids)
 
         # Calculate fill percentage
-        fill_percentage = (scale_order.orders_filled / scale_order.orders_placed * 100) if scale_order.orders_placed > 0 else 0
+        fill_percentage = (
+            (scale_order.orders_filled / scale_order.orders_placed * 100)
+            if scale_order.orders_placed > 0
+            else 0
+        )
 
         # Update status if all filled
-        if scale_order.orders_filled == scale_order.orders_placed and scale_order.status == "active":
+        if (
+            scale_order.orders_filled == scale_order.orders_placed
+            and scale_order.status == "active"
+        ):
             scale_order.status = "completed"
             scale_order.completed_at = datetime.now()
             scale_order.updated_at = datetime.now()
@@ -518,10 +512,10 @@ class ScaleOrderService:
             scale_order=scale_order,
             open_orders=open_orders,
             filled_orders=[{"order_id": oid} for oid in filled_order_ids],
-            fill_percentage=fill_percentage
+            fill_percentage=fill_percentage,
         )
 
-    def list_scale_orders(self) -> List[ScaleOrder]:
+    def list_scale_orders(self) -> list[ScaleOrder]:
         """
         List all scale orders.
 
@@ -530,7 +524,7 @@ class ScaleOrderService:
         """
         return list(self._scale_orders.values())
 
-    def get_scale_order(self, scale_order_id: str) -> Optional[ScaleOrder]:
+    def get_scale_order(self, scale_order_id: str) -> ScaleOrder | None:
         """
         Get a specific scale order by ID.
 

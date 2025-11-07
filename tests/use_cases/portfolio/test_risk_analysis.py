@@ -4,17 +4,18 @@ Unit tests for RiskAnalysisUseCase.
 Tests portfolio and position-level risk assessment logic.
 CRITICAL - bugs here = incorrect risk calculations.
 """
-import pytest
+
 from unittest.mock import Mock
+
+import pytest
+
+from src.services.risk_calculator import RiskLevel
 from src.use_cases.portfolio.risk_analysis import (
     RiskAnalysisRequest,
-    RiskAnalysisResponse,
     RiskAnalysisUseCase,
-    PositionRiskDetail
 )
-from src.services.risk_calculator import RiskLevel
-from tests.helpers.service_mocks import create_service_with_mocks, ServiceMockBuilder
 from tests.helpers.mock_data import PositionBuilder
+from tests.helpers.service_mocks import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestRiskAnalysisUseCase:
@@ -25,23 +26,23 @@ class TestRiskAnalysisUseCase:
         """Sample position data with varying risk levels using PositionBuilder."""
         return [
             PositionBuilder()
-                .with_coin("BTC")
-                .with_size(1.0)
-                .with_entry_price(48000.0)
-                .with_leverage(3, "cross")
-                .build(),
+            .with_coin("BTC")
+            .with_size(1.0)
+            .with_entry_price(48000.0)
+            .with_leverage(3, "cross")
+            .build(),
             PositionBuilder()
-                .with_coin("ETH")
-                .with_size(-10.0)  # Short position
-                .with_entry_price(3200.0)
-                .with_leverage(5, "isolated")
-                .build(),
+            .with_coin("ETH")
+            .with_size(-10.0)  # Short position
+            .with_entry_price(3200.0)
+            .with_leverage(5, "isolated")
+            .build(),
             PositionBuilder()
-                .with_coin("SOL")
-                .with_size(100.0)
-                .with_entry_price(140.0)
-                .with_leverage(2, "cross")
-                .build()
+            .with_coin("SOL")
+            .with_size(100.0)
+            .with_entry_price(140.0)
+            .with_leverage(2, "cross")
+            .build(),
         ]
 
     @pytest.fixture
@@ -51,12 +52,9 @@ class TestRiskAnalysisUseCase:
             "margin_summary": {
                 "account_value": 100000.0,
                 "available_balance": 70000.0,
-                "total_margin_used": 30000.0
+                "total_margin_used": 30000.0,
             },
-            "crossMarginSummary": {
-                "crossMaintenanceMarginUsed": "5000",
-                "accountValue": "100000"
-            }
+            "crossMarginSummary": {"crossMaintenanceMarginUsed": "5000", "accountValue": "100000"},
         }
 
     @pytest.fixture
@@ -69,13 +67,13 @@ class TestRiskAnalysisUseCase:
 
         return create_service_with_mocks(
             RiskAnalysisUseCase,
-            'src.use_cases.portfolio.risk_analysis',
+            "src.use_cases.portfolio.risk_analysis",
             {
-                'position_service': mock_position,
-                'account_service': mock_account,
-                'market_data_service': mock_market_data,
-                'risk_calculator': mock_risk
-            }
+                "position_service": mock_position,
+                "account_service": mock_account,
+                "market_data_service": mock_market_data,
+                "risk_calculator": mock_risk,
+            },
         )
 
     # ===================================================================
@@ -92,7 +90,7 @@ class TestRiskAnalysisUseCase:
         use_case.market_data.get_all_prices.return_value = {
             "BTC": 50000.0,
             "ETH": 3000.0,
-            "SOL": 150.0
+            "SOL": 150.0,
         }
 
         # Mock position risk assessments
@@ -102,29 +100,27 @@ class TestRiskAnalysisUseCase:
                 health_score=80,
                 liquidation_price=40000.0,
                 liquidation_distance_pct=20.0,
-                warnings=[]
+                warnings=[],
             ),
             Mock(
                 risk_level=RiskLevel.MODERATE,
                 health_score=60,
                 liquidation_price=3500.0,
                 liquidation_distance_pct=16.7,
-                warnings=["Moderate leverage on short position"]
+                warnings=["Moderate leverage on short position"],
             ),
             Mock(
                 risk_level=RiskLevel.SAFE,
                 health_score=90,
                 liquidation_price=100.0,
                 liquidation_distance_pct=33.3,
-                warnings=[]
-            )
+                warnings=[],
+            ),
         ]
 
         # Mock portfolio risk assessment
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.LOW,
-            portfolio_health_score=75,
-            warnings=[]
+            overall_risk_level=RiskLevel.LOW, portfolio_health_score=75, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -149,7 +145,9 @@ class TestRiskAnalysisUseCase:
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0
+            "BTC": 50000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
         }
 
         # Mock assessments
@@ -158,12 +156,10 @@ class TestRiskAnalysisUseCase:
             health_score=85,
             liquidation_price=30000.0,
             liquidation_distance_pct=40.0,
-            warnings=[]
+            warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=85,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest(include_cross_margin_ratio=True)
@@ -183,7 +179,9 @@ class TestRiskAnalysisUseCase:
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0
+            "BTC": 50000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
         }
 
         # Mock assessments
@@ -192,12 +190,10 @@ class TestRiskAnalysisUseCase:
             health_score=85,
             liquidation_price=30000.0,
             liquidation_distance_pct=40.0,
-            warnings=[]
+            warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=85,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest(include_cross_margin_ratio=False)
@@ -220,7 +216,9 @@ class TestRiskAnalysisUseCase:
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0
+            "BTC": 50000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
         }
 
         # Mock assessments (should only be called for BTC and ETH)
@@ -230,20 +228,18 @@ class TestRiskAnalysisUseCase:
                 health_score=80,
                 liquidation_price=40000.0,
                 liquidation_distance_pct=20.0,
-                warnings=[]
+                warnings=[],
             ),
             Mock(
                 risk_level=RiskLevel.MODERATE,
                 health_score=60,
                 liquidation_price=3500.0,
                 liquidation_distance_pct=16.7,
-                warnings=[]
-            )
+                warnings=[],
+            ),
         ]
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.LOW,
-            portfolio_health_score=70,
-            warnings=[]
+            overall_risk_level=RiskLevel.LOW, portfolio_health_score=70, warnings=[]
         )
 
         request = RiskAnalysisRequest(coins=["BTC", "ETH"])
@@ -261,36 +257,88 @@ class TestRiskAnalysisUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_risk_level_counts(
-        self, use_case,
-        sample_account_info
-    ):
+    async def test_risk_level_counts(self, use_case, sample_account_info):
         """Test risk level counts are correct."""
         # Positions with different risk levels
         positions = [
-            {"position": {"coin": "BTC", "size": 1.0, "entry_price": 50000.0, "leverage": {"value": 2, "type": "cross"}}},
-            {"position": {"coin": "ETH", "size": 1.0, "entry_price": 3000.0, "leverage": {"value": 5, "type": "cross"}}},
-            {"position": {"coin": "SOL", "size": 1.0, "entry_price": 150.0, "leverage": {"value": 10, "type": "cross"}}},
-            {"position": {"coin": "AVAX", "size": 1.0, "entry_price": 40.0, "leverage": {"value": 20, "type": "cross"}}},
+            {
+                "position": {
+                    "coin": "BTC",
+                    "size": 1.0,
+                    "entry_price": 50000.0,
+                    "leverage": {"value": 2, "type": "cross"},
+                }
+            },
+            {
+                "position": {
+                    "coin": "ETH",
+                    "size": 1.0,
+                    "entry_price": 3000.0,
+                    "leverage": {"value": 5, "type": "cross"},
+                }
+            },
+            {
+                "position": {
+                    "coin": "SOL",
+                    "size": 1.0,
+                    "entry_price": 150.0,
+                    "leverage": {"value": 10, "type": "cross"},
+                }
+            },
+            {
+                "position": {
+                    "coin": "AVAX",
+                    "size": 1.0,
+                    "entry_price": 40.0,
+                    "leverage": {"value": 20, "type": "cross"},
+                }
+            },
         ]
 
         use_case.position_service.list_positions.return_value = positions
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0, "AVAX": 40.0
+            "BTC": 50000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
+            "AVAX": 40.0,
         }
 
         # Mock different risk levels
         use_case.risk_calculator.assess_position_risk.side_effect = [
-            Mock(risk_level=RiskLevel.SAFE, health_score=95, liquidation_price=30000.0, liquidation_distance_pct=40.0, warnings=[]),
-            Mock(risk_level=RiskLevel.LOW, health_score=75, liquidation_price=2500.0, liquidation_distance_pct=16.7, warnings=[]),
-            Mock(risk_level=RiskLevel.HIGH, health_score=40, liquidation_price=135.0, liquidation_distance_pct=10.0, warnings=["High leverage"]),
-            Mock(risk_level=RiskLevel.CRITICAL, health_score=10, liquidation_price=38.0, liquidation_distance_pct=5.0, warnings=["Very close to liquidation"]),
+            Mock(
+                risk_level=RiskLevel.SAFE,
+                health_score=95,
+                liquidation_price=30000.0,
+                liquidation_distance_pct=40.0,
+                warnings=[],
+            ),
+            Mock(
+                risk_level=RiskLevel.LOW,
+                health_score=75,
+                liquidation_price=2500.0,
+                liquidation_distance_pct=16.7,
+                warnings=[],
+            ),
+            Mock(
+                risk_level=RiskLevel.HIGH,
+                health_score=40,
+                liquidation_price=135.0,
+                liquidation_distance_pct=10.0,
+                warnings=["High leverage"],
+            ),
+            Mock(
+                risk_level=RiskLevel.CRITICAL,
+                health_score=10,
+                liquidation_price=38.0,
+                liquidation_distance_pct=5.0,
+                warnings=["Very close to liquidation"],
+            ),
         ]
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
             overall_risk_level=RiskLevel.HIGH,
             portfolio_health_score=50,
-            warnings=["Multiple high-risk positions"]
+            warnings=["Multiple high-risk positions"],
         )
 
         request = RiskAnalysisRequest()
@@ -309,10 +357,7 @@ class TestRiskAnalysisUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_position_detail_fields(
-        self, use_case,
-        sample_account_info
-    ):
+    async def test_position_detail_fields(self, use_case, sample_account_info):
         """Test position risk detail includes all fields."""
         positions = [
             {
@@ -321,7 +366,7 @@ class TestRiskAnalysisUseCase:
                     "size": -0.5,  # Short
                     "entry_price": 52000.0,
                     "mark_price": 50000.0,
-                    "leverage": {"value": 3, "type": "isolated"}
+                    "leverage": {"value": 3, "type": "isolated"},
                 }
             }
         ]
@@ -335,12 +380,10 @@ class TestRiskAnalysisUseCase:
             health_score=65,
             liquidation_price=56000.0,
             liquidation_distance_pct=14.3,
-            warnings=["Price moved against short position"]
+            warnings=["Price moved against short position"],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.MODERATE,
-            portfolio_health_score=65,
-            warnings=[]
+            overall_risk_level=RiskLevel.MODERATE, portfolio_health_score=65, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -362,14 +405,25 @@ class TestRiskAnalysisUseCase:
         assert len(pos.warnings) == 1
 
     @pytest.mark.asyncio
-    async def test_position_side_determination(
-        self, use_case,
-        sample_account_info
-    ):
+    async def test_position_side_determination(self, use_case, sample_account_info):
         """Test position side (LONG/SHORT) is correctly determined."""
         positions = [
-            {"position": {"coin": "BTC", "size": 1.0, "entry_price": 50000.0, "leverage": {"value": 2, "type": "cross"}}},
-            {"position": {"coin": "ETH", "size": -10.0, "entry_price": 3000.0, "leverage": {"value": 2, "type": "cross"}}},
+            {
+                "position": {
+                    "coin": "BTC",
+                    "size": 1.0,
+                    "entry_price": 50000.0,
+                    "leverage": {"value": 2, "type": "cross"},
+                }
+            },
+            {
+                "position": {
+                    "coin": "ETH",
+                    "size": -10.0,
+                    "entry_price": 3000.0,
+                    "leverage": {"value": 2, "type": "cross"},
+                }
+            },
         ]
 
         use_case.position_service.list_positions.return_value = positions
@@ -381,12 +435,10 @@ class TestRiskAnalysisUseCase:
             health_score=85,
             liquidation_price=30000.0,
             liquidation_distance_pct=40.0,
-            warnings=[]
+            warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=85,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -401,10 +453,7 @@ class TestRiskAnalysisUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_price_fallback_to_mark_price(
-        self, use_case,
-        sample_account_info
-    ):
+    async def test_price_fallback_to_mark_price(self, use_case, sample_account_info):
         """Test price falls back to mark_price when not in price data."""
         positions = [
             {
@@ -413,7 +462,7 @@ class TestRiskAnalysisUseCase:
                     "size": 1.0,
                     "entry_price": 48000.0,
                     "mark_price": 49500.0,
-                    "leverage": {"value": 2, "type": "cross"}
+                    "leverage": {"value": 2, "type": "cross"},
                 }
             }
         ]
@@ -427,12 +476,10 @@ class TestRiskAnalysisUseCase:
             health_score=85,
             liquidation_price=30000.0,
             liquidation_distance_pct=40.0,
-            warnings=[]
+            warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=85,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -443,10 +490,7 @@ class TestRiskAnalysisUseCase:
         assert response.positions[0].current_price == 49500.0
 
     @pytest.mark.asyncio
-    async def test_price_fallback_to_entry_price(
-        self, use_case,
-        sample_account_info
-    ):
+    async def test_price_fallback_to_entry_price(self, use_case, sample_account_info):
         """Test price falls back to entry_price when mark_price unavailable."""
         positions = [
             {
@@ -455,7 +499,7 @@ class TestRiskAnalysisUseCase:
                     "size": 1.0,
                     "entry_price": 48000.0,
                     # No mark_price field
-                    "leverage": {"value": 2, "type": "cross"}
+                    "leverage": {"value": 2, "type": "cross"},
                 }
             }
         ]
@@ -469,12 +513,10 @@ class TestRiskAnalysisUseCase:
             health_score=85,
             liquidation_price=30000.0,
             liquidation_distance_pct=40.0,
-            warnings=[]
+            warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=85,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -489,14 +531,14 @@ class TestRiskAnalysisUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_account_metrics_included(
-        self, use_case, sample_positions, sample_account_info
-    ):
+    async def test_account_metrics_included(self, use_case, sample_positions, sample_account_info):
         """Test account metrics are included in response."""
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0
+            "BTC": 50000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
         }
 
         use_case.risk_calculator.assess_position_risk.return_value = Mock(
@@ -504,12 +546,10 @@ class TestRiskAnalysisUseCase:
             health_score=85,
             liquidation_price=30000.0,
             liquidation_distance_pct=40.0,
-            warnings=[]
+            warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=85,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -522,24 +562,20 @@ class TestRiskAnalysisUseCase:
         assert response.margin_utilization_pct == 30.0
 
     @pytest.mark.asyncio
-    async def test_margin_utilization_zero_account_value(
-        self, use_case
-    ):
+    async def test_margin_utilization_zero_account_value(self, use_case):
         """Test margin utilization handles zero account value."""
         use_case.position_service.list_positions.return_value = []
         use_case.account_service.get_account_info.return_value = {
             "margin_summary": {
                 "account_value": 0.0,
                 "available_balance": 0.0,
-                "total_margin_used": 0.0
+                "total_margin_used": 0.0,
             }
         }
         use_case.market_data.get_all_prices.return_value = {}
 
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=100,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=100, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -554,16 +590,13 @@ class TestRiskAnalysisUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_cross_margin_ratio_missing_data(
-        self, use_case,
-        sample_positions
-    ):
+    async def test_cross_margin_ratio_missing_data(self, use_case, sample_positions):
         """Test cross margin ratio handles missing data gracefully."""
         account_info_no_cross = {
             "margin_summary": {
                 "account_value": 100000.0,
                 "available_balance": 70000.0,
-                "total_margin_used": 30000.0
+                "total_margin_used": 30000.0,
             }
             # No crossMarginSummary
         }
@@ -571,7 +604,9 @@ class TestRiskAnalysisUseCase:
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = account_info_no_cross
         use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0
+            "BTC": 50000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
         }
 
         use_case.risk_calculator.assess_position_risk.return_value = Mock(
@@ -579,12 +614,10 @@ class TestRiskAnalysisUseCase:
             health_score=85,
             liquidation_price=30000.0,
             liquidation_distance_pct=40.0,
-            warnings=[]
+            warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=85,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=85, warnings=[]
         )
 
         request = RiskAnalysisRequest(include_cross_margin_ratio=True)
@@ -608,19 +641,31 @@ class TestRiskAnalysisUseCase:
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0
+            "BTC": 50000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
         }
 
         # First position fails, others succeed
         use_case.risk_calculator.assess_position_risk.side_effect = [
             Exception("API Error"),
-            Mock(risk_level=RiskLevel.LOW, health_score=75, liquidation_price=2500.0, liquidation_distance_pct=16.7, warnings=[]),
-            Mock(risk_level=RiskLevel.SAFE, health_score=90, liquidation_price=100.0, liquidation_distance_pct=33.3, warnings=[])
+            Mock(
+                risk_level=RiskLevel.LOW,
+                health_score=75,
+                liquidation_price=2500.0,
+                liquidation_distance_pct=16.7,
+                warnings=[],
+            ),
+            Mock(
+                risk_level=RiskLevel.SAFE,
+                health_score=90,
+                liquidation_price=100.0,
+                liquidation_distance_pct=33.3,
+                warnings=[],
+            ),
         ]
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.LOW,
-            portfolio_health_score=80,
-            warnings=[]
+            overall_risk_level=RiskLevel.LOW, portfolio_health_score=80, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -633,9 +678,7 @@ class TestRiskAnalysisUseCase:
         assert response.positions[1].coin == "SOL"
 
     @pytest.mark.asyncio
-    async def test_service_failure_raises_runtime_error(
-        self, use_case
-    ):
+    async def test_service_failure_raises_runtime_error(self, use_case):
         """Test service failure raises RuntimeError."""
         use_case.position_service.list_positions.side_effect = Exception("API Error")
 
@@ -649,19 +692,14 @@ class TestRiskAnalysisUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_no_positions(
-        self, use_case,
-        sample_account_info
-    ):
+    async def test_no_positions(self, use_case, sample_account_info):
         """Test risk analysis with no positions."""
         use_case.position_service.list_positions.return_value = []
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {}
 
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
-            overall_risk_level=RiskLevel.SAFE,
-            portfolio_health_score=100,
-            warnings=[]
+            overall_risk_level=RiskLevel.SAFE, portfolio_health_score=100, warnings=[]
         )
 
         request = RiskAnalysisRequest()
@@ -685,7 +723,9 @@ class TestRiskAnalysisUseCase:
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0, "ETH": 3000.0, "SOL": 150.0
+            "BTC": 50000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
         }
 
         use_case.risk_calculator.assess_position_risk.return_value = Mock(
@@ -693,12 +733,12 @@ class TestRiskAnalysisUseCase:
             health_score=85,
             liquidation_price=30000.0,
             liquidation_distance_pct=40.0,
-            warnings=[]
+            warnings=[],
         )
         use_case.risk_calculator.assess_portfolio_risk.return_value = Mock(
             overall_risk_level=RiskLevel.MODERATE,
             portfolio_health_score=65,
-            warnings=["High margin utilization", "Multiple correlated positions"]
+            warnings=["High margin utilization", "Multiple correlated positions"],
         )
 
         request = RiskAnalysisRequest()

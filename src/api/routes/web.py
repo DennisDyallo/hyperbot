@@ -1,6 +1,7 @@
 """
 Web UI routes for Hyperbot dashboard.
 """
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -23,7 +24,7 @@ async def dashboard(request: Request):
         {
             "request": request,
             "environment": settings.ENVIRONMENT,
-        }
+        },
     )
 
 
@@ -37,7 +38,7 @@ async def positions_page(request: Request):
         {
             "request": request,
             "environment": settings.ENVIRONMENT,
-        }
+        },
     )
 
 
@@ -51,5 +52,5 @@ async def rebalance_page(request: Request):
         {
             "request": request,
             "environment": settings.ENVIRONMENT,
-        }
+        },
     )

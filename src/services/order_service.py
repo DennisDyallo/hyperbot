@@ -4,19 +4,23 @@ Order service for managing trading orders.
 Integrates with LeverageService to ensure leverage transparency
 before every order placement.
 """
-from typing import Dict, Any, List, Optional
+
+from typing import Any
+
+from src.config import logger, settings
 from src.services.hyperliquid_service import hyperliquid_service
 from src.use_cases.common.response_parser import parse_hyperliquid_response
-from src.config import logger, settings
 
 # Import leverage service (imported after declaration to avoid circular imports)
 _leverage_service = None
+
 
 def get_leverage_service():
     """Lazy import to avoid circular dependency."""
     global _leverage_service
     if _leverage_service is None:
         from src.services.leverage_service import leverage_service
+
         _leverage_service = leverage_service
     return _leverage_service
 
@@ -28,7 +32,7 @@ class OrderService:
         """Initialize order service."""
         self.hyperliquid = hyperliquid_service
 
-    def list_open_orders(self) -> List[Dict[str, Any]]:
+    def list_open_orders(self) -> list[dict[str, Any]]:
         """
         List all open orders.
 
@@ -54,8 +58,13 @@ class OrderService:
             raise
 
     def place_market_order(
-        self, coin: str, is_buy: bool, size: float, slippage: float = 0.05
-    ) -> Dict[str, Any]:
+        self,
+        coin: str,
+        is_buy: bool,
+        size: float,
+        slippage: float = 0.05,
+        reduce_only: bool = False,
+    ) -> dict[str, Any]:
         """
         Place a market order.
 
@@ -64,6 +73,7 @@ class OrderService:
             is_buy: True for buy, False for sell
             size: Order size
             slippage: Maximum acceptable slippage (default 5%)
+            reduce_only: Only reduce existing position (default False)
 
         Returns:
             Dict with order result
@@ -81,14 +91,19 @@ class OrderService:
 
         try:
             side = "buy" if is_buy else "sell"
-            logger.info(
-                f"Placing market order: {coin} {side} {size} (slippage={slippage:.2%})"
-            )
+
+            # Note: market_open() does not support reduce_only parameter
+            # Reduce-only is only applicable to limit orders
+            if reduce_only:
+                logger.warning(
+                    f"reduce_only={reduce_only} requested for market order but not supported by API. "
+                    "Use limit orders for reduce_only functionality."
+                )
+
+            logger.info(f"Placing market order: {coin} {side} {size} (slippage={slippage:.2%})")
 
             exchange = self.hyperliquid.get_exchange_client()
-            result = exchange.market_open(
-                name=coin, is_buy=is_buy, sz=size, slippage=slippage
-            )
+            result = exchange.market_open(name=coin, is_buy=is_buy, sz=size, slippage=slippage)
 
             logger.info(f"Market order result: {result}")
 
@@ -121,7 +136,8 @@ class OrderService:
         size: float,
         limit_price: float,
         time_in_force: str = "Gtc",
-    ) -> Dict[str, Any]:
+        reduce_only: bool = False,
+    ) -> dict[str, Any]:
         """
         Place a limit order.
 
@@ -131,6 +147,7 @@ class OrderService:
             size: Order size
             limit_price: Limit price
             time_in_force: Time in force ("Gtc", "Ioc", "Alo") - default "Gtc"
+            reduce_only: Only reduce existing position (default False)
 
         Returns:
             Dict with order result
@@ -155,7 +172,7 @@ class OrderService:
         try:
             side = "buy" if is_buy else "sell"
             logger.info(
-                f"Placing limit order: {coin} {side} {size} @ ${limit_price} (TIF={time_in_force})"
+                f"Placing limit order: {coin} {side} {size} @ ${limit_price} (TIF={time_in_force}, reduce_only={reduce_only})"
             )
 
             exchange = self.hyperliquid.get_exchange_client()
@@ -165,6 +182,7 @@ class OrderService:
                 sz=size,
                 limit_px=limit_price,
                 order_type={"limit": {"tif": time_in_force}},
+                reduce_only=reduce_only,
             )
 
             logger.info(f"Limit order result: {result}")
@@ -193,7 +211,7 @@ class OrderService:
             logger.error(f"Failed to place limit order: {e}")
             raise
 
-    def cancel_order(self, coin: str, order_id: int) -> Dict[str, Any]:
+    def cancel_order(self, coin: str, order_id: int) -> dict[str, Any]:
         """
         Cancel a specific order.
 
@@ -236,7 +254,7 @@ class OrderService:
             logger.error(f"Failed to cancel order: {e}")
             raise
 
-    def cancel_all_orders(self) -> Dict[str, Any]:
+    def cancel_all_orders(self) -> dict[str, Any]:
         """
         Cancel all open orders.
 
@@ -283,9 +301,7 @@ class OrderService:
 
             # If any orders failed to cancel, raise exception
             if failed_orders:
-                raise RuntimeError(
-                    f"Failed to cancel {len(failed_orders)} orders: {failed_orders}"
-                )
+                raise RuntimeError(f"Failed to cancel {len(failed_orders)} orders: {failed_orders}")
 
             logger.info(f"Canceled {len(results)} orders")
 

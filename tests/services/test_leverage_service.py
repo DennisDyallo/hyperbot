@@ -3,10 +3,15 @@ Unit tests for LeverageService.
 
 Tests leverage management, validation, and liquidation price estimation.
 """
-import pytest
+
 from unittest.mock import Mock
-from src.services.leverage_service import LeverageService, LeverageValidation, LiquidationEstimate, LeverageSetting
-from tests.helpers.service_mocks import create_service_with_mocks, ServiceMockBuilder
+
+import pytest
+
+from src.services.leverage_service import (
+    LeverageService,
+)
+from tests.helpers.service_mocks import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestLeverageService:
@@ -20,11 +25,11 @@ class TestLeverageService:
 
         return create_service_with_mocks(
             LeverageService,
-            'src.services.leverage_service',
+            "src.services.leverage_service",
             {
-                'hyperliquid_service': mock_hyperliquid,
-                'position_service': ServiceMockBuilder.position_service()
-            }
+                "hyperliquid_service": mock_hyperliquid,
+                "position_service": ServiceMockBuilder.position_service(),
+            },
         )
 
     # ===================================================================
@@ -34,12 +39,7 @@ class TestLeverageService:
     def test_get_coin_leverage_with_position(self, service):
         """Test getting leverage for coin with open position."""
         service.position_service.list_positions.return_value = [
-            {
-                "position": {
-                    "coin": "BTC",
-                    "leverage_value": 3
-                }
-            }
+            {"position": {"coin": "BTC", "leverage_value": 3}}
         ]
 
         leverage = service.get_coin_leverage("BTC")
@@ -100,12 +100,7 @@ class TestLeverageService:
         has_open_position and enforcing the constraint.
         """
         service.position_service.list_positions.return_value = [
-            {
-                "position": {
-                    "coin": "BTC",
-                    "leverage_value": 3
-                }
-            }
+            {"position": {"coin": "BTC", "leverage_value": 3}}
         ]
 
         result = service.validate_leverage(5, coin="BTC")
@@ -136,12 +131,7 @@ class TestLeverageService:
     def test_set_coin_leverage_fails_with_existing_position(self, service):
         """Test setting leverage fails when position already exists."""
         service.position_service.list_positions.return_value = [
-            {
-                "position": {
-                    "coin": "BTC",
-                    "leverage_value": 2
-                }
-            }
+            {"position": {"coin": "BTC", "leverage_value": 2}}
         ]
 
         success, message = service.set_coin_leverage("BTC", 5)
@@ -168,11 +158,7 @@ class TestLeverageService:
     def test_estimate_liquidation_price_long(self, service):
         """Test liquidation price estimation for long position."""
         result = service.estimate_liquidation_price(
-            coin="BTC",
-            entry_price=100000.0,
-            size=1.0,
-            leverage=3,
-            is_long=True
+            coin="BTC", entry_price=100000.0, size=1.0, leverage=3, is_long=True
         )
 
         assert result.coin == "BTC"
@@ -187,11 +173,7 @@ class TestLeverageService:
     def test_estimate_liquidation_price_short(self, service):
         """Test liquidation price estimation for short position."""
         result = service.estimate_liquidation_price(
-            coin="BTC",
-            entry_price=100000.0,
-            size=1.0,
-            leverage=3,
-            is_long=False
+            coin="BTC", entry_price=100000.0, size=1.0, leverage=3, is_long=False
         )
 
         assert result.coin == "BTC"
@@ -204,11 +186,7 @@ class TestLeverageService:
     def test_estimate_liquidation_price_high_leverage(self, service):
         """Test liquidation price estimation with high leverage."""
         result = service.estimate_liquidation_price(
-            coin="ETH",
-            entry_price=4000.0,
-            size=10.0,
-            leverage=10,
-            is_long=True
+            coin="ETH", entry_price=4000.0, size=10.0, leverage=10, is_long=True
         )
 
         # With 10x leverage, liquidation is much closer to entry
@@ -220,11 +198,7 @@ class TestLeverageService:
     def test_estimate_liquidation_calculates_position_value(self, service):
         """Test that position value and margin are calculated correctly."""
         result = service.estimate_liquidation_price(
-            coin="SOL",
-            entry_price=200.0,
-            size=100.0,
-            leverage=5,
-            is_long=True
+            coin="SOL", entry_price=200.0, size=100.0, leverage=5, is_long=True
         )
 
         expected_position_value = 200.0 * 100.0  # 20,000
@@ -244,16 +218,16 @@ class TestLeverageService:
                 "position": {
                     "coin": "BTC",
                     "leverage": {"value": 3, "type": "cross"},
-                    "position_value": 10000.0
+                    "position_value": 10000.0,
                 }
             },
             {
                 "position": {
                     "coin": "ETH",
                     "leverage": {"value": 5, "type": "isolated"},
-                    "position_value": 5000.0
+                    "position_value": 5000.0,
                 }
-            }
+            },
         ]
 
         settings = service.get_all_leverage_settings()
@@ -281,12 +255,7 @@ class TestLeverageService:
     def test_get_leverage_for_order_with_position(self, service):
         """Test getting leverage for order when position exists."""
         service.position_service.list_positions.return_value = [
-            {
-                "position": {
-                    "coin": "BTC",
-                    "leverage_value": 4
-                }
-            }
+            {"position": {"coin": "BTC", "leverage_value": 4}}
         ]
 
         leverage, needs_setting = service.get_leverage_for_order("BTC", default_leverage=3)
@@ -327,11 +296,11 @@ class TestLeverageServiceExceptionHandling:
 
         return create_service_with_mocks(
             LeverageService,
-            'src.services.leverage_service',
+            "src.services.leverage_service",
             {
-                'hyperliquid_service': mock_hyperliquid,
-                'position_service': ServiceMockBuilder.position_service()
-            }
+                "hyperliquid_service": mock_hyperliquid,
+                "position_service": ServiceMockBuilder.position_service(),
+            },
         )
 
     def test_get_coin_leverage_exception_returns_none(self, service):
@@ -363,11 +332,7 @@ class TestLeverageServiceExceptionHandling:
     def test_estimate_liquidation_price_long_position(self, service):
         """Test liquidation price estimation for long position."""
         estimate = service.estimate_liquidation_price(
-            coin="BTC",
-            entry_price=100000.0,
-            size=1.0,
-            leverage=10,
-            is_long=True
+            coin="BTC", entry_price=100000.0, size=1.0, leverage=10, is_long=True
         )
 
         assert estimate.coin == "BTC"
@@ -378,11 +343,7 @@ class TestLeverageServiceExceptionHandling:
     def test_estimate_liquidation_price_short_position(self, service):
         """Test liquidation price estimation for short position."""
         estimate = service.estimate_liquidation_price(
-            coin="ETH",
-            entry_price=100000.0,
-            size=1.0,
-            leverage=10,
-            is_long=False
+            coin="ETH", entry_price=100000.0, size=1.0, leverage=10, is_long=False
         )
 
         assert estimate.coin == "ETH"
@@ -393,11 +354,7 @@ class TestLeverageServiceExceptionHandling:
     def test_estimate_liquidation_price_extreme_leverage(self, service):
         """Test liquidation price with extreme leverage."""
         estimate = service.estimate_liquidation_price(
-            coin="SOL",
-            entry_price=100000.0,
-            size=1.0,
-            leverage=25,
-            is_long=True
+            coin="SOL", entry_price=100000.0, size=1.0, leverage=25, is_long=True
         )
 
         # Extreme leverage should result in EXTREME risk level
@@ -406,20 +363,14 @@ class TestLeverageServiceExceptionHandling:
     def test_estimate_liquidation_price_high_leverage_comparison(self, service):
         """Test that higher leverage means closer liquidation price."""
         estimate_5x = service.estimate_liquidation_price(
-            coin="BTC",
-            entry_price=100000.0,
-            size=1.0,
-            leverage=5,
-            is_long=True
+            coin="BTC", entry_price=100000.0, size=1.0, leverage=5, is_long=True
         )
 
         estimate_20x = service.estimate_liquidation_price(
-            coin="BTC",
-            entry_price=100000.0,
-            size=1.0,
-            leverage=20,
-            is_long=True
+            coin="BTC", entry_price=100000.0, size=1.0, leverage=20, is_long=True
         )
 
         # Higher leverage means closer to entry price (smaller distance)
-        assert abs(estimate_20x.liquidation_distance_pct) < abs(estimate_5x.liquidation_distance_pct)
+        assert abs(estimate_20x.liquidation_distance_pct) < abs(
+            estimate_5x.liquidation_distance_pct
+        )

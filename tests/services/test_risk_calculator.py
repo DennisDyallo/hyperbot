@@ -4,13 +4,13 @@ Unit tests for RiskCalculator.
 Tests risk assessment, liquidation distance calculation, and warning generation.
 This is a critical service for trading safety - comprehensive testing required.
 """
+
 import pytest
+
 from src.services.risk_calculator import (
     RiskCalculator,
     RiskLevel,
     RiskThresholds,
-    PositionRisk,
-    PortfolioRisk
 )
 from tests.helpers.mock_data import PositionBuilder
 
@@ -27,10 +27,7 @@ class TestRiskCalculator:
     def custom_calculator(self):
         """Create RiskCalculator with custom thresholds."""
         thresholds = RiskThresholds(
-            safe_distance=60.0,
-            low_distance=40.0,
-            moderate_distance=20.0,
-            high_distance=10.0
+            safe_distance=60.0, low_distance=40.0, moderate_distance=20.0, high_distance=10.0
         )
         return RiskCalculator(thresholds)
 
@@ -50,10 +47,7 @@ class TestRiskCalculator:
     def test_init_with_custom_thresholds(self):
         """Test initialization with custom risk thresholds."""
         custom_thresholds = RiskThresholds(
-            safe_distance=60.0,
-            low_distance=40.0,
-            moderate_distance=20.0,
-            high_distance=10.0
+            safe_distance=60.0, low_distance=40.0, moderate_distance=20.0, high_distance=10.0
         )
         calc = RiskCalculator(custom_thresholds)
 
@@ -97,9 +91,7 @@ class TestRiskCalculator:
     def test_calculate_liquidation_distance_no_liquidation_price(self, calculator):
         """Test liquidation distance returns None when no liquidation price."""
         distance_pct, distance_usd = calculator.calculate_liquidation_distance(
-            current_price=50000.0,
-            liquidation_price=None,
-            position_size=1.0
+            current_price=50000.0, liquidation_price=None, position_size=1.0
         )
 
         assert distance_pct is None
@@ -108,9 +100,7 @@ class TestRiskCalculator:
     def test_calculate_liquidation_distance_zero_liquidation_price(self, calculator):
         """Test liquidation distance returns None for zero liquidation price."""
         distance_pct, distance_usd = calculator.calculate_liquidation_distance(
-            current_price=50000.0,
-            liquidation_price=0.0,
-            position_size=1.0
+            current_price=50000.0, liquidation_price=0.0, position_size=1.0
         )
 
         assert distance_pct is None
@@ -121,7 +111,7 @@ class TestRiskCalculator:
         distance_pct, distance_usd = calculator.calculate_liquidation_distance(
             current_price=3000.0,
             liquidation_price=2700.0,
-            position_size=100.0  # 100 ETH
+            position_size=100.0,  # 100 ETH
         )
 
         # Percentage should be same regardless of position size
@@ -205,7 +195,7 @@ class TestRiskCalculator:
         # 40% distance would normally be LOW
         risk = calculator.determine_risk_level(
             liquidation_distance_pct=40.0,
-            margin_utilization_pct=90.0  # Very high margin usage
+            margin_utilization_pct=90.0,  # Very high margin usage
         )
         # Should be elevated to MODERATE
         assert risk == RiskLevel.MODERATE
@@ -255,7 +245,7 @@ class TestRiskCalculator:
             risk_level=RiskLevel.CRITICAL,
             liquidation_distance_pct=5.0,
             leverage=3,
-            unrealized_pnl=-50.0
+            unrealized_pnl=-50.0,
         )
 
         assert len(warnings) > 0
@@ -268,7 +258,7 @@ class TestRiskCalculator:
             risk_level=RiskLevel.HIGH,
             liquidation_distance_pct=10.0,
             leverage=5,
-            unrealized_pnl=-25.0
+            unrealized_pnl=-25.0,
         )
 
         assert len(warnings) > 0
@@ -280,7 +270,7 @@ class TestRiskCalculator:
             risk_level=RiskLevel.LOW,
             liquidation_distance_pct=40.0,
             leverage=15,  # High leverage
-            unrealized_pnl=10.0
+            unrealized_pnl=10.0,
         )
 
         assert any("leverage" in w.lower() for w in warnings)
@@ -292,7 +282,7 @@ class TestRiskCalculator:
             risk_level=RiskLevel.LOW,
             liquidation_distance_pct=40.0,
             leverage=3,
-            unrealized_pnl=-500.0  # Large loss
+            unrealized_pnl=-500.0,  # Large loss
         )
 
         assert any("unrealized loss" in w.lower() for w in warnings)
@@ -303,7 +293,7 @@ class TestRiskCalculator:
             risk_level=RiskLevel.SAFE,
             liquidation_distance_pct=60.0,
             leverage=3,
-            unrealized_pnl=100.0
+            unrealized_pnl=100.0,
         )
 
         # Should have minimal or no warnings
@@ -316,9 +306,7 @@ class TestRiskCalculator:
     def test_generate_recommendations_critical(self, calculator):
         """Test recommendations for CRITICAL risk."""
         recs = calculator.generate_recommendations(
-            risk_level=RiskLevel.CRITICAL,
-            liquidation_distance_pct=5.0,
-            leverage=10
+            risk_level=RiskLevel.CRITICAL, liquidation_distance_pct=5.0, leverage=10
         )
 
         assert len(recs) > 0
@@ -327,9 +315,7 @@ class TestRiskCalculator:
     def test_generate_recommendations_high(self, calculator):
         """Test recommendations for HIGH risk."""
         recs = calculator.generate_recommendations(
-            risk_level=RiskLevel.HIGH,
-            liquidation_distance_pct=10.0,
-            leverage=8
+            risk_level=RiskLevel.HIGH, liquidation_distance_pct=10.0, leverage=8
         )
 
         assert len(recs) > 0
@@ -340,7 +326,7 @@ class TestRiskCalculator:
         recs = calculator.generate_recommendations(
             risk_level=RiskLevel.MODERATE,
             liquidation_distance_pct=20.0,
-            leverage=20  # Extreme leverage
+            leverage=20,  # Extreme leverage
         )
 
         assert any("leverage" in r.lower() and "20x" in r for r in recs)
@@ -365,9 +351,7 @@ class TestRiskCalculator:
         )
 
         risk = calculator.assess_position_risk(
-            position_data,
-            current_price=50000.0,
-            margin_utilization_pct=50.0
+            position_data, current_price=50000.0, margin_utilization_pct=50.0
         )
 
         assert risk.coin == "BTC"
@@ -396,10 +380,7 @@ class TestRiskCalculator:
             .build()["position"]  # Extract inner dict
         )
 
-        risk = calculator.assess_position_risk(
-            position_data,
-            current_price=150.0
-        )
+        risk = calculator.assess_position_risk(position_data, current_price=150.0)
 
         assert len(risk.warnings) > 0  # Should have warnings for high leverage
 
@@ -428,9 +409,7 @@ class TestRiskCalculator:
 
         prices = {"BTC": 50000.0}
 
-        portfolio_risk = calculator.assess_portfolio_risk(
-            positions, margin_summary, prices
-        )
+        portfolio_risk = calculator.assess_portfolio_risk(positions, margin_summary, prices)
 
         assert portfolio_risk.position_count == 1
         assert portfolio_risk.account_value == 100000.0
@@ -457,7 +436,7 @@ class TestRiskCalculator:
             .with_pnl(2000.0)
             .with_leverage(2, "cross")
             .with_liquidation_price(2400.0)
-            .build()
+            .build(),
         ]
 
         margin_summary = {
@@ -467,9 +446,7 @@ class TestRiskCalculator:
 
         prices = {"BTC": 50000.0, "ETH": 3000.0}
 
-        portfolio_risk = calculator.assess_portfolio_risk(
-            positions, margin_summary, prices
-        )
+        portfolio_risk = calculator.assess_portfolio_risk(positions, margin_summary, prices)
 
         assert portfolio_risk.position_count == 2
         assert sum(portfolio_risk.positions_by_risk.values()) == 2
@@ -481,14 +458,12 @@ class TestRiskCalculator:
         margin_summary = {
             "account_value": 100000.0,
             "total_margin_used": 50000.0,
-            "cross_margin_ratio_pct": 75.0  # HIGH risk (70-90%)
+            "cross_margin_ratio_pct": 75.0,  # HIGH risk (70-90%)
         }
 
         prices = {}
 
-        portfolio_risk = calculator.assess_portfolio_risk(
-            positions, margin_summary, prices
-        )
+        portfolio_risk = calculator.assess_portfolio_risk(positions, margin_summary, prices)
 
         # Should use Cross Margin Ratio for overall risk
         assert portfolio_risk.overall_risk_level == RiskLevel.HIGH
@@ -514,9 +489,7 @@ class TestRiskCalculator:
 
         prices = {"AVAX": 40.0}
 
-        portfolio_risk = calculator.assess_portfolio_risk(
-            positions, margin_summary, prices
-        )
+        portfolio_risk = calculator.assess_portfolio_risk(positions, margin_summary, prices)
 
         # Should identify AVAX as critical or high risk
         assert (
@@ -531,13 +504,11 @@ class TestRiskCalculator:
         margin_summary = {
             "account_value": 10000.0,
             "total_margin_used": 9000.0,  # 90% utilization!
-            "cross_margin_ratio_pct": 85.0
+            "cross_margin_ratio_pct": 85.0,
         }
 
         prices = {}
 
-        portfolio_risk = calculator.assess_portfolio_risk(
-            positions, margin_summary, prices
-        )
+        portfolio_risk = calculator.assess_portfolio_risk(positions, margin_summary, prices)
 
         assert len(portfolio_risk.warnings) > 0

@@ -9,53 +9,39 @@ Migration Guide:
     - New builder-based fixtures available for cleaner tests
     - See end of file for migration examples
 """
+
+from typing import Any
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
-from typing import Dict, Any
 
 # Import helpers for use in fixtures and tests
 from tests.helpers import (
-    PositionBuilder,
     AccountSummaryBuilder,
+    ContextBuilder,
     MarketDataBuilder,
+    PositionBuilder,
     ServiceMockBuilder,
-    TelegramMockFactory,
     UpdateBuilder,
-    ContextBuilder
 )
-
 
 # =============================================================================
 # Mock Data Fixtures
 # =============================================================================
 
+
 @pytest.fixture
-def mock_asset_metadata() -> Dict[str, Any]:
+def mock_asset_metadata() -> dict[str, Any]:
     """Mock Hyperliquid asset metadata."""
     return {
-        "BTC": {
-            "name": "BTC",
-            "szDecimals": 5,
-            "maxLeverage": 50,
-            "onlyIsolated": False
-        },
-        "ETH": {
-            "name": "ETH",
-            "szDecimals": 4,
-            "maxLeverage": 50,
-            "onlyIsolated": False
-        },
-        "SOL": {
-            "name": "SOL",
-            "szDecimals": 1,
-            "maxLeverage": 20,
-            "onlyIsolated": False
-        }
+        "BTC": {"name": "BTC", "szDecimals": 5, "maxLeverage": 50, "onlyIsolated": False},
+        "ETH": {"name": "ETH", "szDecimals": 4, "maxLeverage": 50, "onlyIsolated": False},
+        "SOL": {"name": "SOL", "szDecimals": 1, "maxLeverage": 20, "onlyIsolated": False},
     }
 
 
 @pytest.fixture
-def mock_prices() -> Dict[str, float]:
+def mock_prices() -> dict[str, float]:
     """Mock market prices."""
     return {
         "BTC": 104088.0,
@@ -63,12 +49,12 @@ def mock_prices() -> Dict[str, float]:
         "SOL": 161.64,
         "ARB": 0.85,
         "AVAX": 35.20,
-        "MATIC": 0.92
+        "MATIC": 0.92,
     }
 
 
 @pytest.fixture
-def mock_position_data() -> Dict[str, Any]:
+def mock_position_data() -> dict[str, Any]:
     """Mock position data from Hyperliquid."""
     return {
         "position": {
@@ -79,13 +65,13 @@ def mock_position_data() -> Dict[str, Any]:
             "unrealized_pnl": 5.25,
             "return_on_equity": 0.0117,
             "leverage": 2.5,
-            "liquidation_price": 95000.0
+            "liquidation_price": 95000.0,
         }
     }
 
 
 @pytest.fixture
-def mock_account_summary() -> Dict[str, Any]:
+def mock_account_summary() -> dict[str, Any]:
     """Mock account summary data."""
     return {
         "wallet_address": "0xF67332761483018d2e604A094d7f00cA8230e881",
@@ -97,7 +83,7 @@ def mock_account_summary() -> Dict[str, Any]:
         "num_perp_positions": 3,
         "num_spot_balances": 5,
         "total_unrealized_pnl": 125.50,
-        "cross_margin_ratio_pct": 22.35
+        "cross_margin_ratio_pct": 22.35,
     }
 
 
@@ -105,15 +91,14 @@ def mock_account_summary() -> Dict[str, Any]:
 # Service Mock Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_market_data_service(mock_prices, mock_asset_metadata):
     """Mock MarketDataService."""
     service = Mock()
     service.get_price = Mock(side_effect=lambda coin: mock_prices.get(coin))
     service.get_all_prices = Mock(return_value=mock_prices)
-    service.get_asset_metadata = Mock(
-        side_effect=lambda coin: mock_asset_metadata.get(coin)
-    )
+    service.get_asset_metadata = Mock(side_effect=lambda coin: mock_asset_metadata.get(coin))
     return service
 
 
@@ -121,10 +106,12 @@ def mock_market_data_service(mock_prices, mock_asset_metadata):
 def mock_order_service():
     """Mock OrderService."""
     service = Mock()
-    service.place_market_order = Mock(return_value={
-        "status": "success",
-        "result": {"statuses": [{"filled": {"totalSz": "0.00432", "avgPx": "104088.0"}}]}
-    })
+    service.place_market_order = Mock(
+        return_value={
+            "status": "success",
+            "result": {"statuses": [{"filled": {"totalSz": "0.00432", "avgPx": "104088.0"}}]},
+        }
+    )
     return service
 
 
@@ -134,12 +121,14 @@ def mock_position_service(mock_position_data):
     service = Mock()
     service.get_position = Mock(return_value=mock_position_data)
     service.list_positions = Mock(return_value=[mock_position_data])
-    service.close_position = Mock(return_value={
-        "status": "success",
-        "coin": "BTC",
-        "size_closed": 0.00432,
-        "result": {"status": "ok"}
-    })
+    service.close_position = Mock(
+        return_value={
+            "status": "success",
+            "coin": "BTC",
+            "size_closed": 0.00432,
+            "result": {"status": "ok"},
+        }
+    )
     return service
 
 
@@ -154,6 +143,7 @@ def mock_account_service(mock_account_summary):
 # =============================================================================
 # Telegram Mock Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_telegram_update():
@@ -195,29 +185,27 @@ def mock_telegram_context():
 # Hyperliquid SDK Mock Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_hyperliquid_info():
     """Mock Hyperliquid Info API client."""
     info = Mock()
-    info.all_mids = Mock(return_value={
-        "BTC": "104088.0",
-        "ETH": "3850.50",
-        "SOL": "161.64"
-    })
-    info.user_state = Mock(return_value={
-        "marginSummary": {
-            "accountValue": "10942.58",
-            "totalMarginUsed": "2442.58"
-        },
-        "assetPositions": []
-    })
-    info.meta = Mock(return_value={
-        "universe": [
-            {"name": "BTC", "szDecimals": 5},
-            {"name": "ETH", "szDecimals": 4},
-            {"name": "SOL", "szDecimals": 1}
-        ]
-    })
+    info.all_mids = Mock(return_value={"BTC": "104088.0", "ETH": "3850.50", "SOL": "161.64"})
+    info.user_state = Mock(
+        return_value={
+            "marginSummary": {"accountValue": "10942.58", "totalMarginUsed": "2442.58"},
+            "assetPositions": [],
+        }
+    )
+    info.meta = Mock(
+        return_value={
+            "universe": [
+                {"name": "BTC", "szDecimals": 5},
+                {"name": "ETH", "szDecimals": 4},
+                {"name": "SOL", "szDecimals": 1},
+            ]
+        }
+    )
     return info
 
 
@@ -225,20 +213,24 @@ def mock_hyperliquid_info():
 def mock_hyperliquid_exchange():
     """Mock Hyperliquid Exchange API client."""
     exchange = Mock()
-    exchange.market_open = Mock(return_value={
-        "status": "ok",
-        "response": {
-            "type": "order",
-            "data": {"statuses": [{"filled": {"totalSz": "0.00432", "avgPx": "104088.0"}}]}
+    exchange.market_open = Mock(
+        return_value={
+            "status": "ok",
+            "response": {
+                "type": "order",
+                "data": {"statuses": [{"filled": {"totalSz": "0.00432", "avgPx": "104088.0"}}]},
+            },
         }
-    })
-    exchange.market_close = Mock(return_value={
-        "status": "ok",
-        "response": {
-            "type": "order",
-            "data": {"statuses": [{"filled": {"totalSz": "0.00432", "avgPx": "104088.0"}}]}
+    )
+    exchange.market_close = Mock(
+        return_value={
+            "status": "ok",
+            "response": {
+                "type": "order",
+                "data": {"statuses": [{"filled": {"totalSz": "0.00432", "avgPx": "104088.0"}}]},
+            },
         }
-    })
+    )
     return exchange
 
 
@@ -261,6 +253,7 @@ def mock_hyperliquid_service(mock_hyperliquid_info, mock_hyperliquid_exchange):
 # =============================================================================
 # New Builder Fixtures (For convenience in tests)
 # =============================================================================
+
 
 @pytest.fixture
 def position_builder():
@@ -326,6 +319,7 @@ def context_builder():
 # Additional Service Mock Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_leverage_service():
     """
@@ -354,6 +348,7 @@ def mock_rebalance_service():
 # User ID Fixtures for Authorization Testing
 # =============================================================================
 
+
 @pytest.fixture
 def authorized_user_id() -> int:
     """Return the default authorized user ID (1383283890)."""
@@ -370,6 +365,7 @@ def unauthorized_user_id() -> int:
 # Pytest Configuration
 # =============================================================================
 
+
 def pytest_configure(config):
     """
     Pytest configuration hook.
@@ -377,17 +373,10 @@ def pytest_configure(config):
     Adds custom markers for categorizing tests.
     """
     config.addinivalue_line(
-        "markers",
-        "integration: marks tests as integration tests (requires real services)"
+        "markers", "integration: marks tests as integration tests (requires real services)"
     )
-    config.addinivalue_line(
-        "markers",
-        "unit: marks tests as unit tests (fully mocked)"
-    )
-    config.addinivalue_line(
-        "markers",
-        "slow: marks tests as slow (may take several seconds)"
-    )
+    config.addinivalue_line("markers", "unit: marks tests as unit tests (fully mocked)")
+    config.addinivalue_line("markers", "slow: marks tests as slow (may take several seconds)")
 
 
 # =============================================================================

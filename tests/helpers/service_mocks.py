@@ -9,15 +9,13 @@ Implements the Service Singleton Mocking Pattern from CLAUDE.md to avoid common 
 Reference: docs/CLAUDE.md - Testing Best Practices > Service Singleton Mocking Pattern
 """
 
-from typing import Type, Dict, Any, Optional
-from unittest.mock import Mock, AsyncMock, patch
 from contextlib import contextmanager
+from typing import Any
+from unittest.mock import AsyncMock, Mock, patch
 
 
 def create_service_with_mocks(
-    service_class: Type,
-    module_path: str,
-    dependencies: Dict[str, Mock]
+    service_class: type, module_path: str, dependencies: dict[str, Mock]
 ) -> Any:
     """
     Factory for creating service instances with properly mocked dependencies.
@@ -54,8 +52,7 @@ def create_service_with_mocks(
     """
     # Build nested context managers for all patches
     patches = [
-        patch(f'{module_path}.{dep_name}', mock_obj)
-        for dep_name, mock_obj in dependencies.items()
+        patch(f"{module_path}.{dep_name}", mock_obj) for dep_name, mock_obj in dependencies.items()
     ]
 
     # Enter all patch contexts
@@ -71,7 +68,9 @@ def create_service_with_mocks(
         for dep_name, mock_obj in dependencies.items():
             # Handle common attribute name mappings
             # e.g., 'hyperliquid_service' -> 'hyperliquid'
-            attr_name = dep_name.replace('_service', '') if dep_name.endswith('_service') else dep_name
+            attr_name = (
+                dep_name.replace("_service", "") if dep_name.endswith("_service") else dep_name
+            )
             if hasattr(service, attr_name):
                 setattr(service, attr_name, mock_obj)
             elif hasattr(service, dep_name):
@@ -149,7 +148,7 @@ class ServiceMockBuilder:
         return mock
 
     @staticmethod
-    def market_data_service(prices: Optional[Dict[str, float]] = None) -> Mock:
+    def market_data_service(prices: dict[str, float] | None = None) -> Mock:
         """
         Create a mock MarketDataService.
 
@@ -197,7 +196,7 @@ class ServiceMockBuilder:
 
 
 @contextmanager
-def service_fixture(service_class: Type, module_path: str, **dependencies):
+def service_fixture(service_class: type, module_path: str, **dependencies):
     """
     Context manager for creating service with mocked dependencies.
 

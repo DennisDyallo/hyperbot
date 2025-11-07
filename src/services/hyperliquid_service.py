@@ -2,11 +2,13 @@
 Hyperliquid service for interacting with the Hyperliquid API.
 Provides a wrapper around the hyperliquid-python-sdk.
 """
-from typing import Optional, Dict, Any
-from hyperliquid.info import Info
-from hyperliquid.exchange import Exchange
-from hyperliquid.utils import constants
+
+from typing import Any
+
 from eth_account import Account
+from hyperliquid.exchange import Exchange
+from hyperliquid.info import Info
+from hyperliquid.utils import constants
 
 from src.config import logger, settings
 
@@ -16,8 +18,8 @@ class HyperliquidService:
 
     def __init__(self):
         """Initialize Hyperliquid service."""
-        self.info: Optional[Info] = None
-        self.exchange: Optional[Exchange] = None
+        self.info: Info | None = None
+        self.exchange: Exchange | None = None
         self._initialized = False
 
     def initialize(self) -> None:
@@ -71,7 +73,7 @@ class HyperliquidService:
             logger.error(f"Failed to initialize HyperliquidService: {e}")
             raise
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """
         Perform health check on Hyperliquid connection.
 
@@ -91,7 +93,9 @@ class HyperliquidService:
             "testnet": settings.HYPERLIQUID_TESTNET,
             "info_api": False,
             "exchange_api": False,
-            "wallet_address": settings.HYPERLIQUID_WALLET_ADDRESS if settings.HYPERLIQUID_WALLET_ADDRESS else None,
+            "wallet_address": settings.HYPERLIQUID_WALLET_ADDRESS
+            if settings.HYPERLIQUID_WALLET_ADDRESS
+            else None,
         }
 
         # Test Info API
@@ -101,7 +105,9 @@ class HyperliquidService:
                 meta = self.info.meta()
                 result["info_api"] = True
                 result["available_pairs"] = len(meta.get("universe", []))
-                logger.debug(f"Info API health check passed - {result['available_pairs']} pairs available")
+                logger.debug(
+                    f"Info API health check passed - {result['available_pairs']} pairs available"
+                )
         except Exception as e:
             logger.error(f"Info API health check failed: {e}")
             result["info_api_error"] = str(e)
@@ -112,8 +118,12 @@ class HyperliquidService:
                 # Try to fetch user state
                 user_state = self.info.user_state(settings.HYPERLIQUID_WALLET_ADDRESS)
                 result["exchange_api"] = True
-                result["account_value"] = user_state.get("marginSummary", {}).get("accountValue", "0")
-                logger.debug(f"Exchange API health check passed - Account value: ${result['account_value']}")
+                result["account_value"] = user_state.get("marginSummary", {}).get(
+                    "accountValue", "0"
+                )
+                logger.debug(
+                    f"Exchange API health check passed - Account value: ${result['account_value']}"
+                )
             except Exception as e:
                 logger.error(f"Exchange API health check failed: {e}")
                 result["exchange_api_error"] = str(e)
@@ -172,8 +182,8 @@ class HyperliquidService:
         size: float,
         price: float,
         reduce_only: bool = False,
-        time_in_force: str = "Gtc"
-    ) -> Dict[str, Any]:
+        time_in_force: str = "Gtc",
+    ) -> dict[str, Any]:
         """
         Place a limit order.
 
@@ -214,7 +224,7 @@ class HyperliquidService:
                 sz=size,
                 limit_px=price,
                 order_type={"limit": {"tif": time_in_force}},
-                reduce_only=reduce_only
+                reduce_only=reduce_only,
             )
 
             logger.debug(f"Limit order result: {result}")
@@ -224,7 +234,7 @@ class HyperliquidService:
             logger.error(f"Failed to place limit order: {e}")
             raise
 
-    async def cancel_order(self, coin: str, order_id: int) -> Dict[str, Any]:
+    async def cancel_order(self, coin: str, order_id: int) -> dict[str, Any]:
         """
         Cancel an order.
 

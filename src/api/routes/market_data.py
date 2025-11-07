@@ -1,16 +1,19 @@
 """
 Market data API routes.
 """
+
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
-from src.services import market_data_service
+
 from src.config import logger
+from src.services import market_data_service
 
 router = APIRouter(prefix="/api/market", tags=["market_data"])
 
 
 @router.get("/prices", summary="Get all market prices")
-async def get_all_prices() -> Dict[str, float]:
+async def get_all_prices() -> dict[str, float]:
     """
     Get current mid prices for all trading pairs.
 
@@ -31,11 +34,11 @@ async def get_all_prices() -> Dict[str, float]:
 
     except Exception as e:
         logger.error(f"Error fetching all prices: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/price/{coin}", summary="Get price for specific coin")
-async def get_price(coin: str) -> Dict[str, Any]:
+async def get_price(coin: str) -> dict[str, Any]:
     """
     Get current mid price for a specific coin.
 
@@ -60,15 +63,15 @@ async def get_price(coin: str) -> Dict[str, Any]:
 
     except ValueError as e:
         logger.warning(f"Invalid coin: {coin}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     except Exception as e:
         logger.error(f"Error fetching price for {coin}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/info", summary="Get market metadata")
-async def get_market_info() -> Dict[str, Any]:
+async def get_market_info() -> dict[str, Any]:
     """
     Get exchange metadata including available pairs, tick sizes, and limits.
 
@@ -98,11 +101,11 @@ async def get_market_info() -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Error fetching market info: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/orderbook/{coin}", summary="Get order book for coin")
-async def get_order_book(coin: str) -> Dict[str, Any]:
+async def get_order_book(coin: str) -> dict[str, Any]:
     """
     Get Level 2 order book snapshot for a specific coin.
 
@@ -139,15 +142,15 @@ async def get_order_book(coin: str) -> Dict[str, Any]:
 
     except ValueError as e:
         logger.warning(f"Invalid coin: {coin}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     except Exception as e:
         logger.error(f"Error fetching order book for {coin}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/asset/{coin}", summary="Get asset metadata")
-async def get_asset_metadata(coin: str) -> Dict[str, Any]:
+async def get_asset_metadata(coin: str) -> dict[str, Any]:
     """
     Get metadata for a specific asset (tick size, min size, etc.).
 
@@ -172,9 +175,7 @@ async def get_asset_metadata(coin: str) -> Dict[str, Any]:
         meta = market_data_service.get_asset_metadata(coin.upper())
 
         if meta is None:
-            raise HTTPException(
-                status_code=404, detail=f"Asset metadata not found for {coin}"
-            )
+            raise HTTPException(status_code=404, detail=f"Asset metadata not found for {coin}")
 
         return meta
 
@@ -183,4 +184,4 @@ async def get_asset_metadata(coin: str) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Error fetching asset metadata for {coin}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -1,15 +1,18 @@
 """
 Account service for managing account information and balances.
 """
-from typing import Dict, Any
-from src.services.hyperliquid_service import hyperliquid_service
+
+from typing import Any
+
 from src.config import logger, settings
+from src.services.hyperliquid_service import hyperliquid_service
 
 
 # Import market_data_service for pricing spot tokens
 def get_market_data_service():
     """Lazy import to avoid circular dependency."""
     from src.services.market_data_service import market_data_service
+
     return market_data_service
 
 
@@ -20,7 +23,7 @@ class AccountService:
         """Initialize account service."""
         self.hyperliquid = hyperliquid_service
 
-    def get_account_info(self) -> Dict[str, Any]:
+    def get_account_info(self) -> dict[str, Any]:
         """
         Get complete account information including positions, margin, and spot balances.
 
@@ -45,7 +48,7 @@ class AccountService:
 
             # Extract margin summary (perps)
             margin_data = user_state.get("marginSummary", {})
-            cross_margin_data = user_state.get("crossMarginSummary", {})
+            user_state.get("crossMarginSummary", {})
             cross_maintenance_margin = float(user_state.get("crossMaintenanceMarginUsed", 0))
 
             account_value = float(margin_data.get("accountValue", 0))
@@ -59,9 +62,7 @@ class AccountService:
             )
 
             # Cross Account Leverage = Total Position Value / Account Value
-            cross_account_leverage = (
-                (total_ntl_pos / account_value) if account_value > 0 else 0
-            )
+            cross_account_leverage = (total_ntl_pos / account_value) if account_value > 0 else 0
 
             margin_summary = {
                 "account_value": account_value,
@@ -101,11 +102,13 @@ class AccountService:
             # Extract spot balances
             spot_balances = []
             for balance in spot_state.get("balances", []):
-                spot_balances.append({
-                    "coin": balance.get("coin", ""),
-                    "total": float(balance.get("total", 0)),
-                    "hold": float(balance.get("hold", 0)),  # Amount locked in orders
-                })
+                spot_balances.append(
+                    {
+                        "coin": balance.get("coin", ""),
+                        "total": float(balance.get("total", 0)),
+                        "hold": float(balance.get("hold", 0)),  # Amount locked in orders
+                    }
+                )
 
             # Calculate total spot value (USD equivalent)
             # Need to price each token at market value
@@ -131,7 +134,9 @@ class AccountService:
                         logger.debug(f"Spot token {coin}: {amount} × ${price} = ${token_value:.2f}")
                     except Exception as e:
                         # If price not available, skip (but warn)
-                        logger.warning(f"Could not get price for spot token {coin} ({amount} tokens), excluding from total: {e}")
+                        logger.warning(
+                            f"Could not get price for spot token {coin} ({amount} tokens), excluding from total: {e}"
+                        )
                         continue
 
             result = {
@@ -155,7 +160,7 @@ class AccountService:
             logger.error(f"Failed to get account info: {e}")
             raise
 
-    def get_account_summary(self) -> Dict[str, Any]:
+    def get_account_summary(self) -> dict[str, Any]:
         """
         Get quick account summary for dashboard.
 
@@ -177,9 +182,7 @@ class AccountService:
             spot_total = account_info.get("spot_total_usd", 0)
 
             # Calculate total unrealized PnL (perps only)
-            total_pnl = sum(
-                p["position"]["unrealized_pnl"] for p in positions
-            )
+            total_pnl = sum(p["position"]["unrealized_pnl"] for p in positions)
 
             # Combined account value (perps + spot)
             total_account_value = margin["account_value"] + spot_total
@@ -213,7 +216,7 @@ class AccountService:
             logger.error(f"Failed to get account summary: {e}")
             raise
 
-    def get_balance_details(self) -> Dict[str, Any]:
+    def get_balance_details(self) -> dict[str, Any]:
         """
         Get detailed balance breakdown.
 

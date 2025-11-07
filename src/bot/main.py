@@ -1,15 +1,16 @@
 """
 Main Telegram bot application.
 """
-import asyncio
+
 from warnings import filterwarnings
+
 from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
+    ContextTypes,
     MessageHandler,
     filters,
-    ContextTypes,
 )
 from telegram.warnings import PTBUserWarning
 
@@ -20,16 +21,15 @@ from telegram.warnings import PTBUserWarning
 # IMPORTANT: Must be set BEFORE importing handlers (warnings triggered at import time)
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 
-from src.config import logger, settings
-from src.services.hyperliquid_service import hyperliquid_service
-from src.bot.handlers import (
-    basic,
-    trading,
-    advanced,
-    wizard_market_order,
+from src.bot.handlers import (  # noqa: E402
+    commands,
+    menus,
     wizard_close_position,
+    wizard_market_order,
     wizard_scale_order,
 )
+from src.config import logger, settings  # noqa: E402
+from src.services.hyperliquid_service import hyperliquid_service  # noqa: E402
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -47,19 +47,14 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Error: `{str(context.error)[:100]}`"
         )
         try:
-            await update.effective_message.reply_text(
-                error_message,
-                parse_mode="Markdown"
-            )
+            await update.effective_message.reply_text(error_message, parse_mode="Markdown")
         except Exception as e:
             logger.error(f"Failed to send error message to user: {e}")
 
 
 async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle unknown commands."""
-    await update.message.reply_text(
-        "❓ Unknown command. Use /help to see available commands."
-    )
+    await update.message.reply_text("❓ Unknown command. Use /help to see available commands.")
 
 
 def create_application() -> Application:
@@ -73,15 +68,11 @@ def create_application() -> Application:
         ValueError: If bot token is not configured
     """
     if not settings.TELEGRAM_BOT_TOKEN:
-        raise ValueError(
-            "TELEGRAM_BOT_TOKEN not configured. "
-            "Please set it in your .env file."
-        )
+        raise ValueError("TELEGRAM_BOT_TOKEN not configured. Please set it in your .env file.")
 
     if not settings.TELEGRAM_AUTHORIZED_USERS:
         logger.warning(
-            "No authorized users configured. "
-            "Set TELEGRAM_AUTHORIZED_USERS in .env to allow access."
+            "No authorized users configured. Set TELEGRAM_AUTHORIZED_USERS in .env to allow access."
         )
 
     logger.info("Creating Telegram bot application...")
@@ -97,33 +88,34 @@ def create_application() -> Application:
     logger.info("✅ Scale order wizard registered")
 
     # Register command handlers
-    # Basic commands
-    application.add_handler(CommandHandler("start", basic.start))
-    application.add_handler(CommandHandler("help", basic.help_command))
-    application.add_handler(CommandHandler("account", basic.account_command))
-    application.add_handler(CommandHandler("positions", basic.positions_command))
-    application.add_handler(CommandHandler("status", basic.status_command))
-
-    # Trading commands (legacy - kept for backward compatibility)
-    application.add_handler(CommandHandler("close", trading.close_command))
-    application.add_handler(CommandHandler("market", trading.market_command))
-
-    # Advanced commands (legacy - kept for backward compatibility)
-    application.add_handler(CommandHandler("rebalance", advanced.rebalance_command))
-    # Note: /scale command is now a ConversationHandler registered above
+    application.add_handler(CommandHandler("start", commands.start))
+    application.add_handler(CommandHandler("help", commands.help_command))
+    application.add_handler(CommandHandler("account", commands.account_command))
+    application.add_handler(CommandHandler("positions", commands.positions_command))
+    application.add_handler(CommandHandler("status", commands.status_command))
+    application.add_handler(CommandHandler("rebalance", commands.rebalance_command))
 
     # Register menu navigation callback handlers
-    for handler in basic.get_menu_callback_handlers():
+    for handler in menus.get_menu_handlers():
         application.add_handler(handler)
+
+    # Register rebalancing callback handlers
+    from telegram.ext import CallbackQueryHandler
+
+    application.add_handler(
+        CallbackQueryHandler(commands.rebalance_preview_callback, pattern="^rebalance_preview:")
+    )
+    application.add_handler(
+        CallbackQueryHandler(commands.rebalance_execute_callback, pattern="^rebalance_execute:")
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            commands.rebalance_preview_callback, pattern="^rebalance_(custom|cancel)$"
+        )
+    )
 
     # Register close position handlers
     for handler in wizard_close_position.get_close_position_handlers():
-        application.add_handler(handler)
-
-    # Register trading callback query handlers (legacy)
-    for handler in trading.get_callback_handlers():
-        application.add_handler(handler)
-    for handler in advanced.get_callback_handlers():
         application.add_handler(handler)
 
     # Unknown command handler (must be last)

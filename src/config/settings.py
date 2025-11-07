@@ -2,13 +2,14 @@
 Application configuration settings.
 Loads configuration from environment variables.
 """
+
 import os
-from typing import List
-from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load .env file
 load_dotenv()
+
 
 class Settings:
     """Application settings loaded from environment variables."""
@@ -30,11 +31,13 @@ class Settings:
 
     # Trading defaults
     DEFAULT_LEVERAGE: int = int(os.getenv("DEFAULT_LEVERAGE", "3"))  # Conservative default (3x)
-    MAX_LEVERAGE_WARNING: int = int(os.getenv("MAX_LEVERAGE_WARNING", "5"))  # Soft limit for warnings (5x recommended)
+    MAX_LEVERAGE_WARNING: int = int(
+        os.getenv("MAX_LEVERAGE_WARNING", "5")
+    )  # Soft limit for warnings (5x recommended)
 
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    TELEGRAM_AUTHORIZED_USERS: List[int] = [
+    TELEGRAM_AUTHORIZED_USERS: list[int] = [
         int(user_id.strip())
         for user_id in os.getenv("TELEGRAM_AUTHORIZED_USERS", "").split(",")
         if user_id.strip()
@@ -57,9 +60,7 @@ class Settings:
             missing = [name for name, value in required_fields if not value]
 
             if missing:
-                raise ValueError(
-                    f"Missing required environment variables: {', '.join(missing)}"
-                )
+                raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 
     @classmethod
     def is_production(cls) -> bool:

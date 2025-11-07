@@ -4,14 +4,17 @@ Place Order Use Case.
 Unified order placement logic for both API and Bot interfaces.
 Supports both USD-based and coin-based order sizes with automatic conversion.
 """
-from typing import Dict, Any, Optional
+
+from typing import Any
+
 from pydantic import BaseModel, Field
+
+from src.config import logger
+from src.services.market_data_service import market_data_service
+from src.services.order_service import order_service
 from src.use_cases.base import BaseUseCase
 from src.use_cases.common.usd_converter import USDConverter
 from src.use_cases.common.validators import OrderValidator, ValidationError
-from src.services.order_service import order_service
-from src.services.market_data_service import market_data_service
-from src.config import logger
 
 
 class PlaceOrderRequest(BaseModel):
@@ -21,12 +24,14 @@ class PlaceOrderRequest(BaseModel):
     is_buy: bool = Field(..., description="True for buy, False for sell")
 
     # Size can be specified in either USD or coin amount
-    usd_amount: Optional[float] = Field(None, gt=0, description="Order size in USD")
-    coin_size: Optional[float] = Field(None, gt=0, description="Order size in coins")
+    usd_amount: float | None = Field(None, gt=0, description="Order size in USD")
+    coin_size: float | None = Field(None, gt=0, description="Order size in coins")
 
     # Order parameters
     is_market: bool = Field(True, description="True for market order, False for limit")
-    limit_price: Optional[float] = Field(None, gt=0, description="Limit price (required for limit orders)")
+    limit_price: float | None = Field(
+        None, gt=0, description="Limit price (required for limit orders)"
+    )
     slippage: float = Field(0.05, ge=0, le=1, description="Slippage tolerance (default 5%)")
     reduce_only: bool = Field(False, description="Reduce-only flag")
     time_in_force: str = Field("Gtc", description="Time in force (Gtc, Ioc, Alo)")
@@ -38,7 +43,7 @@ class PlaceOrderRequest(BaseModel):
                 "is_buy": True,
                 "usd_amount": 1000.0,
                 "is_market": True,
-                "slippage": 0.05
+                "slippage": 0.05,
             }
         }
 
@@ -51,9 +56,9 @@ class PlaceOrderResponse(BaseModel):
     side: str = Field(..., description="Order side (buy/sell)")
     size: float = Field(..., description="Order size in coins")
     usd_value: float = Field(..., description="Order value in USD")
-    price: Optional[float] = Field(None, description="Execution price (market) or limit price")
+    price: float | None = Field(None, description="Execution price (market) or limit price")
     order_type: str = Field(..., description="Order type (market/limit)")
-    order_id: Optional[int] = Field(None, description="Order ID (for limit orders)")
+    order_id: int | None = Field(None, description="Order ID (for limit orders)")
     message: str = Field(..., description="Success/error message")
 
 
@@ -113,7 +118,11 @@ class PlaceOrderUseCase(BaseUseCase[PlaceOrderRequest, PlaceOrderResponse]):
             if not request.is_market:
                 if request.limit_price is None:
                     raise ValidationError("Limit price required for limit orders")
-                OrderValidator.validate_price(request.limit_price, request.coin)
+
+                # Get tick size for price validation
+                metadata = market_data_service.get_asset_metadata(request.coin)
+                tick_size = 10 ** (-metadata["szDecimals"]) if metadata else None
+                OrderValidator.validate_price(request.limit_price, request.coin, tick_size)
 
             # Validate slippage
             OrderValidator.validate_slippage(request.slippage * 100)  # Convert to percentage
@@ -146,15 +155,15 @@ class PlaceOrderUseCase(BaseUseCase[PlaceOrderRequest, PlaceOrderResponse]):
                 price=execution_price,
                 order_type=order_type,
                 order_id=result.get("order_id"),
-                message=f"{order_type} {side} order placed successfully"
+                message=f"{order_type} {side} order placed successfully",
             )
 
         except ValidationError as e:
             logger.warning(f"Order validation failed: {e}")
-            raise
+            raise RuntimeError(f"Order validation failed: {str(e)}") from e
         except Exception as e:
             logger.error(f"Order placement failed: {e}")
-            raise RuntimeError(f"Failed to place order: {str(e)}")
+            raise RuntimeError(f"Failed to place order: {str(e)}") from e
 
     async def _determine_order_size(self, request: PlaceOrderRequest) -> tuple[float, float]:
         """
@@ -173,12 +182,10 @@ class PlaceOrderUseCase(BaseUseCase[PlaceOrderRequest, PlaceOrderResponse]):
         # Convert from USD if needed
         if request.usd_amount:
             coin_size, current_price = self.usd_converter.convert_usd_to_coin(
-                request.usd_amount,
-                request.coin
+                request.usd_amount, request.coin
             )
             logger.debug(
-                f"Converted ${request.usd_amount} to {coin_size} {request.coin} "
-                f"at ${current_price}"
+                f"Converted ${request.usd_amount} to {coin_size} {request.coin} at ${current_price}"
             )
             return coin_size, current_price
         else:
@@ -189,45 +196,53 @@ class PlaceOrderUseCase(BaseUseCase[PlaceOrderRequest, PlaceOrderResponse]):
             return request.coin_size, current_price
 
     async def _place_market_order(
-        self,
-        request: PlaceOrderRequest,
-        coin_size: float
-    ) -> Dict[str, Any]:
+        self, request: PlaceOrderRequest, coin_size: float
+    ) -> dict[str, Any]:
         """Place a market order."""
-        result = await self.order_service.place_market_order(
+        result = self.order_service.place_market_order(
             coin=request.coin,
             is_buy=request.is_buy,
             size=coin_size,
             slippage=request.slippage,
-            reduce_only=request.reduce_only
+            reduce_only=request.reduce_only,
         )
 
         # Extract execution price from result if available
         # Market orders are filled immediately
+        # Response structure: result['result']['response']['data']['statuses'][0]['filled']['avgPx']
+        price = None
+        try:
+            api_result = result.get("result", {})
+            response = api_result.get("response", {})
+            data = response.get("data", {})
+            statuses = data.get("statuses", [])
+            if statuses and isinstance(statuses[0], dict):
+                filled = statuses[0].get("filled", {})
+                avg_px = filled.get("avgPx")
+                if avg_px:
+                    price = float(avg_px)
+        except (KeyError, IndexError, ValueError, TypeError) as e:
+            logger.warning(f"Could not extract avgPx from market order result: {e}")
+
         return {
-            "price": result.get("price"),
-            "order_id": None  # Market orders don't have resting order IDs
+            "price": price,
+            "order_id": None,  # Market orders don't have resting order IDs
         }
 
     async def _place_limit_order(
-        self,
-        request: PlaceOrderRequest,
-        coin_size: float
-    ) -> Dict[str, Any]:
+        self, request: PlaceOrderRequest, coin_size: float
+    ) -> dict[str, Any]:
         """Place a limit order."""
-        result = await self.order_service.place_limit_order(
+        result = self.order_service.place_limit_order(
             coin=request.coin,
             is_buy=request.is_buy,
             size=coin_size,
-            price=request.limit_price,
+            limit_price=request.limit_price,
             reduce_only=request.reduce_only,
-            time_in_force=request.time_in_force
+            time_in_force=request.time_in_force,
         )
 
         # Extract order ID from result
         order_id = result.get("order_id")
 
-        return {
-            "price": request.limit_price,
-            "order_id": order_id
-        }
+        return {"price": request.limit_price, "order_id": order_id}

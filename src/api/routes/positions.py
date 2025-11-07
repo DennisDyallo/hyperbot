@@ -2,20 +2,20 @@
 Positions API routes.
 Handles position management and closing.
 """
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, Body, Request
-from fastapi.responses import HTMLResponse
+
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from src.services import position_service
-from src.services.risk_calculator import risk_calculator
-from src.services.market_data_service import market_data_service
-from src.services.account_service import account_service
-from src.api.models import Position, PositionSummary, ClosePositionResponse
-from src.use_cases.trading import ClosePositionUseCase, ClosePositionRequest as UseCaseClosePositionRequest
-from src.use_cases.portfolio import PositionSummaryUseCase, PositionSummaryRequest
+from src.api.models import ClosePositionResponse, Position
 from src.config import logger
+from src.services import position_service
+from src.services.account_service import account_service
+from src.services.market_data_service import market_data_service
+from src.services.risk_calculator import risk_calculator
+from src.use_cases.portfolio import PositionSummaryRequest, PositionSummaryUseCase
+from src.use_cases.trading import ClosePositionRequest as UseCaseClosePositionRequest
+from src.use_cases.trading import ClosePositionUseCase
 
 router = APIRouter(prefix="/api/positions", tags=["Positions"])
 templates = Jinja2Templates(directory="src/api/templates")
@@ -28,14 +28,16 @@ position_summary_use_case = PositionSummaryUseCase()
 class ClosePositionRequest(BaseModel):
     """Request body for closing a position."""
 
-    size: Optional[float] = Field(None, description="Size to close (None = close full position)")
+    size: float | None = Field(None, description="Size to close (None = close full position)")
     slippage: float = Field(0.05, description="Maximum acceptable slippage (default 5%)")
 
 
 class BulkCloseRequest(BaseModel):
     """Request body for bulk closing positions."""
 
-    percentage: int = Field(..., description="Percentage of positions to close (33, 66, or 100)", ge=1, le=100)
+    percentage: int = Field(
+        ..., description="Percentage of positions to close (33, 66, or 100)", ge=1, le=100
+    )
     slippage: float = Field(0.05, description="Maximum acceptable slippage (default 5%)")
 
 
@@ -62,7 +64,8 @@ async def list_positions(request: Request):
                 # Calculate overall margin utilization percentage
                 margin_util_pct = (
                     (margin_summary["total_margin_used"] / margin_summary["account_value"] * 100)
-                    if margin_summary["account_value"] > 0 else 0
+                    if margin_summary["account_value"] > 0
+                    else 0
                 )
 
                 # Assess risk for each position
@@ -77,7 +80,7 @@ async def list_positions(request: Request):
                     risk = risk_calculator.assess_position_risk(
                         position_data=pos,
                         current_price=current_price,
-                        margin_utilization_pct=margin_util_pct
+                        margin_utilization_pct=margin_util_pct,
                     )
 
                     # Add risk data to position item
@@ -86,11 +89,19 @@ async def list_positions(request: Request):
                         "health_score": risk.health_score,
                         "liquidation_price": risk.liquidation_price,
                         "liquidation_distance_pct": risk.liquidation_distance_pct,
-                        "warnings": risk.warnings
+                        "warnings": risk.warnings,
                     }
 
-                    liq_price_str = f"${risk.liquidation_price:.2f}" if risk.liquidation_price is not None else "N/A"
-                    liq_dist_str = f"{risk.liquidation_distance_pct:.1f}%" if risk.liquidation_distance_pct is not None else "N/A"
+                    liq_price_str = (
+                        f"${risk.liquidation_price:.2f}"
+                        if risk.liquidation_price is not None
+                        else "N/A"
+                    )
+                    liq_dist_str = (
+                        f"{risk.liquidation_distance_pct:.1f}%"
+                        if risk.liquidation_distance_pct is not None
+                        else "N/A"
+                    )
                     logger.debug(
                         f"{coin} risk: {risk.risk_level.value}, "
                         f"liq price: {liq_price_str}, "
@@ -107,20 +118,20 @@ async def list_positions(request: Request):
             return templates.TemplateResponse(
                 "partials/positions_table.html",
                 {"request": request, "positions": positions},
-                headers={"Content-Type": "text/html"}
+                headers={"Content-Type": "text/html"},
             )
 
         return positions
     except Exception as e:
         logger.error(f"Failed to list positions: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch positions")
+        raise HTTPException(status_code=500, detail="Failed to fetch positions") from e
 
 
 @router.get("/summary")
 async def get_position_summary(
     request: Request,
     include_risk_metrics: bool = Query(True, description="Include risk metrics for positions"),
-    include_spot_balances: bool = Query(False, description="Include spot token balances")
+    include_spot_balances: bool = Query(False, description="Include spot token balances"),
 ):
     """
     Get summary of all positions with optional risk metrics.
@@ -132,8 +143,7 @@ async def get_position_summary(
     try:
         # Use PositionSummaryUseCase for unified logic
         use_case_request = PositionSummaryRequest(
-            include_risk_metrics=include_risk_metrics,
-            include_spot_balances=include_spot_balances
+            include_risk_metrics=include_risk_metrics, include_spot_balances=include_spot_balances
         )
         summary = await position_summary_use_case.execute(use_case_request)
 
@@ -142,13 +152,13 @@ async def get_position_summary(
             return templates.TemplateResponse(
                 "partials/position_summary.html",
                 {"request": request, "summary": summary.model_dump()},
-                headers={"Content-Type": "text/html"}
+                headers={"Content-Type": "text/html"},
             )
 
         return summary
     except Exception as e:
         logger.error(f"Failed to get position summary: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch position summary")
+        raise HTTPException(status_code=500, detail="Failed to fetch position summary") from e
 
 
 @router.get("/{coin}", response_model=Position)
@@ -168,19 +178,17 @@ async def get_position(coin: str):
     try:
         position = position_service.get_position(coin)
         if not position:
-            raise HTTPException(
-                status_code=404, detail=f"No open position found for {coin}"
-            )
+            raise HTTPException(status_code=404, detail=f"No open position found for {coin}")
         return position
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to get position for {coin}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch position")
+        raise HTTPException(status_code=500, detail="Failed to fetch position") from e
 
 
 @router.post("/{coin}/close", response_model=ClosePositionResponse)
-async def close_position(coin: str, request: ClosePositionRequest = Body(...)):
+async def close_position(coin: str, request: ClosePositionRequest = Body(...)):  # noqa: B008
     """
     Close a position (fully or partially).
 
@@ -217,21 +225,21 @@ async def close_position(coin: str, request: ClosePositionRequest = Body(...)):
                 "usd_value": response.usd_value,
                 "remaining_size": response.remaining_size,
                 "close_type": response.close_type,
-            }
+            },
         }
     except ValueError as e:
         logger.error(f"Validation error closing {coin}: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except RuntimeError as e:
         logger.error(f"Runtime error closing {coin}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to close position for {coin}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to close position")
+        raise HTTPException(status_code=500, detail="Failed to close position") from e
 
 
 @router.post("/bulk-close")
-async def bulk_close_positions(request: BulkCloseRequest = Body(...)):
+async def bulk_close_positions(request: BulkCloseRequest = Body(...)):  # noqa: B008
     """
     Close a percentage of each open position.
 
@@ -254,7 +262,7 @@ async def bulk_close_positions(request: BulkCloseRequest = Body(...)):
                 "failed": 0,
                 "total": 0,
                 "errors": [],
-                "message": "No positions to close"
+                "message": "No positions to close",
             }
 
         total_positions = len(positions)
@@ -276,10 +284,12 @@ async def bulk_close_positions(request: BulkCloseRequest = Body(...)):
                 )
 
                 # Execute use case
-                response = await close_position_use_case.execute(use_case_request)
+                await close_position_use_case.execute(use_case_request)
 
                 success_count += 1
-                logger.info(f"Successfully closed {request.percentage}% of {coin} position (bulk close)")
+                logger.info(
+                    f"Successfully closed {request.percentage}% of {coin} position (bulk close)"
+                )
 
             except Exception as e:
                 failed_count += 1
@@ -299,9 +309,9 @@ async def bulk_close_positions(request: BulkCloseRequest = Body(...)):
             "failed": failed_count,
             "total": total_positions,
             "errors": errors,
-            "message": ", ".join(message_parts) if message_parts else "No positions affected"
+            "message": ", ".join(message_parts) if message_parts else "No positions affected",
         }
 
     except Exception as e:
         logger.error(f"Bulk close operation failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Bulk close failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Bulk close failed: {str(e)}") from e

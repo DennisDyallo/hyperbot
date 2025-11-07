@@ -8,9 +8,9 @@ logic and provides consistent formatting across all interfaces.
 Previously this logic was scattered in src/bot/utils.py and only available to the Bot.
 Now it's available to both API and Bot through the Use Case layer.
 """
-from typing import Tuple
-from src.services.market_data_service import market_data_service
+
 from src.config import logger
+from src.services.market_data_service import market_data_service
 
 
 class USDConverter:
@@ -45,14 +45,14 @@ class USDConverter:
         amount_str = amount_str.strip()
 
         # Remove $ prefix if present
-        if amount_str.startswith('$'):
+        if amount_str.startswith("$"):
             amount_str = amount_str[1:]
 
         # Parse as float
         try:
             amount = float(amount_str)
-        except ValueError:
-            raise ValueError(f"Invalid amount: {amount_str}. Must be a number.")
+        except ValueError as e:
+            raise ValueError(f"Invalid amount: {amount_str}. Must be a number.") from e
 
         # Validate > 0
         if amount <= 0:
@@ -61,7 +61,7 @@ class USDConverter:
         return amount
 
     @staticmethod
-    def convert_usd_to_coin(usd_amount: float, coin: str) -> Tuple[float, float]:
+    def convert_usd_to_coin(usd_amount: float, coin: str) -> tuple[float, float]:
         """
         Convert USD amount to coin size using current market price.
         Rounds to the correct precision based on asset's szDecimals.
@@ -110,14 +110,14 @@ class USDConverter:
 
         except ValueError as e:
             # Coin not found or invalid
-            raise ValueError(f"Failed to get price for {coin}: {str(e)}")
+            raise ValueError(f"Failed to get price for {coin}: {str(e)}") from e
         except Exception as e:
             # Other errors
             logger.exception(f"Error converting USD to coin for {coin}")
-            raise RuntimeError(f"Failed to fetch price for {coin}: {str(e)}")
+            raise RuntimeError(f"Failed to fetch price for {coin}: {str(e)}") from e
 
     @staticmethod
-    def convert_coin_to_usd(coin_size: float, coin: str) -> Tuple[float, float]:
+    def convert_coin_to_usd(coin_size: float, coin: str) -> tuple[float, float]:
         """
         Convert coin size to USD value using current market price.
 
@@ -154,11 +154,11 @@ class USDConverter:
 
         except ValueError as e:
             # Coin not found or invalid
-            raise ValueError(f"Failed to get price for {coin}: {str(e)}")
+            raise ValueError(f"Failed to get price for {coin}: {str(e)}") from e
         except Exception as e:
             # Other errors
             logger.exception(f"Error converting coin to USD for {coin}")
-            raise RuntimeError(f"Failed to fetch price for {coin}: {str(e)}")
+            raise RuntimeError(f"Failed to fetch price for {coin}: {str(e)}") from e
 
     @staticmethod
     def format_coin_amount(coin_size: float, coin: str) -> str:

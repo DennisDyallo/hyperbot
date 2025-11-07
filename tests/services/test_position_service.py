@@ -6,17 +6,20 @@ CRITICAL - bugs here = incorrect position management, unintended losses.
 
 REFACTORED: Now using tests/helpers for reduced boilerplate and consistency.
 """
-import pytest
+
 from unittest.mock import Mock, patch
-from src.services.position_service import PositionService, position_service
+
+import pytest
+
 from src.config import settings
+from src.services.position_service import PositionService, position_service
 
 # Import helpers for cleaner test code
 from tests.helpers import (
-    create_service_with_mocks,
-    ServiceMockBuilder,
     PositionBuilder,
-    assert_float_approx
+    ServiceMockBuilder,
+    assert_float_approx,
+    create_service_with_mocks,
 )
 
 
@@ -28,11 +31,11 @@ class TestPositionServiceListPositions:
         """Create service with mocked account service using helper."""
         return create_service_with_mocks(
             PositionService,
-            'src.services.position_service',
+            "src.services.position_service",
             {
-                'account_service': ServiceMockBuilder.account_service(),
-                'hyperliquid_service': ServiceMockBuilder.hyperliquid_service()
-            }
+                "account_service": ServiceMockBuilder.account_service(),
+                "hyperliquid_service": ServiceMockBuilder.hyperliquid_service(),
+            },
         )
 
     def test_list_positions_success(self, service):
@@ -40,9 +43,7 @@ class TestPositionServiceListPositions:
         btc_pos = PositionBuilder().with_coin("BTC").with_size(0.1).build()
         eth_pos = PositionBuilder().with_coin("ETH").with_size(2.5).build()
 
-        service.account.get_account_info.return_value = {
-            "positions": [btc_pos, eth_pos]
-        }
+        service.account.get_account_info.return_value = {"positions": [btc_pos, eth_pos]}
 
         positions = service.list_positions()
 
@@ -52,9 +53,7 @@ class TestPositionServiceListPositions:
 
     def test_list_positions_empty(self, service):
         """Test listing when no positions exist."""
-        service.account.get_account_info.return_value = {
-            "positions": []
-        }
+        service.account.get_account_info.return_value = {"positions": []}
 
         positions = service.list_positions()
 
@@ -85,21 +84,25 @@ class TestPositionServiceGetPosition:
         mock_account = ServiceMockBuilder.account_service()
 
         # Set up default positions
-        btc_pos = PositionBuilder().with_coin("BTC").with_size(0.1).with_position_value(5000.0).build()
-        eth_pos = PositionBuilder().with_coin("ETH").with_size(2.5).with_position_value(7500.0).build()
-        sol_pos = PositionBuilder().with_coin("SOL").with_size(-10.0).with_position_value(-1500.0).build()
+        btc_pos = (
+            PositionBuilder().with_coin("BTC").with_size(0.1).with_position_value(5000.0).build()
+        )
+        eth_pos = (
+            PositionBuilder().with_coin("ETH").with_size(2.5).with_position_value(7500.0).build()
+        )
+        sol_pos = (
+            PositionBuilder().with_coin("SOL").with_size(-10.0).with_position_value(-1500.0).build()
+        )
 
-        mock_account.get_account_info.return_value = {
-            "positions": [btc_pos, eth_pos, sol_pos]
-        }
+        mock_account.get_account_info.return_value = {"positions": [btc_pos, eth_pos, sol_pos]}
 
         return create_service_with_mocks(
             PositionService,
-            'src.services.position_service',
+            "src.services.position_service",
             {
-                'account_service': mock_account,
-                'hyperliquid_service': ServiceMockBuilder.hyperliquid_service()
-            }
+                "account_service": mock_account,
+                "hyperliquid_service": ServiceMockBuilder.hyperliquid_service(),
+            },
         )
 
     def test_get_position_found(self, service):
@@ -141,10 +144,10 @@ class TestPositionServiceClosePosition:
         mock_hyperliquid = ServiceMockBuilder.hyperliquid_service()
 
         # Set up default position
-        btc_pos = PositionBuilder().with_coin("BTC").with_size(0.5).with_position_value(25000.0).build()
-        mock_account.get_account_info.return_value = {
-            "positions": [btc_pos]
-        }
+        btc_pos = (
+            PositionBuilder().with_coin("BTC").with_size(0.5).with_position_value(25000.0).build()
+        )
+        mock_account.get_account_info.return_value = {"positions": [btc_pos]}
 
         # Set up exchange mock
         mock_exchange = Mock()
@@ -153,11 +156,8 @@ class TestPositionServiceClosePosition:
 
         return create_service_with_mocks(
             PositionService,
-            'src.services.position_service',
-            {
-                'account_service': mock_account,
-                'hyperliquid_service': mock_hyperliquid
-            }
+            "src.services.position_service",
+            {"account_service": mock_account, "hyperliquid_service": mock_hyperliquid},
         )
 
     def test_close_position_full(self, service):
@@ -170,11 +170,7 @@ class TestPositionServiceClosePosition:
 
         # Verify exchange API called with None size (close all)
         exchange = service.hyperliquid.get_exchange_client()
-        exchange.market_close.assert_called_once_with(
-            coin="BTC",
-            sz=None,
-            slippage=0.05
-        )
+        exchange.market_close.assert_called_once_with(coin="BTC", sz=None, slippage=0.05)
 
     def test_close_position_partial(self, service):
         """Test closing partial position."""
@@ -186,15 +182,11 @@ class TestPositionServiceClosePosition:
 
         # Verify exchange API called with specific size
         exchange = service.hyperliquid.get_exchange_client()
-        exchange.market_close.assert_called_once_with(
-            coin="BTC",
-            sz=0.2,
-            slippage=0.05
-        )
+        exchange.market_close.assert_called_once_with(coin="BTC", sz=0.2, slippage=0.05)
 
     def test_close_position_custom_slippage(self, service):
         """Test closing with custom slippage."""
-        result = service.close_position("BTC", slippage=0.1)
+        service.close_position("BTC", slippage=0.1)
 
         # Verify slippage parameter passed correctly
         exchange = service.hyperliquid.get_exchange_client()
@@ -226,9 +218,11 @@ class TestPositionServiceClosePosition:
 
     def test_close_position_no_wallet_raises(self, service):
         """Test closing without wallet configured raises RuntimeError."""
-        with patch.object(settings, 'HYPERLIQUID_WALLET_ADDRESS', None):
-            with pytest.raises(RuntimeError, match="Wallet address not configured"):
-                service.close_position("BTC")
+        with (
+            patch.object(settings, "HYPERLIQUID_WALLET_ADDRESS", None),
+            pytest.raises(RuntimeError, match="Wallet address not configured"),
+        ):
+            service.close_position("BTC")
 
     def test_close_position_api_failure(self, service):
         """Test close_position raises exception on API failure."""
@@ -240,10 +234,10 @@ class TestPositionServiceClosePosition:
 
     def test_close_position_short_position(self, service):
         """Test closing short position (negative size)."""
-        sol_pos = PositionBuilder().with_coin("SOL").with_size(-10.0).with_position_value(-1500.0).build()
-        service.account.get_account_info.return_value = {
-            "positions": [sol_pos]
-        }
+        sol_pos = (
+            PositionBuilder().with_coin("SOL").with_size(-10.0).with_position_value(-1500.0).build()
+        )
+        service.account.get_account_info.return_value = {"positions": [sol_pos]}
 
         result = service.close_position("SOL")
 
@@ -259,40 +253,44 @@ class TestPositionServiceGetPositionSummary:
         """Create service with mocked account service using helper."""
         return create_service_with_mocks(
             PositionService,
-            'src.services.position_service',
+            "src.services.position_service",
             {
-                'account_service': ServiceMockBuilder.account_service(),
-                'hyperliquid_service': ServiceMockBuilder.hyperliquid_service()
-            }
+                "account_service": ServiceMockBuilder.account_service(),
+                "hyperliquid_service": ServiceMockBuilder.hyperliquid_service(),
+            },
         )
 
     def test_summary_with_positions(self, service):
         """Test summary with multiple positions."""
         # Use builders for clean position creation
-        btc_pos = PositionBuilder()        \
-            .with_coin("BTC")              \
-            .with_size(0.5)                \
-            .with_position_value(25000.0)  \
-            .with_pnl(500.0)               \
+        btc_pos = (
+            PositionBuilder()
+            .with_coin("BTC")
+            .with_size(0.5)
+            .with_position_value(25000.0)
+            .with_pnl(500.0)
             .build()
+        )
 
-        eth_pos = PositionBuilder()        \
-            .with_coin("ETH")              \
-            .with_size(10.0)               \
-            .with_position_value(30000.0)  \
-            .with_pnl(-200.0)              \
+        eth_pos = (
+            PositionBuilder()
+            .with_coin("ETH")
+            .with_size(10.0)
+            .with_position_value(30000.0)
+            .with_pnl(-200.0)
             .build()
+        )
 
-        sol_pos = PositionBuilder()        \
-            .with_coin("SOL")              \
-            .with_size(-20.0)              \
-            .with_position_value(-3000.0)  \
-            .with_pnl(100.0)               \
+        sol_pos = (
+            PositionBuilder()
+            .with_coin("SOL")
+            .with_size(-20.0)
+            .with_position_value(-3000.0)
+            .with_pnl(100.0)
             .build()
+        )
 
-        service.account.get_account_info.return_value = {
-            "positions": [btc_pos, eth_pos, sol_pos]
-        }
+        service.account.get_account_info.return_value = {"positions": [btc_pos, eth_pos, sol_pos]}
 
         summary = service.get_position_summary()
 
@@ -305,9 +303,7 @@ class TestPositionServiceGetPositionSummary:
 
     def test_summary_no_positions(self, service):
         """Test summary with no positions."""
-        service.account.get_account_info.return_value = {
-            "positions": []
-        }
+        service.account.get_account_info.return_value = {"positions": []}
 
         summary = service.get_position_summary()
 
@@ -323,9 +319,7 @@ class TestPositionServiceGetPositionSummary:
         btc_pos = PositionBuilder().with_coin("BTC").with_size(0.5).with_pnl(500.0).build()
         eth_pos = PositionBuilder().with_coin("ETH").with_size(10.0).with_pnl(300.0).build()
 
-        service.account.get_account_info.return_value = {
-            "positions": [btc_pos, eth_pos]
-        }
+        service.account.get_account_info.return_value = {"positions": [btc_pos, eth_pos]}
 
         summary = service.get_position_summary()
 
@@ -336,9 +330,7 @@ class TestPositionServiceGetPositionSummary:
         """Test summary with only short positions."""
         btc_pos = PositionBuilder().with_coin("BTC").with_size(-0.5).with_pnl(-500.0).build()
 
-        service.account.get_account_info.return_value = {
-            "positions": [btc_pos]
-        }
+        service.account.get_account_info.return_value = {"positions": [btc_pos]}
 
         summary = service.get_position_summary()
 
@@ -347,16 +339,16 @@ class TestPositionServiceGetPositionSummary:
 
     def test_summary_position_details(self, service):
         """Test individual position details in summary."""
-        btc_pos = PositionBuilder()        \
-            .with_coin("BTC")              \
-            .with_size(0.5)                \
-            .with_position_value(25000.0)  \
-            .with_pnl(500.0)               \
+        btc_pos = (
+            PositionBuilder()
+            .with_coin("BTC")
+            .with_size(0.5)
+            .with_position_value(25000.0)
+            .with_pnl(500.0)
             .build()
+        )
 
-        service.account.get_account_info.return_value = {
-            "positions": [btc_pos]
-        }
+        service.account.get_account_info.return_value = {"positions": [btc_pos]}
 
         summary = service.get_position_summary()
 
@@ -384,5 +376,5 @@ class TestPositionServiceSingleton:
 
     def test_singleton_has_dependencies(self):
         """Test singleton has required dependencies."""
-        assert hasattr(position_service, 'hyperliquid')
-        assert hasattr(position_service, 'account')
+        assert hasattr(position_service, "hyperliquid")
+        assert hasattr(position_service, "account")

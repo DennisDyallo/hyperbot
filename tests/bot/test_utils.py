@@ -10,24 +10,27 @@ MIGRATED: Now using tests/helpers for service mocking.
 - Replaced @patch decorators with pytest fixtures
 - Using ServiceMockBuilder.market_data_service() for consistent mocking
 """
-import pytest
+
 from unittest.mock import patch
+
+import pytest
+
 from src.bot.utils import (
-    parse_usd_amount,
-    convert_usd_to_coin,
     convert_coin_to_usd,
+    convert_usd_to_coin,
     format_coin_amount,
+    format_dual_amount,
     format_usd_amount,
-    format_dual_amount
+    parse_usd_amount,
 )
 
 # Import helpers for cleaner service mocking
 from tests.helpers import ServiceMockBuilder
 
-
 # =============================================================================
 # parse_usd_amount Tests
 # =============================================================================
+
 
 class TestParseUsdAmount:
     """Test USD amount parsing from strings."""
@@ -81,6 +84,7 @@ class TestParseUsdAmount:
 # convert_usd_to_coin Tests (Bug Fix: Precision Rounding)
 # =============================================================================
 
+
 class TestConvertUsdToCoin:
     """Test USD to coin conversion with precision rounding."""
 
@@ -92,17 +96,14 @@ class TestConvertUsdToCoin:
     @pytest.fixture(autouse=True)
     def patch_market_data_service(self, mock_market_data_service):
         """Auto-patch market_data_service for all tests in this class."""
-        with patch('src.bot.utils.market_data_service', mock_market_data_service):
+        with patch("src.bot.utils.market_data_service", mock_market_data_service):
             yield mock_market_data_service
 
     def test_convert_with_btc_precision(self, mock_market_data_service):
         """Should round to BTC's 5 decimal precision."""
         # BTC price = $104,088, szDecimals = 5
         mock_market_data_service.get_price.return_value = 104088.0
-        mock_market_data_service.get_asset_metadata.return_value = {
-            "name": "BTC",
-            "szDecimals": 5
-        }
+        mock_market_data_service.get_asset_metadata.return_value = {"name": "BTC", "szDecimals": 5}
 
         coin_size, price = convert_usd_to_coin(250.0, "BTC")
 
@@ -112,16 +113,13 @@ class TestConvertUsdToCoin:
         assert price == 104088.0
 
         # Verify no precision error (was causing ValueError before)
-        assert len(str(coin_size).split('.')[1]) <= 5
+        assert len(str(coin_size).split(".")[1]) <= 5
 
     def test_convert_with_eth_precision(self, mock_market_data_service):
         """Should round to ETH's 4 decimal precision."""
         # ETH price = $3,850.50, szDecimals = 4
         mock_market_data_service.get_price.return_value = 3850.50
-        mock_market_data_service.get_asset_metadata.return_value = {
-            "name": "ETH",
-            "szDecimals": 4
-        }
+        mock_market_data_service.get_asset_metadata.return_value = {"name": "ETH", "szDecimals": 4}
 
         coin_size, price = convert_usd_to_coin(100.0, "ETH")
 
@@ -134,10 +132,7 @@ class TestConvertUsdToCoin:
         """Should round to SOL's 1 decimal precision."""
         # SOL price = $161.64, szDecimals = 1
         mock_market_data_service.get_price.return_value = 161.64
-        mock_market_data_service.get_asset_metadata.return_value = {
-            "name": "SOL",
-            "szDecimals": 1
-        }
+        mock_market_data_service.get_asset_metadata.return_value = {"name": "SOL", "szDecimals": 1}
 
         coin_size, price = convert_usd_to_coin(50.0, "SOL")
 
@@ -162,10 +157,7 @@ class TestConvertUsdToCoin:
     def test_convert_large_amounts(self, mock_market_data_service):
         """Should handle large USD amounts correctly."""
         mock_market_data_service.get_price.return_value = 104088.0
-        mock_market_data_service.get_asset_metadata.return_value = {
-            "name": "BTC",
-            "szDecimals": 5
-        }
+        mock_market_data_service.get_asset_metadata.return_value = {"name": "BTC", "szDecimals": 5}
 
         coin_size, price = convert_usd_to_coin(10000.0, "BTC")
 
@@ -176,10 +168,7 @@ class TestConvertUsdToCoin:
     def test_convert_small_amounts(self, mock_market_data_service):
         """Should handle small USD amounts correctly."""
         mock_market_data_service.get_price.return_value = 104088.0
-        mock_market_data_service.get_asset_metadata.return_value = {
-            "name": "BTC",
-            "szDecimals": 5
-        }
+        mock_market_data_service.get_asset_metadata.return_value = {"name": "BTC", "szDecimals": 5}
 
         coin_size, price = convert_usd_to_coin(1.0, "BTC")
 
@@ -214,6 +203,7 @@ class TestConvertUsdToCoin:
 # convert_coin_to_usd Tests
 # =============================================================================
 
+
 class TestConvertCoinToUsd:
     """Test coin to USD conversion."""
 
@@ -225,7 +215,7 @@ class TestConvertCoinToUsd:
     @pytest.fixture(autouse=True)
     def patch_market_data_service(self, mock_market_data_service):
         """Auto-patch market_data_service for all tests in this class."""
-        with patch('src.bot.utils.market_data_service', mock_market_data_service):
+        with patch("src.bot.utils.market_data_service", mock_market_data_service):
             yield mock_market_data_service
 
     def test_convert_coin_to_usd(self, mock_market_data_service):
@@ -279,6 +269,7 @@ class TestConvertCoinToUsd:
 # =============================================================================
 # Formatting Tests
 # =============================================================================
+
 
 class TestFormatCoinAmount:
     """Test coin amount formatting."""

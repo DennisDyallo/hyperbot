@@ -5,10 +5,11 @@ This module provides a single source of truth for parsing Hyperliquid API respon
 and handling errors. It eliminates duplicate code that previously existed in
 position_service.py and order_service.py.
 """
-from typing import Dict, Any
+
+from typing import Any
 
 
-def parse_hyperliquid_response(result: Dict[str, Any], operation: str) -> None:
+def parse_hyperliquid_response(result: dict[str, Any], operation: str) -> None:
     """
     Parse Hyperliquid API response and raise exception if operation failed.
 
@@ -65,7 +66,7 @@ def parse_hyperliquid_response(result: Dict[str, Any], operation: str) -> None:
             continue
 
 
-def extract_order_id_from_response(result: Dict[str, Any]) -> int:
+def extract_order_id_from_response(result: dict[str, Any]) -> int:
     """
     Extract order ID from Hyperliquid response.
 
@@ -107,7 +108,7 @@ def extract_order_id_from_response(result: Dict[str, Any]) -> int:
     raise ValueError("Could not extract order ID from response")
 
 
-def check_response_success(result: Dict[str, Any]) -> bool:
+def check_response_success(result: dict[str, Any]) -> bool:
     """
     Check if Hyperliquid response indicates success.
 

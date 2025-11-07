@@ -1,12 +1,13 @@
 """
 Utility functions for Telegram bot.
 """
-from typing import Tuple, Optional
+
 from telegram import Update
 from telegram.ext import ConversationHandler
-from src.services.market_data_service import market_data_service
+
 from src.bot.menus import build_main_menu
 from src.config import logger
+from src.services.market_data_service import market_data_service
 
 
 def parse_usd_amount(amount_str: str) -> float:
@@ -32,14 +33,14 @@ def parse_usd_amount(amount_str: str) -> float:
     amount_str = amount_str.strip()
 
     # Remove $ prefix if present
-    if amount_str.startswith('$'):
+    if amount_str.startswith("$"):
         amount_str = amount_str[1:]
 
     # Parse as float
     try:
         amount = float(amount_str)
-    except ValueError:
-        raise ValueError(f"Invalid amount: {amount_str}. Must be a number.")
+    except ValueError as e:
+        raise ValueError(f"Invalid amount: {amount_str}. Must be a number.") from e
 
     # Validate > 0
     if amount <= 0:
@@ -48,7 +49,7 @@ def parse_usd_amount(amount_str: str) -> float:
     return amount
 
 
-def convert_usd_to_coin(usd_amount: float, coin: str) -> Tuple[float, float]:
+def convert_usd_to_coin(usd_amount: float, coin: str) -> tuple[float, float]:
     """
     Convert USD amount to coin size using current market price.
     Rounds to the correct precision based on asset's szDecimals.
@@ -97,14 +98,14 @@ def convert_usd_to_coin(usd_amount: float, coin: str) -> Tuple[float, float]:
 
     except ValueError as e:
         # Coin not found or invalid
-        raise ValueError(f"Failed to get price for {coin}: {str(e)}")
+        raise ValueError(f"Failed to get price for {coin}: {str(e)}") from e
     except Exception as e:
         # Other errors
         logger.exception(f"Error converting USD to coin for {coin}")
-        raise RuntimeError(f"Failed to fetch price for {coin}: {str(e)}")
+        raise RuntimeError(f"Failed to fetch price for {coin}: {str(e)}") from e
 
 
-def convert_coin_to_usd(coin_size: float, coin: str) -> Tuple[float, float]:
+def convert_coin_to_usd(coin_size: float, coin: str) -> tuple[float, float]:
     """
     Convert coin size to USD value using current market price.
 
@@ -141,11 +142,11 @@ def convert_coin_to_usd(coin_size: float, coin: str) -> Tuple[float, float]:
 
     except ValueError as e:
         # Coin not found or invalid
-        raise ValueError(f"Failed to get price for {coin}: {str(e)}")
+        raise ValueError(f"Failed to get price for {coin}: {str(e)}") from e
     except Exception as e:
         # Other errors
         logger.exception(f"Error converting coin to USD for {coin}")
-        raise RuntimeError(f"Failed to fetch price for {coin}: {str(e)}")
+        raise RuntimeError(f"Failed to fetch price for {coin}: {str(e)}") from e
 
 
 def format_coin_amount(coin_size: float, coin: str) -> str:
@@ -216,9 +217,7 @@ def format_dual_amount(coin_size: float, usd_value: float, coin: str) -> str:
 
 
 async def send_success_and_end(
-    update: Update,
-    message: str,
-    parse_mode: Optional[str] = "Markdown"
+    update: Update, message: str, parse_mode: str | None = "Markdown"
 ) -> int:
     """
     Send a success message with main menu and end the conversation.
@@ -243,24 +242,18 @@ async def send_success_and_end(
     """
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            message,
-            parse_mode=parse_mode,
-            reply_markup=build_main_menu()
+            message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
     else:
         await update.message.reply_text(
-            message,
-            parse_mode=parse_mode,
-            reply_markup=build_main_menu()
+            message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
 
     return ConversationHandler.END
 
 
 async def send_error_and_end(
-    update: Update,
-    error_message: str,
-    parse_mode: Optional[str] = "Markdown"
+    update: Update, error_message: str, parse_mode: str | None = "Markdown"
 ) -> int:
     """
     Send an error message with main menu and end the conversation.
@@ -287,24 +280,18 @@ async def send_error_and_end(
     """
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            error_message,
-            parse_mode=parse_mode,
-            reply_markup=build_main_menu()
+            error_message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
     else:
         await update.message.reply_text(
-            error_message,
-            parse_mode=parse_mode,
-            reply_markup=build_main_menu()
+            error_message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
 
     return ConversationHandler.END
 
 
 async def send_cancel_and_end(
-    update: Update,
-    cancel_message: str = "❌ Operation cancelled.",
-    parse_mode: Optional[str] = None
+    update: Update, cancel_message: str = "❌ Operation cancelled.", parse_mode: str | None = None
 ) -> int:
     """
     Send a cancellation message with main menu and end the conversation.
@@ -330,15 +317,11 @@ async def send_cancel_and_end(
     """
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            cancel_message,
-            parse_mode=parse_mode,
-            reply_markup=build_main_menu()
+            cancel_message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
     else:
         await update.message.reply_text(
-            cancel_message,
-            parse_mode=parse_mode,
-            reply_markup=build_main_menu()
+            cancel_message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
 
     return ConversationHandler.END

@@ -3,8 +3,8 @@ Interactive menu builders for Telegram bot.
 
 Provides reusable menu components and navigation.
 """
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from typing import List, Tuple
 
 
 def build_main_menu() -> InlineKeyboardMarkup:
@@ -44,7 +44,7 @@ def build_back_button() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def build_with_back(buttons: List[List[InlineKeyboardButton]]) -> InlineKeyboardMarkup:
+def build_with_back(buttons: list[list[InlineKeyboardButton]]) -> InlineKeyboardMarkup:
     """
     Add a back button to existing button layout.
 
@@ -58,7 +58,7 @@ def build_with_back(buttons: List[List[InlineKeyboardButton]]) -> InlineKeyboard
     return InlineKeyboardMarkup(buttons)
 
 
-def build_positions_menu(positions: List[dict]) -> InlineKeyboardMarkup:
+def build_positions_menu(positions: list[dict]) -> InlineKeyboardMarkup:
     """
     Build menu showing all positions for selection.
 
@@ -94,7 +94,7 @@ def build_positions_menu(positions: List[dict]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def build_coin_selection_menu(top_coins: List[str] = None) -> InlineKeyboardMarkup:
+def build_coin_selection_menu(top_coins: list[str] = None) -> InlineKeyboardMarkup:
     """
     Build menu for selecting a coin.
 
@@ -113,7 +113,7 @@ def build_coin_selection_menu(top_coins: List[str] = None) -> InlineKeyboardMark
     for i in range(0, len(top_coins), 3):
         row = [
             InlineKeyboardButton(coin, callback_data=f"select_coin:{coin}")
-            for coin in top_coins[i:i+3]
+            for coin in top_coins[i : i + 3]
         ]
         keyboard.append(row)
 

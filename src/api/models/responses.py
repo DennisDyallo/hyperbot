@@ -2,7 +2,9 @@
 Response models for API endpoints.
 Uses Pydantic for data validation and serialization.
 """
-from typing import List, Optional, Dict, Any
+
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -26,9 +28,7 @@ class PositionDetails(BaseModel):
     return_on_equity: float = Field(description="ROE as decimal (e.g., 0.05 = 5%)")
     leverage_type: str = Field(description="Leverage type: 'cross' or 'isolated'")
     leverage_value: int = Field(description="Leverage multiplier")
-    liquidation_price: Optional[float] = Field(
-        None, description="Estimated liquidation price"
-    )
+    liquidation_price: float | None = Field(None, description="Estimated liquidation price")
 
 
 class Position(BaseModel):
@@ -49,13 +49,11 @@ class AccountInfo(BaseModel):
     """Complete account information including positions, margin, and spot balances."""
 
     margin_summary: MarginSummary = Field(description="Account margin and value summary (perps)")
-    positions: List[Position] = Field(
+    positions: list[Position] = Field(
         default_factory=list, description="List of open perpetual positions"
     )
     withdrawable: float = Field(description="Amount available for withdrawal in USD (perps)")
-    spot_balances: List[SpotBalance] = Field(
-        default_factory=list, description="Spot/DEX balances"
-    )
+    spot_balances: list[SpotBalance] = Field(default_factory=list, description="Spot/DEX balances")
     spot_total_usd: float = Field(description="Total spot balance value in USD")
 
 
@@ -91,7 +89,7 @@ class PositionSummary(BaseModel):
     short_positions: int = Field(description="Number of short positions")
     total_position_value: float = Field(description="Total value of all positions in USD")
     total_unrealized_pnl: float = Field(description="Total unrealized PnL across all positions")
-    positions: List[PositionListItem] = Field(description="List of position summaries")
+    positions: list[PositionListItem] = Field(description="List of position summaries")
 
 
 class ClosePositionResponse(BaseModel):
@@ -100,7 +98,7 @@ class ClosePositionResponse(BaseModel):
     status: str = Field(description="Status: 'success' or 'error'")
     coin: str = Field(description="Trading pair that was closed")
     size_closed: float = Field(description="Size that was closed")
-    result: Dict[str, Any] = Field(description="Raw result from exchange")
+    result: dict[str, Any] = Field(description="Raw result from exchange")
 
 
 class OrderResponse(BaseModel):
@@ -111,15 +109,15 @@ class OrderResponse(BaseModel):
     side: str = Field(description="Order side: 'buy' or 'sell'")
     size: float = Field(description="Order size")
     order_type: str = Field(description="Order type: 'market' or 'limit'")
-    limit_price: Optional[float] = Field(None, description="Limit price (for limit orders)")
-    time_in_force: Optional[str] = Field(None, description="Time in force (for limit orders)")
-    result: Dict[str, Any] = Field(description="Raw result from exchange")
+    limit_price: float | None = Field(None, description="Limit price (for limit orders)")
+    time_in_force: str | None = Field(None, description="Time in force (for limit orders)")
+    result: dict[str, Any] = Field(description="Raw result from exchange")
 
 
 class CancelOrderResponse(BaseModel):
     """Response from canceling an order."""
 
     status: str = Field(description="Status: 'success' or 'error'")
-    coin: Optional[str] = Field(None, description="Trading pair (if canceling specific order)")
-    order_id: Optional[int] = Field(None, description="Order ID (if canceling specific order)")
-    result: Dict[str, Any] = Field(description="Raw result from exchange")
+    coin: str | None = Field(None, description="Trading pair (if canceling specific order)")
+    order_id: int | None = Field(None, description="Order ID (if canceling specific order)")
+    result: dict[str, Any] = Field(description="Raw result from exchange")

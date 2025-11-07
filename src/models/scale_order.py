@@ -4,10 +4,12 @@ Models for scale order configuration and tracking.
 Scale orders place multiple limit orders at different price levels,
 allowing traders to build or exit positions gradually.
 """
-from typing import List, Optional, Literal
-from pydantic import BaseModel, Field, field_validator
+
 from datetime import datetime
+from typing import Literal
 from uuid import uuid4
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class ScaleOrderConfig(BaseModel):
@@ -15,7 +17,9 @@ class ScaleOrderConfig(BaseModel):
 
     coin: str = Field(..., description="Asset symbol (e.g., 'BTC', 'ETH')")
     is_buy: bool = Field(..., description="True for buy orders, False for sell orders")
-    total_usd_amount: float = Field(..., gt=0, description="Total USD amount to deploy across all orders")
+    total_usd_amount: float = Field(
+        ..., gt=0, description="Total USD amount to deploy across all orders"
+    )
     num_orders: int = Field(..., ge=2, le=20, description="Number of orders to place (2-20)")
 
     # Price range
@@ -25,20 +29,20 @@ class ScaleOrderConfig(BaseModel):
     # Distribution settings
     distribution_type: Literal["linear", "geometric"] = Field(
         default="linear",
-        description="How to distribute sizes: 'linear' (equal) or 'geometric' (weighted)"
+        description="How to distribute sizes: 'linear' (equal) or 'geometric' (weighted)",
     )
     geometric_ratio: float = Field(
         default=1.5,
         gt=1.0,
         le=3.0,
-        description="Geometric ratio for size distribution (1.5 = each order 1.5x previous, range: 1.0-3.0)"
+        description="Geometric ratio for size distribution (1.5 = each order 1.5x previous, range: 1.0-3.0)",
     )
 
     # Order settings
     reduce_only: bool = Field(default=False, description="Only reduce existing position")
     time_in_force: Literal["Gtc", "Ioc", "Alo"] = Field(
         default="Gtc",
-        description="Time in force: Gtc (good til cancel), Ioc (immediate or cancel), Alo (add liquidity only)"
+        description="Time in force: Gtc (good til cancel), Ioc (immediate or cancel), Alo (add liquidity only)",
     )
 
     @field_validator("end_price")
@@ -74,10 +78,7 @@ class ScaleOrderPreview(BaseModel):
     total_usd_amount: float
     total_coin_size: float = Field(..., description="Total coin quantity across all orders")
     num_orders: int
-    orders: List[dict] = Field(
-        ...,
-        description="List of individual orders with price and size"
-    )
+    orders: list[dict] = Field(..., description="List of individual orders with price and size")
     estimated_avg_price: float = Field(..., description="Estimated average fill price")
     price_range_pct: float = Field(..., description="Price range as percentage")
 
@@ -85,37 +86,36 @@ class ScaleOrderPreview(BaseModel):
 class OrderPlacement(BaseModel):
     """Result of placing a single order in a scale order."""
 
-    order_id: Optional[int] = Field(None, description="Hyperliquid order ID if successful")
+    order_id: int | None = Field(None, description="Hyperliquid order ID if successful")
     price: float
     size: float
     status: Literal["success", "failed"] = Field(..., description="Placement status")
-    error: Optional[str] = Field(None, description="Error message if failed")
+    error: str | None = Field(None, description="Error message if failed")
 
 
 class ScaleOrderResult(BaseModel):
     """Result of placing a scale order."""
 
-    scale_order_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique ID for this scale order group")
+    scale_order_id: str = Field(
+        default_factory=lambda: str(uuid4()), description="Unique ID for this scale order group"
+    )
     coin: str
     is_buy: bool
     total_usd_amount: float
     total_coin_size: float = Field(..., description="Total coin quantity placed")
     num_orders: int
 
-    placements: List[OrderPlacement] = Field(
-        ...,
-        description="Individual order placement results"
-    )
+    placements: list[OrderPlacement] = Field(..., description="Individual order placement results")
 
     orders_placed: int = Field(..., description="Number of orders successfully placed")
     orders_failed: int = Field(..., description="Number of orders that failed")
 
-    average_price: Optional[float] = Field(None, description="Average price of placed orders")
+    average_price: float | None = Field(None, description="Average price of placed orders")
     total_placed_size: float = Field(..., description="Total size actually placed")
 
     status: Literal["completed", "partial", "failed"] = Field(
         ...,
-        description="Overall status: 'completed' (all placed), 'partial' (some placed), 'failed' (none placed)"
+        description="Overall status: 'completed' (all placed), 'partial' (some placed), 'failed' (none placed)",
     )
 
     created_at: datetime = Field(default_factory=datetime.now)
@@ -142,22 +142,22 @@ class ScaleOrder(BaseModel):
     distribution_type: str
 
     # Results
-    order_ids: List[int] = Field(default_factory=list, description="List of Hyperliquid order IDs")
+    order_ids: list[int] = Field(default_factory=list, description="List of Hyperliquid order IDs")
     orders_placed: int = Field(default=0)
     orders_filled: int = Field(default=0)
     total_filled_size: float = Field(default=0.0)
-    average_fill_price: Optional[float] = None
+    average_fill_price: float | None = None
 
     # Status tracking
     status: Literal["active", "completed", "cancelled", "failed"] = Field(
         default="active",
-        description="Status: 'active' (orders open), 'completed' (all filled), 'cancelled' (cancelled), 'failed' (placement failed)"
+        description="Status: 'active' (orders open), 'completed' (all filled), 'cancelled' (cancelled), 'failed' (placement failed)",
     )
 
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
 
     class Config:
         json_schema_extra = {
@@ -176,7 +176,7 @@ class ScaleOrder(BaseModel):
                 "orders_filled": 2,
                 "total_filled_size": 0.4,
                 "average_fill_price": 49200.0,
-                "status": "active"
+                "status": "active",
             }
         }
 
@@ -186,8 +186,7 @@ class ScaleOrderCancel(BaseModel):
 
     scale_order_id: str = Field(..., description="ID of the scale order to cancel")
     cancel_all_orders: bool = Field(
-        default=True,
-        description="Whether to cancel all open orders in the group"
+        default=True, description="Whether to cancel all open orders in the group"
     )
 
 
@@ -195,12 +194,10 @@ class ScaleOrderStatus(BaseModel):
     """Status information for a scale order."""
 
     scale_order: ScaleOrder
-    open_orders: List[dict] = Field(
-        default_factory=list,
-        description="List of currently open orders from this scale order"
+    open_orders: list[dict] = Field(
+        default_factory=list, description="List of currently open orders from this scale order"
     )
-    filled_orders: List[dict] = Field(
-        default_factory=list,
-        description="List of filled orders from this scale order"
+    filled_orders: list[dict] = Field(
+        default_factory=list, description="List of filled orders from this scale order"
     )
     fill_percentage: float = Field(..., description="Percentage of total size filled (0-100)")

@@ -7,12 +7,15 @@ MIGRATED: Now using tests/helpers for service mocking.
 - create_service_with_mocks replaces manual fixture boilerplate
 - ServiceMockBuilder provides pre-configured hyperliquid mock
 """
-import pytest
+
 from unittest.mock import Mock
+
+import pytest
+
 from src.services.account_service import AccountService
 
 # Import helpers for cleaner service mocking
-from tests.helpers import create_service_with_mocks, ServiceMockBuilder
+from tests.helpers import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestAccountService:
@@ -25,11 +28,7 @@ class TestAccountService:
         mock_hl.wallet_address = "0xF67332761483018d2e604A094d7f00cA8230e881"
 
         return create_service_with_mocks(
-            AccountService,
-            'src.services.account_service',
-            {
-                'hyperliquid_service': mock_hl
-            }
+            AccountService, "src.services.account_service", {"hyperliquid_service": mock_hl}
         )
 
     @pytest.fixture
@@ -41,12 +40,12 @@ class TestAccountService:
                 "totalMarginUsed": "2442.576720",
                 "withdrawable": "8500.000000",
                 "totalRawUsd": "8500.000000",  # Used for available_balance
-                "totalNtlPos": "2442.576720"   # Total notional position value
+                "totalNtlPos": "2442.576720",  # Total notional position value
             },
             "crossMarginSummary": {
                 "accountValue": "10942.576720",
                 "totalMarginUsed": "2442.576720",
-                "withdrawable": "8500.000000"
+                "withdrawable": "8500.000000",
             },
             "assetPositions": [
                 {
@@ -58,7 +57,7 @@ class TestAccountService:
                         "positionValue": "449.660416",
                         "unrealizedPnl": "5.25",
                         "returnOnEquity": "0.0117",
-                        "liquidationPx": "95000.0"
+                        "liquidationPx": "95000.0",
                     }
                 },
                 {
@@ -70,11 +69,11 @@ class TestAccountService:
                         "positionValue": "193.968",
                         "unrealizedPnl": "2.15",
                         "returnOnEquity": "0.0111",
-                        "liquidationPx": "140.0"
+                        "liquidationPx": "140.0",
                     }
-                }
+                },
             ],
-            "crossMaintenanceMarginUsed": "50.12"
+            "crossMaintenanceMarginUsed": "50.12",
         }
 
     def test_get_account_summary_field_names(self, service, mock_user_state):
@@ -130,14 +129,11 @@ class TestAccountService:
             "marginSummary": {
                 "accountValue": "10000.0",
                 "totalMarginUsed": "0.0",
-                "withdrawable": "10000.0"
+                "withdrawable": "10000.0",
             },
-            "crossMarginSummary": {
-                "accountValue": "10000.0",
-                "totalMarginUsed": "0.0"
-            },
+            "crossMarginSummary": {"accountValue": "10000.0", "totalMarginUsed": "0.0"},
             "assetPositions": [],
-            "crossMaintenanceMarginUsed": "0.0"
+            "crossMaintenanceMarginUsed": "0.0",
         }
 
         mock_info = Mock()

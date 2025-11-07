@@ -5,14 +5,12 @@ Provides context managers and helpers for patching services and dependencies
 in a clean, readable way.
 """
 
-from typing import Dict, Any
-from unittest.mock import patch, Mock
-from contextlib import contextmanager
 from collections import namedtuple
-
+from contextlib import contextmanager, suppress
+from unittest.mock import Mock, patch
 
 # Named tuple for holding patched mocks
-PatchedServices = namedtuple('PatchedServices', [])
+PatchedServices = namedtuple("PatchedServices", [])
 
 
 @contextmanager
@@ -44,14 +42,15 @@ def patch_services(**service_paths):
         ...     result = service.get_coin_leverage("BTC")
     """
     # Create mock objects
-    mock_services = {name: Mock() for name in service_paths.keys()}
+    mock_services = {name: Mock() for name in service_paths}
 
     # Create patches
     patches = {
         name: patch(path, mock_obj)
         for name, (path, mock_obj) in zip(
             service_paths.keys(),
-            [(path, mock_services[name]) for name, path in service_paths.items()]
+            [(path, mock_services[name]) for name, path in service_paths.items()],
+            strict=False,
         )
     }
 
@@ -63,16 +62,14 @@ def patch_services(**service_paths):
 
         # Return namespace with mock objects
         # Use a dynamic namedtuple to allow attribute access
-        MockNamespace = namedtuple('MockNamespace', service_paths.keys())
+        MockNamespace = namedtuple("MockNamespace", service_paths.keys())
         yield MockNamespace(**mock_services)
 
     finally:
         # Exit all patches in reverse order
         for p in reversed(list(patches.values())):
-            try:
+            with suppress(Exception):
                 p.__exit__(None, None, None)
-            except Exception:
-                pass  # Ignore cleanup errors
 
 
 @contextmanager
@@ -99,7 +96,7 @@ def patch_hyperliquid_service(initialized: bool = True):
     mock_hl.get_info_client = Mock()
     mock_hl.get_exchange_client = Mock()
 
-    with patch('src.services.hyperliquid_service.hyperliquid_service', mock_hl):
+    with patch("src.services.hyperliquid_service.hyperliquid_service", mock_hl):
         yield mock_hl
 
 
@@ -130,10 +127,7 @@ def patch_service_dependencies(service_module_path: str, **dependencies):
         ...     service = LeverageService()
         ...     # Dependencies are now patched
     """
-    paths = {
-        name: f'{service_module_path}.{name}'
-        for name in dependencies.keys()
-    }
+    paths = {name: f"{service_module_path}.{name}" for name in dependencies}
 
     with patch_services(**paths) as mocks:
         yield mocks
@@ -165,21 +159,17 @@ def patch_use_case_services(**service_mocks):
         ...     response = await use_case.execute(request)
     """
     # Auto-create mocks if None provided
-    mocks = {
-        name: (mock if mock is not None else Mock())
-        for name, mock in service_mocks.items()
-    }
+    mocks = {name: (mock if mock is not None else Mock()) for name, mock in service_mocks.items()}
 
     # Build patch paths (assumes services are in src.services)
-    paths = {
-        name: f'src.services.{name}.{name}'
-        for name in mocks.keys()
-    }
+    paths = {name: f"src.services.{name}.{name}" for name in mocks}
 
     # Create patches
     patches = {
         name: patch(path, mock_obj)
-        for name, (path, mock_obj) in zip(paths.keys(), [(p, mocks[n]) for n, p in paths.items()])
+        for name, (path, mock_obj) in zip(
+            paths.keys(), [(p, mocks[n]) for n, p in paths.items()], strict=False
+        )
     }
 
     # Enter all patches
@@ -188,16 +178,14 @@ def patch_use_case_services(**service_mocks):
             p.__enter__()
 
         # Return namespace
-        MockNamespace = namedtuple('MockNamespace', mocks.keys())
+        MockNamespace = namedtuple("MockNamespace", mocks.keys())
         yield MockNamespace(**mocks)
 
     finally:
         # Exit all patches
         for p in reversed(list(patches.values())):
-            try:
+            with suppress(Exception):
                 p.__exit__(None, None, None)
-            except Exception:
-                pass
 
 
 def create_patched_mock(module_path: str, **attributes):
@@ -230,6 +218,7 @@ def create_patched_mock(module_path: str, **attributes):
 
 
 # Convenience functions for common patching scenarios
+
 
 @contextmanager
 def no_op_patch():

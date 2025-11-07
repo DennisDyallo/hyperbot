@@ -4,39 +4,27 @@ Rebalance Use Case.
 Unified portfolio rebalancing logic for both API and Bot interfaces.
 Wraps rebalance_service with standardized request/response models.
 """
-from typing import Dict, List
+
 from pydantic import BaseModel, Field
-from src.use_cases.base import BaseUseCase
-from src.services.rebalance_service import rebalance_service, TradeAction
+
 from src.config import logger
+from src.services.rebalance_service import TradeAction, rebalance_service
+from src.use_cases.base import BaseUseCase
 
 
 class RebalanceRequest(BaseModel):
     """Request model for portfolio rebalancing."""
 
-    target_weights: Dict[str, float] = Field(
+    target_weights: dict[str, float] = Field(
         description="Target allocation percentages (e.g., {'BTC': 50, 'ETH': 30, 'SOL': 20})"
     )
     leverage: int = Field(
-        3,
-        ge=1,
-        le=50,
-        description="Leverage multiplier (default 3x, conservative)"
+        3, ge=1, le=50, description="Leverage multiplier (default 3x, conservative)"
     )
-    dry_run: bool = Field(
-        True,
-        description="Preview only, don't execute (default True)"
-    )
-    min_trade_usd: float = Field(
-        10.0,
-        ge=0,
-        description="Minimum trade size in USD (default $10)"
-    )
+    dry_run: bool = Field(True, description="Preview only, don't execute (default True)")
+    min_trade_usd: float = Field(10.0, ge=0, description="Minimum trade size in USD (default $10)")
     max_slippage: float = Field(
-        0.05,
-        ge=0,
-        le=0.5,
-        description="Maximum acceptable slippage (default 5%)"
+        0.05, ge=0, le=0.5, description="Maximum acceptable slippage (default 5%)"
     )
 
     class Config:
@@ -46,13 +34,14 @@ class RebalanceRequest(BaseModel):
                 "leverage": 3,
                 "dry_run": True,
                 "min_trade_usd": 10.0,
-                "max_slippage": 0.05
+                "max_slippage": 0.05,
             }
         }
 
 
 class TradeDetail(BaseModel):
     """Details for a single rebalancing trade."""
+
     coin: str
     action: str  # OPEN, INCREASE, DECREASE, CLOSE, SKIP
     current_allocation_pct: float
@@ -82,11 +71,11 @@ class RebalanceResponse(BaseModel):
     dry_run: bool
 
     # Allocation changes
-    initial_allocation: Dict[str, float]
-    final_allocation: Dict[str, float]
+    initial_allocation: dict[str, float]
+    final_allocation: dict[str, float]
 
     # Trade details
-    planned_trades: List[TradeDetail]
+    planned_trades: list[TradeDetail]
 
     # Execution summary
     total_trades: int
@@ -100,10 +89,10 @@ class RebalanceResponse(BaseModel):
     total_usd_volume: float
 
     # Risk warnings
-    high_risk_coins: List[str] = Field(default_factory=list)
+    high_risk_coins: list[str] = Field(default_factory=list)
     critical_risk_prevented: bool = False
-    warnings: List[str] = Field(default_factory=list)
-    errors: List[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
 
 class RebalanceUseCase(BaseUseCase[RebalanceRequest, RebalanceResponse]):
@@ -164,7 +153,7 @@ class RebalanceUseCase(BaseUseCase[RebalanceRequest, RebalanceResponse]):
                 result = self.rebalance_service.preview_rebalance(
                     target_weights=request.target_weights,
                     leverage=request.leverage,
-                    min_trade_usd=request.min_trade_usd
+                    min_trade_usd=request.min_trade_usd,
                 )
             else:
                 result = self.rebalance_service.execute_rebalance(
@@ -172,13 +161,16 @@ class RebalanceUseCase(BaseUseCase[RebalanceRequest, RebalanceResponse]):
                     leverage=request.leverage,
                     dry_run=False,
                     min_trade_usd=request.min_trade_usd,
-                    max_slippage=request.max_slippage
+                    max_slippage=request.max_slippage,
                 )
 
             # Handle validation errors
-            if not result.success and result.errors:
-                if any("weight" in err.lower() for err in result.errors):
-                    raise ValueError(result.message)
+            if (
+                not result.success
+                and result.errors
+                and any("weight" in err.lower() for err in result.errors)
+            ):
+                raise ValueError(result.message)
 
             # Convert trades to response model
             trade_details = []
@@ -193,7 +185,10 @@ class RebalanceUseCase(BaseUseCase[RebalanceRequest, RebalanceResponse]):
                     total_volume += abs(trade.trade_usd_value)
 
                 # Check for high-risk trades
-                if trade.estimated_risk_level and trade.estimated_risk_level.value in ["HIGH", "CRITICAL"]:
+                if trade.estimated_risk_level and trade.estimated_risk_level.value in [
+                    "HIGH",
+                    "CRITICAL",
+                ]:
                     high_risk_coins.append(trade.coin)
 
                 trade_detail = TradeDetail(
@@ -210,8 +205,10 @@ class RebalanceUseCase(BaseUseCase[RebalanceRequest, RebalanceResponse]):
                     success=trade.success,
                     error=trade.error,
                     estimated_liquidation_price=trade.estimated_liquidation_price,
-                    estimated_risk_level=trade.estimated_risk_level.value if trade.estimated_risk_level else None,
-                    estimated_health_score=trade.estimated_health_score
+                    estimated_risk_level=trade.estimated_risk_level.value
+                    if trade.estimated_risk_level
+                    else None,
+                    estimated_health_score=trade.estimated_health_score,
                 )
 
                 trade_details.append(trade_detail)
@@ -234,7 +231,7 @@ class RebalanceUseCase(BaseUseCase[RebalanceRequest, RebalanceResponse]):
                 high_risk_coins=high_risk_coins,
                 critical_risk_prevented=result.critical_risk_prevented,
                 warnings=result.risk_warnings if result.risk_warnings else [],
-                errors=result.errors if result.errors else []
+                errors=result.errors if result.errors else [],
             )
 
             logger.info(
@@ -250,4 +247,4 @@ class RebalanceUseCase(BaseUseCase[RebalanceRequest, RebalanceResponse]):
             raise
         except Exception as e:
             logger.error(f"Rebalancing failed: {e}")
-            raise RuntimeError(f"Failed to execute rebalancing: {str(e)}")
+            raise RuntimeError(f"Failed to execute rebalancing: {str(e)}") from e

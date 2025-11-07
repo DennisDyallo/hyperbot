@@ -1,11 +1,13 @@
 """
 Position service for managing trading positions.
 """
-from typing import Dict, Any, List, Optional
-from src.services.hyperliquid_service import hyperliquid_service
-from src.services.account_service import account_service
-from src.use_cases.common.response_parser import parse_hyperliquid_response
+
+from typing import Any
+
 from src.config import logger, settings
+from src.services.account_service import account_service
+from src.services.hyperliquid_service import hyperliquid_service
+from src.use_cases.common.response_parser import parse_hyperliquid_response
 
 
 class PositionService:
@@ -16,7 +18,7 @@ class PositionService:
         self.hyperliquid = hyperliquid_service
         self.account = account_service
 
-    def list_positions(self) -> List[Dict[str, Any]]:
+    def list_positions(self) -> list[dict[str, Any]]:
         """
         List all open positions.
 
@@ -37,7 +39,7 @@ class PositionService:
             logger.error(f"Failed to list positions: {e}")
             raise
 
-    def get_position(self, coin: str) -> Optional[Dict[str, Any]]:
+    def get_position(self, coin: str) -> dict[str, Any] | None:
         """
         Get details for a specific position.
 
@@ -66,8 +68,8 @@ class PositionService:
             raise
 
     def close_position(
-        self, coin: str, size: Optional[float] = None, slippage: float = 0.05
-    ) -> Dict[str, Any]:
+        self, coin: str, size: float | None = None, slippage: float = 0.05
+    ) -> dict[str, Any]:
         """
         Close a position (fully or partially).
 
@@ -101,9 +103,7 @@ class PositionService:
                 if size <= 0:
                     raise ValueError("Size must be positive")
                 if size > current_size:
-                    raise ValueError(
-                        f"Size {size} exceeds current position size {current_size}"
-                    )
+                    raise ValueError(f"Size {size} exceeds current position size {current_size}")
                 close_size = size
             else:
                 close_size = None  # Close entire position
@@ -140,7 +140,7 @@ class PositionService:
             logger.error(f"Failed to close position for {coin}: {e}")
             raise
 
-    def get_position_summary(self) -> Dict[str, Any]:
+    def get_position_summary(self) -> dict[str, Any]:
         """
         Get summary of all positions.
 
@@ -153,18 +153,12 @@ class PositionService:
         try:
             positions = self.list_positions()
 
-            total_value = sum(
-                float(p["position"]["position_value"]) for p in positions
-            )
+            total_value = sum(float(p["position"]["position_value"]) for p in positions)
             total_pnl = sum(float(p["position"]["unrealized_pnl"]) for p in positions)
 
             # Group by long/short
-            long_positions = [
-                p for p in positions if float(p["position"]["size"]) > 0
-            ]
-            short_positions = [
-                p for p in positions if float(p["position"]["size"]) < 0
-            ]
+            long_positions = [p for p in positions if float(p["position"]["size"]) > 0]
+            short_positions = [p for p in positions if float(p["position"]["size"]) < 0]
 
             summary = {
                 "total_positions": len(positions),
@@ -184,8 +178,7 @@ class PositionService:
             }
 
             logger.debug(
-                f"Position summary: {summary['total_positions']} positions, "
-                f"PnL=${total_pnl:.2f}"
+                f"Position summary: {summary['total_positions']} positions, PnL=${total_pnl:.2f}"
             )
 
             return summary

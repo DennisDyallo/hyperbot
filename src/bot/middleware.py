@@ -1,9 +1,12 @@
 """
 Middleware and decorators for Telegram bot.
 """
+
 from functools import wraps
+
 from telegram import Update
 from telegram.ext import ContextTypes
+
 from src.config import logger, settings
 
 
@@ -19,6 +22,7 @@ def authorized_only(func):
 
     Reference: docs/telegram/best-practices.md - Security Best Practices
     """
+
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user = update.effective_user
@@ -38,7 +42,7 @@ def authorized_only(func):
                     "🚫 Unauthorized. This bot is private.\n\n"
                     f"Your user ID: `{user_id}`\n"
                     "Contact the bot owner to request access.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
                 )
             return
 

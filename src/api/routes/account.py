@@ -2,12 +2,13 @@
 Account API routes.
 Handles account information, balances, and positions.
 """
+
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from src.services import account_service
-from src.api.models import AccountInfo, AccountSummary
+
+from src.api.models import AccountInfo
 from src.config import logger
+from src.services import account_service
 
 router = APIRouter(prefix="/api/account", tags=["Account"])
 templates = Jinja2Templates(directory="src/api/templates")
@@ -26,10 +27,10 @@ async def get_account():
         return account_data
     except RuntimeError as e:
         logger.error(f"Account info error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to get account info: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch account information")
+        raise HTTPException(status_code=500, detail="Failed to fetch account information") from e
 
 
 @router.get("/summary")
@@ -49,16 +50,16 @@ async def get_account_summary(request: Request):
             return templates.TemplateResponse(
                 "partials/account_summary.html",
                 {"request": request, "summary": summary_data},
-                headers={"Content-Type": "text/html"}
+                headers={"Content-Type": "text/html"},
             )
 
         return summary_data
     except RuntimeError as e:
         logger.error(f"Account summary error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to get account summary: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch account summary")
+        raise HTTPException(status_code=500, detail="Failed to fetch account summary") from e
 
 
 @router.get("/balance")
@@ -74,7 +75,7 @@ async def get_balance():
         return balance_data
     except RuntimeError as e:
         logger.error(f"Balance details error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to get balance details: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch balance details")
+        raise HTTPException(status_code=500, detail="Failed to fetch balance details") from e

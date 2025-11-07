@@ -2,6 +2,7 @@
 """
 Discover all available methods on Hyperliquid Info API client.
 """
+
 import sys
 from pathlib import Path
 
@@ -21,14 +22,14 @@ def main():
         print("HYPERLIQUID INFO API METHODS:")
         print("=" * 80)
 
-        methods = [m for m in dir(info) if not m.startswith('_')]
+        methods = [m for m in dir(info) if not m.startswith("_")]
         for method in sorted(methods):
             attr = getattr(info, method)
             if callable(attr):
                 print(f"  • {method}()")
                 # Try to get docstring
-                if hasattr(attr, '__doc__') and attr.__doc__:
-                    doc = attr.__doc__.strip().split('\n')[0]
+                if hasattr(attr, "__doc__") and attr.__doc__:
+                    doc = attr.__doc__.strip().split("\n")[0]
                     print(f"    → {doc}")
 
         # Try spot balance query
@@ -37,7 +38,12 @@ def main():
         print("=" * 80)
 
         # Try user_spot_state or spot_user_state
-        for method_name in ['user_spot_state', 'spot_user_state', 'spot_clearinghouse_state', 'all_assets']:
+        for method_name in [
+            "user_spot_state",
+            "spot_user_state",
+            "spot_clearinghouse_state",
+            "all_assets",
+        ]:
             if hasattr(info, method_name):
                 print(f"\n✓ Found method: {method_name}()")
                 try:
@@ -49,6 +55,7 @@ def main():
     except Exception as e:
         logger.error(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

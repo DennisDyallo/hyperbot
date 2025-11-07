@@ -7,12 +7,15 @@ MIGRATED: Now using tests/helpers for service mocking.
 - create_service_with_mocks replaces manual fixture boilerplate
 - ServiceMockBuilder provides pre-configured hyperliquid mock
 """
-import pytest
+
 from unittest.mock import Mock
+
+import pytest
+
 from src.services.market_data_service import MarketDataService
 
 # Import helpers for cleaner service mocking
-from tests.helpers import create_service_with_mocks, ServiceMockBuilder
+from tests.helpers import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestMarketDataService:
@@ -23,10 +26,8 @@ class TestMarketDataService:
         """Create MarketDataService instance with mocked dependencies."""
         return create_service_with_mocks(
             MarketDataService,
-            'src.services.market_data_service',
-            {
-                'hyperliquid_service': ServiceMockBuilder.hyperliquid_service()
-            }
+            "src.services.market_data_service",
+            {"hyperliquid_service": ServiceMockBuilder.hyperliquid_service()},
         )
 
     # ===================================================================
@@ -36,11 +37,7 @@ class TestMarketDataService:
     def test_get_all_prices_success(self, service):
         """Test successfully fetching all prices."""
         mock_info = Mock()
-        mock_info.all_mids.return_value = {
-            "BTC": "50000.5",
-            "ETH": "3000.25",
-            "SOL": "150.75"
-        }
+        mock_info.all_mids.return_value = {"BTC": "50000.5", "ETH": "3000.25", "SOL": "150.75"}
         service.hyperliquid.get_info_client.return_value = mock_info
 
         prices = service.get_all_prices()
@@ -86,10 +83,7 @@ class TestMarketDataService:
     def test_get_price_success(self, service):
         """Test successfully fetching price for specific coin."""
         mock_info = Mock()
-        mock_info.all_mids.return_value = {
-            "BTC": "50000.0",
-            "ETH": "3000.0"
-        }
+        mock_info.all_mids.return_value = {"BTC": "50000.0", "ETH": "3000.0"}
         service.hyperliquid.get_info_client.return_value = mock_info
 
         price = service.get_price("BTC")
@@ -100,10 +94,7 @@ class TestMarketDataService:
     def test_get_price_coin_not_found(self, service):
         """Test get_price raises when coin not found."""
         mock_info = Mock()
-        mock_info.all_mids.return_value = {
-            "BTC": "50000.0",
-            "ETH": "3000.0"
-        }
+        mock_info.all_mids.return_value = {"BTC": "50000.0", "ETH": "3000.0"}
         service.hyperliquid.get_info_client.return_value = mock_info
 
         with pytest.raises(ValueError, match="not found"):
@@ -112,11 +103,7 @@ class TestMarketDataService:
     def test_get_price_shows_available_coins_on_error(self, service):
         """Test get_price error message includes available coins."""
         mock_info = Mock()
-        mock_info.all_mids.return_value = {
-            "BTC": "50000.0",
-            "ETH": "3000.0",
-            "SOL": "150.0"
-        }
+        mock_info.all_mids.return_value = {"BTC": "50000.0", "ETH": "3000.0", "SOL": "150.0"}
         service.hyperliquid.get_info_client.return_value = mock_info
 
         with pytest.raises(ValueError, match="Available coins:"):
@@ -139,10 +126,7 @@ class TestMarketDataService:
         """Test successfully fetching market metadata."""
         mock_info = Mock()
         mock_info.meta.return_value = {
-            "universe": [
-                {"name": "BTC", "szDecimals": 5},
-                {"name": "ETH", "szDecimals": 4}
-            ]
+            "universe": [{"name": "BTC", "szDecimals": 5}, {"name": "ETH", "szDecimals": 4}]
         }
         service.hyperliquid.get_info_client.return_value = mock_info
 
@@ -182,15 +166,9 @@ class TestMarketDataService:
             "coin": "BTC",
             "time": 1234567890,
             "levels": [
-                [
-                    {"px": "50000.0", "sz": "1.5", "n": 3},
-                    {"px": "49999.0", "sz": "2.0", "n": 5}
-                ],
-                [
-                    {"px": "50001.0", "sz": "1.2", "n": 2},
-                    {"px": "50002.0", "sz": "0.8", "n": 1}
-                ]
-            ]
+                [{"px": "50000.0", "sz": "1.5", "n": 3}, {"px": "49999.0", "sz": "2.0", "n": 5}],
+                [{"px": "50001.0", "sz": "1.2", "n": 2}, {"px": "50002.0", "sz": "0.8", "n": 1}],
+            ],
         }
         service.hyperliquid.get_info_client.return_value = mock_info
 
@@ -230,7 +208,7 @@ class TestMarketDataService:
         mock_info.meta.return_value = {
             "universe": [
                 {"name": "BTC", "szDecimals": 5, "maxLeverage": 50},
-                {"name": "ETH", "szDecimals": 4, "maxLeverage": 50}
+                {"name": "ETH", "szDecimals": 4, "maxLeverage": 50},
             ]
         }
         service.hyperliquid.get_info_client.return_value = mock_info
@@ -246,10 +224,7 @@ class TestMarketDataService:
         """Test get_asset_metadata returns None when asset not found."""
         mock_info = Mock()
         mock_info.meta.return_value = {
-            "universe": [
-                {"name": "BTC", "szDecimals": 5},
-                {"name": "ETH", "szDecimals": 4}
-            ]
+            "universe": [{"name": "BTC", "szDecimals": 5}, {"name": "ETH", "szDecimals": 4}]
         }
         service.hyperliquid.get_info_client.return_value = mock_info
 
@@ -270,11 +245,7 @@ class TestMarketDataService:
     def test_get_asset_metadata_case_sensitive(self, service):
         """Test get_asset_metadata is case-sensitive."""
         mock_info = Mock()
-        mock_info.meta.return_value = {
-            "universe": [
-                {"name": "BTC", "szDecimals": 5}
-            ]
-        }
+        mock_info.meta.return_value = {"universe": [{"name": "BTC", "szDecimals": 5}]}
         service.hyperliquid.get_info_client.return_value = mock_info
 
         # Should not find lowercase

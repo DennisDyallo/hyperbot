@@ -1,9 +1,11 @@
 """
 Market data service for fetching prices and market information.
 """
-from typing import Dict, Any, Optional
-from src.services.hyperliquid_service import hyperliquid_service
+
+from typing import Any
+
 from src.config import logger
+from src.services.hyperliquid_service import hyperliquid_service
 
 
 class MarketDataService:
@@ -13,7 +15,7 @@ class MarketDataService:
         """Initialize market data service."""
         self.hyperliquid = hyperliquid_service
 
-    def get_all_prices(self) -> Dict[str, float]:
+    def get_all_prices(self) -> dict[str, float]:
         """
         Get current mid prices for all trading pairs.
 
@@ -65,9 +67,7 @@ class MarketDataService:
 
             if coin not in prices:
                 available = ", ".join(sorted(prices.keys())[:10])
-                raise ValueError(
-                    f"Coin '{coin}' not found. Available coins: {available}..."
-                )
+                raise ValueError(f"Coin '{coin}' not found. Available coins: {available}...")
 
             price = prices[coin]
             logger.debug(f"Price for {coin}: ${price:,.2f}")
@@ -80,7 +80,7 @@ class MarketDataService:
             logger.error(f"Failed to fetch price for {coin}: {e}")
             raise
 
-    def get_market_info(self) -> Dict[str, Any]:
+    def get_market_info(self) -> dict[str, Any]:
         """
         Get exchange metadata including available pairs, tick sizes, and limits.
 
@@ -99,7 +99,7 @@ class MarketDataService:
             info_client = self.hyperliquid.get_info_client()
             meta = info_client.meta()
 
-            logger.debug(f"Fetched market metadata")
+            logger.debug("Fetched market metadata")
 
             return meta
 
@@ -107,7 +107,7 @@ class MarketDataService:
             logger.error(f"Failed to fetch market metadata: {e}")
             raise
 
-    def get_order_book(self, coin: str) -> Dict[str, Any]:
+    def get_order_book(self, coin: str) -> dict[str, Any]:
         """
         Get Level 2 order book snapshot for a specific coin.
 
@@ -143,7 +143,7 @@ class MarketDataService:
             logger.error(f"Failed to fetch order book for {coin}: {e}")
             raise
 
-    def get_asset_metadata(self, coin: str) -> Optional[Dict[str, Any]]:
+    def get_asset_metadata(self, coin: str) -> dict[str, Any] | None:
         """
         Get metadata for a specific asset (tick size, min size, etc.).
 

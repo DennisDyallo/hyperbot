@@ -4,16 +4,19 @@ Unit tests for ClosePositionUseCase.
 Tests position closing logic that handles actual trading operations.
 CRITICAL - bugs here = positions not closed properly.
 """
-import pytest
+
 from unittest.mock import AsyncMock, Mock
+
+import pytest
+from pydantic import ValidationError as PydanticValidationError
+
+from src.use_cases.common.validators import ValidationError
 from src.use_cases.trading.close_position import (
     ClosePositionRequest,
-    ClosePositionResponse,
-    ClosePositionUseCase
+    ClosePositionUseCase,
 )
-from src.use_cases.common.validators import ValidationError
-from tests.helpers.service_mocks import create_service_with_mocks, ServiceMockBuilder
 from tests.helpers.mock_data import PositionBuilder
+from tests.helpers.service_mocks import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestClosePositionUseCase:
@@ -45,11 +48,11 @@ class TestClosePositionUseCase:
 
         return create_service_with_mocks(
             ClosePositionUseCase,
-            'src.use_cases.trading.close_position',
+            "src.use_cases.trading.close_position",
             {
-                'position_service': mock_position,
-                'market_data_service': mock_market_data
-            }
+                "position_service": mock_position,
+                "market_data_service": mock_market_data,
+            },
         )
 
     # ===================================================================
@@ -74,20 +77,14 @@ class TestClosePositionUseCase:
         assert response.usd_value == pytest.approx(50000.0, abs=0.01)
 
         use_case.position_service.close_position.assert_called_once_with(
-            coin="BTC",
-            size=1.0,
-            slippage=0.05
+            coin="BTC", size=1.0, slippage=0.05
         )
 
     @pytest.mark.asyncio
     async def test_full_position_close_short_position(self, use_case):
         """Test full close of short position (negative size)."""
         short_position = (
-            PositionBuilder()
-            .with_coin("ETH")
-            .with_size(-10.0)
-            .with_position_value(30000.0)
-            .build()
+            PositionBuilder().with_coin("ETH").with_size(-10.0).with_position_value(30000.0).build()
         )
         use_case.position_service.get_position.return_value = short_position
         use_case.position_service.close_position.return_value = {"status": "success"}
@@ -112,7 +109,7 @@ class TestClosePositionUseCase:
 
         request = ClosePositionRequest(
             coin="BTC",
-            percentage=50.0  # Close 50%
+            percentage=50.0,  # Close 50%
         )
 
         response = await use_case.execute(request)
@@ -124,9 +121,7 @@ class TestClosePositionUseCase:
         assert response.usd_value == pytest.approx(25000.0, abs=0.01)
 
         use_case.position_service.close_position.assert_called_once_with(
-            coin="BTC",
-            size=0.5,
-            slippage=0.05
+            coin="BTC", size=0.5, slippage=0.05
         )
 
     @pytest.mark.asyncio
@@ -135,10 +130,7 @@ class TestClosePositionUseCase:
         use_case.position_service.get_position.return_value = mock_position_data
         use_case.position_service.close_position.return_value = {"status": "success"}
 
-        request = ClosePositionRequest(
-            coin="BTC",
-            percentage=100.0
-        )
+        request = ClosePositionRequest(coin="BTC", percentage=100.0)
 
         response = await use_case.execute(request)
 
@@ -152,10 +144,7 @@ class TestClosePositionUseCase:
         use_case.position_service.get_position.return_value = mock_position_data
         use_case.position_service.close_position.return_value = {"status": "success"}
 
-        request = ClosePositionRequest(
-            coin="BTC",
-            percentage=25.0
-        )
+        request = ClosePositionRequest(coin="BTC", percentage=25.0)
 
         response = await use_case.execute(request)
 
@@ -175,7 +164,7 @@ class TestClosePositionUseCase:
 
         request = ClosePositionRequest(
             coin="BTC",
-            size=0.3  # Close 0.3 BTC
+            size=0.3,  # Close 0.3 BTC
         )
 
         response = await use_case.execute(request)
@@ -193,7 +182,7 @@ class TestClosePositionUseCase:
 
         request = ClosePositionRequest(
             coin="BTC",
-            size=1.0  # Exact position size
+            size=1.0,  # Exact position size
         )
 
         response = await use_case.execute(request)
@@ -224,7 +213,7 @@ class TestClosePositionUseCase:
         request = ClosePositionRequest(
             coin="BTC",
             size=0.5,
-            percentage=50.0  # Both specified!
+            percentage=50.0,  # Both specified!
         )
 
         with pytest.raises(ValidationError, match="Specify only one of"):
@@ -237,7 +226,7 @@ class TestClosePositionUseCase:
 
         request = ClosePositionRequest(
             coin="BTC",
-            size=2.0  # Exceeds position size of 1.0
+            size=2.0,  # Exceeds position size of 1.0
         )
 
         with pytest.raises(ValidationError, match="exceeds position size"):
@@ -249,11 +238,8 @@ class TestClosePositionUseCase:
         use_case.position_service.get_position.return_value = mock_position_data
 
         # Pydantic should catch this
-        with pytest.raises(Exception):  # Pydantic validation error
-            request = ClosePositionRequest(
-                coin="BTC",
-                percentage=0.0
-            )
+        with pytest.raises(PydanticValidationError):
+            ClosePositionRequest(coin="BTC", percentage=0.0)
 
     @pytest.mark.asyncio
     async def test_invalid_percentage_over_100_raises_error(self, use_case, mock_position_data):
@@ -261,11 +247,8 @@ class TestClosePositionUseCase:
         use_case.position_service.get_position.return_value = mock_position_data
 
         # Pydantic should catch this
-        with pytest.raises(Exception):  # Pydantic validation error
-            request = ClosePositionRequest(
-                coin="BTC",
-                percentage=150.0
-            )
+        with pytest.raises(PydanticValidationError):
+            ClosePositionRequest(coin="BTC", percentage=150.0)
 
     @pytest.mark.asyncio
     async def test_empty_coin_symbol_raises_error(self, use_case):
@@ -321,7 +304,7 @@ class TestClosePositionUseCase:
 
         request = ClosePositionRequest(
             coin="BTC",
-            slippage=0.10  # 10% slippage
+            slippage=0.10,  # 10% slippage
         )
 
         await use_case.execute(request)
@@ -330,7 +313,9 @@ class TestClosePositionUseCase:
         assert call_kwargs["slippage"] == 0.10
 
     @pytest.mark.asyncio
-    async def test_position_service_failure_raises_runtime_error(self, use_case, mock_position_data):
+    async def test_position_service_failure_raises_runtime_error(
+        self, use_case, mock_position_data
+    ):
         """Test position service failure raises RuntimeError."""
         use_case.position_service.get_position.return_value = mock_position_data
         use_case.position_service.close_position.side_effect = Exception("API Error")
@@ -355,13 +340,13 @@ class TestClosePositionUseCase:
         response = await use_case.execute(request)
 
         # Verify all fields are present
-        assert hasattr(response, 'status')
-        assert hasattr(response, 'coin')
-        assert hasattr(response, 'size_closed')
-        assert hasattr(response, 'usd_value')
-        assert hasattr(response, 'remaining_size')
-        assert hasattr(response, 'close_type')
-        assert hasattr(response, 'message')
+        assert hasattr(response, "status")
+        assert hasattr(response, "coin")
+        assert hasattr(response, "size_closed")
+        assert hasattr(response, "usd_value")
+        assert hasattr(response, "remaining_size")
+        assert hasattr(response, "close_type")
+        assert hasattr(response, "message")
 
         # Verify message is meaningful
         assert "closed successfully" in response.message
@@ -409,11 +394,7 @@ class TestClosePositionUseCase:
     async def test_small_position_close(self, use_case):
         """Test closing very small position."""
         small_position = (
-            PositionBuilder()
-            .with_coin("BTC")
-            .with_size(0.001)
-            .with_position_value(50.0)
-            .build()
+            PositionBuilder().with_coin("BTC").with_size(0.001).with_position_value(50.0).build()
         )
         use_case.position_service.get_position.return_value = small_position
         use_case.position_service.close_position.return_value = {"status": "success"}

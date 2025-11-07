@@ -3,6 +3,7 @@
 Manual test script for Hyperliquid service.
 Tests connection and basic API functionality.
 """
+
 import sys
 from pathlib import Path
 
@@ -75,7 +76,7 @@ def main():
 
             # Show a few examples
             logger.info("Sample prices:")
-            for i, (coin, price) in enumerate(list(mids.items())[:5]):
+            for _i, (coin, price) in enumerate(list(mids.items())[:5]):
                 logger.info(f"  {coin}: ${float(price):,.2f}")
 
         except Exception as e:
@@ -94,7 +95,9 @@ def main():
             # Display account summary
             margin_summary = user_state.get("marginSummary", {})
             logger.info(f"Account Value: ${float(margin_summary.get('accountValue', 0)):,.2f}")
-            logger.info(f"Total Margin Used: ${float(margin_summary.get('totalMarginUsed', 0)):,.2f}")
+            logger.info(
+                f"Total Margin Used: ${float(margin_summary.get('totalMarginUsed', 0)):,.2f}"
+            )
             logger.info(f"Total Raw USD: ${float(margin_summary.get('totalRawUsd', 0)):,.2f}")
 
             # Display positions
@@ -109,7 +112,9 @@ def main():
                     size = p.get("szi", "0")
                     entry = p.get("entryPx", "0")
                     pnl = p.get("unrealizedPnl", "0")
-                    logger.info(f"  {coin}: size={size}, entry=${float(entry):,.2f}, PnL=${float(pnl):,.2f}")
+                    logger.info(
+                        f"  {coin}: size={size}, entry=${float(entry):,.2f}, PnL=${float(pnl):,.2f}"
+                    )
 
             logger.info("✓ Exchange API test successful")
 

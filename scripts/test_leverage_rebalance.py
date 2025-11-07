@@ -15,9 +15,8 @@ This validates:
 """
 
 import sys
+
 import requests
-import json
-from typing import Dict, List
 
 API_BASE = "http://localhost:8000/api"
 
@@ -34,14 +33,14 @@ def print_section(text: str):
     print(f"\n--- {text} ---")
 
 
-def get_positions() -> List[Dict]:
+def get_positions() -> list[dict]:
     """Fetch current positions."""
     response = requests.get(f"{API_BASE}/positions/")
     response.raise_for_status()
     return response.json()
 
 
-def calculate_allocation(positions: List[Dict]) -> Dict:
+def calculate_allocation(positions: list[dict]) -> dict:
     """Calculate allocation percentages."""
     total_value = sum(abs(p["position"]["position_value"]) for p in positions)
 
@@ -53,31 +52,28 @@ def calculate_allocation(positions: List[Dict]) -> Dict:
         allocation[coin] = {
             "value": value,
             "percentage": pct,
-            "leverage": pos["position"]["leverage_value"]
+            "leverage": pos["position"]["leverage_value"],
         }
 
-    return {
-        "total_value": total_value,
-        "coins": allocation
-    }
+    return {"total_value": total_value, "coins": allocation}
 
 
-def print_allocation(allocation: Dict, title: str):
+def print_allocation(allocation: dict, title: str):
     """Print allocation details."""
     print(f"\n{title}:")
     print(f"  Total Portfolio Value: ${allocation['total_value']:.2f}")
     print(f"\n  {'Coin':<8} {'Value ($)':<15} {'Allocation (%)':<15} {'Leverage':<10}")
-    print(f"  {'-'*8} {'-'*15} {'-'*15} {'-'*10}")
+    print(f"  {'-' * 8} {'-' * 15} {'-' * 15} {'-' * 10}")
 
     for coin, data in allocation["coins"].items():
-        print(f"  {coin:<8} ${data['value']:<14.2f} {data['percentage']:<14.1f}% {data['leverage']}x")
+        print(
+            f"  {coin:<8} ${data['value']:<14.2f} {data['percentage']:<14.1f}% {data['leverage']}x"
+        )
 
 
 def calculate_expected_results(
-    current: Dict,
-    target_weights: Dict[str, float],
-    target_leverage: int
-) -> Dict:
+    current: dict, target_weights: dict[str, float], target_leverage: int
+) -> dict:
     """
     Calculate expected results after rebalancing.
 
@@ -94,47 +90,36 @@ def calculate_expected_results(
         expected[coin] = {
             "target_percentage": target_pct,
             "target_value": target_value,
-            "target_leverage": target_leverage
+            "target_leverage": target_leverage,
         }
 
-    return {
-        "total_value": total_value,
-        "coins": expected
-    }
+    return {"total_value": total_value, "coins": expected}
 
 
-def preview_rebalance(target_weights: Dict[str, float], leverage: int) -> Dict:
+def preview_rebalance(target_weights: dict[str, float], leverage: int) -> dict:
     """Preview rebalancing."""
     response = requests.post(
         f"{API_BASE}/rebalance/preview",
-        json={
-            "target_weights": target_weights,
-            "leverage": leverage,
-            "dry_run": True
-        }
+        json={"target_weights": target_weights, "leverage": leverage, "dry_run": True},
     )
     response.raise_for_status()
     return response.json()
 
 
-def execute_rebalance(target_weights: Dict[str, float], leverage: int) -> Dict:
+def execute_rebalance(target_weights: dict[str, float], leverage: int) -> dict:
     """Execute rebalancing."""
     response = requests.post(
         f"{API_BASE}/rebalance/execute",
-        json={
-            "target_weights": target_weights,
-            "leverage": leverage,
-            "dry_run": False
-        }
+        json={"target_weights": target_weights, "leverage": leverage, "dry_run": False},
     )
     response.raise_for_status()
     return response.json()
 
 
-def print_trades(trades: List[Dict]):
+def print_trades(trades: list[dict]):
     """Print trade details."""
     print(f"\n  {'Coin':<8} {'Action':<12} {'Current %':<12} {'Target %':<12} {'Trade ($)':<15}")
-    print(f"  {'-'*8} {'-'*12} {'-'*12} {'-'*12} {'-'*15}")
+    print(f"  {'-' * 8} {'-' * 12} {'-' * 12} {'-' * 12} {'-' * 15}")
 
     for trade in trades:
         if trade["action"] == "SKIP":
@@ -153,7 +138,7 @@ def print_trades(trades: List[Dict]):
         )
 
 
-def verify_results(initial: Dict, final: Dict, expected: Dict, tolerance_pct: float = 1.0):
+def verify_results(initial: dict, final: dict, expected: dict, tolerance_pct: float = 1.0):
     """Verify rebalancing results."""
     print_section("VERIFICATION")
 
@@ -181,14 +166,18 @@ def verify_results(initial: Dict, final: Dict, expected: Dict, tolerance_pct: fl
         status = "✅" if (alloc_ok and lev_ok) else "❌"
 
         print(f"\n  {status} {coin}:")
-        print(f"     Allocation: {final_pct:.1f}% (expected {expected_pct:.1f}%, diff {diff:.1f}%) {'✓' if alloc_ok else '✗'}")
+        print(
+            f"     Allocation: {final_pct:.1f}% (expected {expected_pct:.1f}%, diff {diff:.1f}%) {'✓' if alloc_ok else '✗'}"
+        )
         print(f"     Leverage:   {final_lev}x (expected {expected_lev}x) {'✓' if lev_ok else '✗'}")
 
         if not alloc_ok or not lev_ok:
             all_passed = False
 
     # Check total value preservation (allow for fees)
-    value_change_pct = abs((final["total_value"] - initial["total_value"]) / initial["total_value"] * 100)
+    value_change_pct = abs(
+        (final["total_value"] - initial["total_value"]) / initial["total_value"] * 100
+    )
     value_ok = value_change_pct < 5.0  # Allow up to 5% change for fees/slippage
 
     print(f"\n  {'✅' if value_ok else '❌'} Portfolio Value:")
@@ -207,8 +196,8 @@ def main():
     print_header("LEVERAGE REBALANCE TEST: 10x → 2x with 50/50 Allocation")
 
     # Configuration
-    TARGET_WEIGHTS = {"SOL": 50.0, "BTC": 50.0}
-    TARGET_LEVERAGE = 2
+    TARGET_WEIGHTS = {"SOL": 50.0, "BTC": 50.0}  # noqa: N806
+    TARGET_LEVERAGE = 2  # noqa: N806
 
     try:
         # Step 1: Get current state
@@ -227,17 +216,19 @@ def main():
         print_section("STEP 2: Expected Results")
         expected = calculate_expected_results(current_allocation, TARGET_WEIGHTS, TARGET_LEVERAGE)
 
-        print(f"\n  Target Configuration:")
+        print("\n  Target Configuration:")
         print(f"    Leverage: {TARGET_LEVERAGE}x")
         print(f"    Allocation: {TARGET_WEIGHTS}")
-        print(f"\n  Expected Process:")
-        print(f"    1. Close all positions (10x leverage)")
+        print("\n  Expected Process:")
+        print("    1. Close all positions (10x leverage)")
         print(f"    2. Set leverage to {TARGET_LEVERAGE}x for each coin")
-        print(f"    3. Open new positions at target allocations")
+        print("    3. Open new positions at target allocations")
 
-        print(f"\n  Expected Results:")
+        print("\n  Expected Results:")
         for coin, data in expected["coins"].items():
-            print(f"    {coin}: ${data['target_value']:.2f} ({data['target_percentage']:.0f}%) at {data['target_leverage']}x")
+            print(
+                f"    {coin}: ${data['target_value']:.2f} ({data['target_percentage']:.0f}%) at {data['target_leverage']}x"
+            )
 
         # Step 3: Preview rebalance
         print_section("STEP 3: Preview Rebalance")
@@ -245,11 +236,11 @@ def main():
 
         print(f"\n  Preview Status: {preview['message']}")
         if preview.get("warnings"):
-            print(f"\n  ⚠️  Warnings:")
+            print("\n  ⚠️  Warnings:")
             for warning in preview["warnings"]:
                 print(f"    - {warning}")
 
-        print(f"\n  Planned Trades:")
+        print("\n  Planned Trades:")
         if preview.get("planned_trades"):
             print_trades(preview["planned_trades"])
 
@@ -266,26 +257,27 @@ def main():
         result = execute_rebalance(TARGET_WEIGHTS, TARGET_LEVERAGE)
 
         print(f"\n  Execution Status: {result['message']}")
-        print(f"  Summary:")
+        print("  Summary:")
         print(f"    Executed: {result['summary']['executed']}")
         print(f"    Successful: {result['summary']['successful']}")
         print(f"    Failed: {result['summary']['failed']}")
         print(f"    Skipped: {result['summary']['skipped']}")
 
         if result.get("errors"):
-            print(f"\n  ❌ Errors:")
+            print("\n  ❌ Errors:")
             for error in result["errors"]:
                 print(f"    - {error}")
 
         # Print executed trades
         if result.get("trades"):
-            print(f"\n  Executed Trades:")
+            print("\n  Executed Trades:")
             print_trades(result["trades"])
 
         # Step 6: Wait for positions to update
         print_section("STEP 5: Verify Results")
         print("\n  Waiting 3 seconds for positions to update...")
         import time
+
         time.sleep(3)
 
         # Step 7: Get final state
@@ -303,8 +295,8 @@ def main():
             print("\n  ✅ ALL CHECKS PASSED!")
             print("\n  The rebalancing worked correctly:")
             print(f"    - Both positions have {TARGET_LEVERAGE}x leverage")
-            print(f"    - Allocation is within 1% of 50/50 target")
-            print(f"    - Portfolio value preserved (within 5%)")
+            print("    - Allocation is within 1% of 50/50 target")
+            print("    - Portfolio value preserved (within 5%)")
             return 0
         else:
             print("\n  ❌ SOME CHECKS FAILED")
@@ -314,6 +306,7 @@ def main():
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

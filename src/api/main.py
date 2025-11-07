@@ -1,22 +1,24 @@
 """
 FastAPI application for Hyperbot.
 """
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+
 from contextlib import asynccontextmanager
 
-from src.config import logger, settings
-from src.services import hyperliquid_service
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
 from src.api.routes import (
     account_router,
-    positions_router,
-    orders_router,
+    leverage_router,
     market_data_router,
+    orders_router,
+    positions_router,
     rebalance_router,
     scale_orders_router,
-    leverage_router,
     web_router,
 )
+from src.config import logger, settings
+from src.services import hyperliquid_service
 
 
 @asynccontextmanager
@@ -41,7 +43,7 @@ app = FastAPI(
     title="Hyperbot API",
     description="Trading bot API for Hyperliquid",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Mount static files
@@ -75,10 +77,7 @@ async def health():
         health_data["hyperliquid"] = hl_health
     except Exception as e:
         logger.error(f"Hyperliquid health check failed: {e}")
-        health_data["hyperliquid"] = {
-            "status": "error",
-            "message": str(e)
-        }
+        health_data["hyperliquid"] = {"status": "error", "message": str(e)}
 
     # Determine overall status
     hl_status = health_data.get("hyperliquid", {}).get("status", "error")

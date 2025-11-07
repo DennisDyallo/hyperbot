@@ -8,22 +8,24 @@ Flow:
 
 Note: This is not a full ConversationHandler wizard, just callback handlers.
 """
+
 from telegram import Update
-from telegram.ext import ContextTypes, CallbackQueryHandler
-from src.bot.middleware import authorized_only
+from telegram.ext import CallbackQueryHandler, ContextTypes
+
 from src.bot.menus import build_confirm_cancel, build_main_menu
+from src.bot.middleware import authorized_only
 from src.bot.utils import (
     format_coin_amount,
     format_usd_amount,
-    send_success_and_end,
     send_error_and_end,
-)
-from src.services.position_service import position_service
-from src.use_cases.trading import (
-    ClosePositionUseCase,
-    ClosePositionRequest,
+    send_success_and_end,
 )
 from src.config import logger, settings
+from src.services.position_service import position_service
+from src.use_cases.trading import (
+    ClosePositionRequest,
+    ClosePositionUseCase,
+)
 
 # Initialize use case
 close_position_use_case = ClosePositionUseCase()
@@ -32,6 +34,7 @@ close_position_use_case = ClosePositionUseCase()
 # ============================================================================
 # Close Position Handlers
 # ============================================================================
+
 
 @authorized_only
 async def close_position_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -83,20 +86,15 @@ async def close_position_selected(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text(
             confirmation_msg,
             parse_mode="Markdown",
-            reply_markup=build_confirm_cancel("close_pos", coin)
+            reply_markup=build_confirm_cancel("close_pos", coin),
         )
 
     except ValueError as e:
-        await query.edit_message_text(
-            f"❌ {str(e)}",
-            reply_markup=build_main_menu()
-        )
+        await query.edit_message_text(f"❌ {str(e)}", reply_markup=build_main_menu())
     except Exception as e:
         logger.exception(f"Failed to get position details for {coin}")
         await query.edit_message_text(
-            f"❌ Error: `{str(e)}`",
-            parse_mode="Markdown",
-            reply_markup=build_main_menu()
+            f"❌ Error: `{str(e)}`", parse_mode="Markdown", reply_markup=build_main_menu()
         )
 
 
@@ -143,6 +141,7 @@ async def close_position_execute(update: Update, context: ContextTypes.DEFAULT_T
 # ============================================================================
 # Handler Registration
 # ============================================================================
+
 
 def get_close_position_handlers():
     """Return list of callback handlers for close position flow."""

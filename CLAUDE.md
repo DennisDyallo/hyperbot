@@ -543,6 +543,316 @@ async def get_user_positions(user_address: str) -> List[Dict[str, Any]]:
         raise
 ```
 
+## Dead Code Detection with Vulture
+
+### When to Use Vulture
+
+**🔍 Proactively run Vulture when:**
+
+1. **After completing a major refactoring** - Check for orphaned code
+2. **Before starting a new phase** - Clean up unused code from previous phases
+3. **When codebase feels "bloated"** - Find code that accumulated over time
+4. **After removing features** - Ensure related code was fully removed
+5. **Periodically during development** - Weekly or bi-weekly scans
+
+**Don't wait for pre-commit hooks** - Vulture in pre-commit is set to 80% confidence (conservative). Run manual scans with lower confidence to find more issues.
+
+### Sensitivity Adjustment Strategy
+
+**Start conservative, then increase sensitivity:**
+
+#### 1️⃣ **First Scan: High Confidence (80-100%)**
+```bash
+vulture src/ .vulture_whitelist.py --min-confidence=80 --sort-by-size
+```
+
+**What to look for:**
+- ✅ Definitely unused functions/classes
+- ✅ Large unused files (high impact)
+- ✅ Obvious dead code from old features
+
+**Action:** Remove these immediately - they're very likely unused.
+
+---
+
+#### 2️⃣ **Second Scan: Medium Confidence (70-79%)**
+```bash
+vulture src/ .vulture_whitelist.py --min-confidence=70
+```
+
+**What to look for:**
+- ⚠️ Functions that might be used indirectly
+- ⚠️ Utility functions saved for future use
+- ⚠️ Code used by external tools/scripts
+
+**Action:**
+- Investigate each finding
+- Search codebase for usage: `grep -r "function_name" src/`
+- Remove if genuinely unused
+- Add to `.vulture_whitelist.py` if it's a false positive
+
+---
+
+#### 3️⃣ **Third Scan: Lower Confidence (60-69%)**
+```bash
+vulture src/ .vulture_whitelist.py --min-confidence=60
+```
+
+**What to look for:**
+- 🔍 Many false positives (FastAPI routes, Pydantic fields)
+- 🔍 Test fixtures and utilities
+- 🔍 Some genuinely unused code hidden among false positives
+
+**Action:**
+- Review each finding carefully
+- High chance of false positives - verify before removing
+- Update `.vulture_whitelist.py` for legitimate false positives
+
+---
+
+### Workflow for Dead Code Removal
+
+**Step-by-step process:**
+
+```bash
+# 1. Run high-confidence scan
+./scripts/check-dead-code.sh
+
+# 2. Review findings
+#    - For each unused item, search for usage
+grep -r "suspected_function" src/ tests/
+
+# 3. Categorize findings
+#    ✅ Definitely unused → Remove
+#    ❓ Uncertain → Investigate further
+#    ✗ False positive → Add to whitelist
+
+# 4. Remove dead code
+#    - Delete unused functions/classes
+#    - Delete unused files
+#    - Remove unused imports
+
+# 5. Run tests to ensure nothing broke
+uv run pytest tests/
+
+# 6. If tests pass, commit
+git add -A
+git commit -m "Remove dead code found by Vulture scan"
+
+# 7. Lower confidence and repeat
+vulture src/ .vulture_whitelist.py --min-confidence=70
+```
+
+---
+
+### Common False Positives to Whitelist
+
+**Add these patterns to `.vulture_whitelist.py`:**
+
+1. **FastAPI route handlers** (used via decorators)
+   ```python
+   _.get_account
+   _.post_order
+   ```
+
+2. **Pydantic model fields** (used for serialization)
+   ```python
+   _.total_value
+   _.wallet_address
+   ```
+
+3. **Pydantic validators** (called by framework)
+   ```python
+   _.validate_*
+   ```
+
+4. **pytest fixtures** (used by test framework)
+   ```python
+   _.mock_service
+   _.sample_data
+   ```
+
+5. **Future-use utility functions** (planned features)
+   ```python
+   _.format_currency
+   _.calculate_roi
+   ```
+
+6. **CLI entry points** (called from command line)
+   ```python
+   _.main
+   _.run_bot
+   ```
+
+---
+
+### Integration with Development Workflow
+
+#### During Feature Development
+
+```bash
+# After completing a feature
+./scripts/check-dead-code.sh
+
+# Found unused imports from refactoring?
+# Let ruff clean them up
+ruff check --fix src/
+
+# Found unused functions?
+# Investigate and remove if genuinely unused
+```
+
+#### Before Commits
+
+Pre-commit hooks run Vulture at **80% confidence**:
+- High confidence = low false positive rate
+- Won't block commits unnecessarily
+- Catches obvious dead code
+
+**If pre-commit finds issues:**
+```bash
+# Review the findings
+vulture src/ .vulture_whitelist.py --min-confidence=80
+
+# Either:
+# A) Remove the dead code, OR
+# B) Add to whitelist if false positive
+```
+
+#### Weekly Maintenance
+
+```bash
+# Every week, run a deeper scan
+vulture src/ .vulture_whitelist.py --min-confidence=60 | tee vulture-scan.log
+
+# Review log, categorize findings
+# Clean up genuinely unused code
+# Update whitelist for false positives
+```
+
+---
+
+### Examples
+
+#### Example 1: Found Unused Service Method
+
+```bash
+$ vulture src/ .vulture_whitelist.py --min-confidence=80
+src/services/order_service.py:145: unused function 'calculate_slippage' (85% confidence)
+```
+
+**Investigation:**
+```bash
+# Search for usage
+$ grep -r "calculate_slippage" src/ tests/
+# No results!
+
+# Check git history - was it ever used?
+$ git log --all -S "calculate_slippage" --oneline
+# Only added, never actually called
+```
+
+**Action:** Remove the function - it's genuinely unused.
+
+---
+
+#### Example 2: False Positive (FastAPI Route)
+
+```bash
+$ vulture src/ .vulture_whitelist.py --min-confidence=70
+src/api/routes/positions.py:45: unused function 'get_position_details' (75% confidence)
+```
+
+**Investigation:**
+```python
+# Check the code
+@router.get("/positions/{coin}")
+async def get_position_details(coin: str):  # Used by FastAPI via decorator!
+    ...
+```
+
+**Action:** Add to `.vulture_whitelist.py`:
+```python
+_.get_position_details  # FastAPI route handler
+```
+
+---
+
+#### Example 3: Uncertain Finding
+
+```bash
+$ vulture src/ .vulture_whitelist.py --min-confidence=70
+src/bot/utils.py:250: unused function 'format_price_alert' (72% confidence)
+```
+
+**Investigation:**
+```bash
+# Search for usage
+$ grep -r "format_price_alert" src/
+# Found in commented-out code in src/bot/handlers/alerts.py
+
+# Check TODO.md
+# Phase 5 mentions price alerts feature
+```
+
+**Action:** Keep it (planned feature) and add to whitelist:
+```python
+_.format_price_alert  # Reserved for Phase 5 - Price Alerts feature
+```
+
+---
+
+### Tips for Claude (AI Assistant)
+
+**When working on this codebase:**
+
+1. **After major refactoring:** Run `./scripts/check-dead-code.sh` proactively
+2. **Suggest dead code removal:** If you notice unused code, suggest running Vulture
+3. **Adjust sensitivity:** Start at 80%, work down to 60% for thorough scans
+4. **Explain findings:** Help user understand if finding is real or false positive
+5. **Update whitelist:** When adding known false positives, document why
+6. **Test after removal:** Always run tests after removing dead code
+
+**Example proactive suggestion:**
+```
+"I noticed we just refactored the position service. Let me run Vulture
+to check for any orphaned code from the old implementation..."
+
+[Runs vulture scan]
+
+"Found 3 unused functions from the old position calculation logic.
+Should we remove them?"
+```
+
+---
+
+### Quick Reference
+
+| Confidence | Use Case | False Positive Rate |
+|------------|----------|---------------------|
+| 90-100% | Obvious dead code | Very low (~5%) |
+| 80-89% | **Pre-commit default** | Low (~15%) |
+| 70-79% | Regular scans | Medium (~30%) |
+| 60-69% | Deep cleaning | High (~50%) |
+
+**Commands:**
+```bash
+# Quick check (recommended for regular use)
+./scripts/check-dead-code.sh
+
+# Conservative (pre-commit level)
+vulture src/ .vulture_whitelist.py --min-confidence=80
+
+# Thorough
+vulture src/ .vulture_whitelist.py --min-confidence=70
+
+# Deep dive
+vulture src/ .vulture_whitelist.py --min-confidence=60
+
+# Find biggest issues first
+vulture src/ .vulture_whitelist.py --sort-by-size --min-confidence=80
+```
+
 ## Testing Best Practices
 
 ### Critical Testing Patterns (MUST READ)

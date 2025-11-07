@@ -4,8 +4,11 @@ Unit tests for USDConverter.
 Tests USD/coin conversion and formatting utilities used across API and Bot.
 This is critical infrastructure - all conversions flow through here.
 """
+
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import Mock, patch
+
 from src.use_cases.common.usd_converter import USDConverter
 
 
@@ -63,14 +66,11 @@ class TestUSDConverter:
     # convert_usd_to_coin() tests
     # ===================================================================
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_btc(self, mock_market_service):
         """Test USD to BTC conversion with proper precision."""
         mock_market_service.get_price.return_value = 50000.0
-        mock_market_service.get_asset_metadata.return_value = {
-            "name": "BTC",
-            "szDecimals": 5
-        }
+        mock_market_service.get_asset_metadata.return_value = {"name": "BTC", "szDecimals": 5}
 
         coin_size, price = USDConverter.convert_usd_to_coin(100.0, "BTC")
 
@@ -79,14 +79,11 @@ class TestUSDConverter:
         assert price == 50000.0
         mock_market_service.get_price.assert_called_once_with("BTC")
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_eth(self, mock_market_service):
         """Test USD to ETH conversion with proper precision."""
         mock_market_service.get_price.return_value = 3000.0
-        mock_market_service.get_asset_metadata.return_value = {
-            "name": "ETH",
-            "szDecimals": 4
-        }
+        mock_market_service.get_asset_metadata.return_value = {"name": "ETH", "szDecimals": 4}
 
         coin_size, price = USDConverter.convert_usd_to_coin(150.0, "ETH")
 
@@ -94,14 +91,11 @@ class TestUSDConverter:
         assert coin_size == 0.05
         assert price == 3000.0
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_sol(self, mock_market_service):
         """Test USD to SOL conversion."""
         mock_market_service.get_price.return_value = 150.0
-        mock_market_service.get_asset_metadata.return_value = {
-            "name": "SOL",
-            "szDecimals": 3
-        }
+        mock_market_service.get_asset_metadata.return_value = {"name": "SOL", "szDecimals": 3}
 
         coin_size, price = USDConverter.convert_usd_to_coin(300.0, "SOL")
 
@@ -109,7 +103,7 @@ class TestUSDConverter:
         assert coin_size == 2.0
         assert price == 150.0
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_fallback_to_6_decimals(self, mock_market_service):
         """Test conversion falls back to 6 decimals when metadata unavailable."""
         mock_market_service.get_price.return_value = 100.0
@@ -121,33 +115,29 @@ class TestUSDConverter:
         assert coin_size == 0.5
         assert price == 100.0
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_large_amounts(self, mock_market_service):
         """Test conversion with large USD amounts."""
         mock_market_service.get_price.return_value = 50000.0
-        mock_market_service.get_asset_metadata.return_value = {
-            "szDecimals": 5
-        }
+        mock_market_service.get_asset_metadata.return_value = {"szDecimals": 5}
 
         coin_size, price = USDConverter.convert_usd_to_coin(1000000.0, "BTC")
 
         # 1,000,000 / 50,000 = 20.0 BTC
         assert coin_size == 20.0
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_small_amounts(self, mock_market_service):
         """Test conversion with small USD amounts."""
         mock_market_service.get_price.return_value = 50000.0
-        mock_market_service.get_asset_metadata.return_value = {
-            "szDecimals": 5
-        }
+        mock_market_service.get_asset_metadata.return_value = {"szDecimals": 5}
 
         coin_size, price = USDConverter.convert_usd_to_coin(1.0, "BTC")
 
         # 1 / 50000 = 0.00002
         assert coin_size == 0.00002
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_invalid_price_raises_error(self, mock_market_service):
         """Test that invalid price raises ValueError."""
         mock_market_service.get_price.return_value = 0.0
@@ -155,7 +145,7 @@ class TestUSDConverter:
         with pytest.raises(ValueError, match="Invalid price"):
             USDConverter.convert_usd_to_coin(100.0, "INVALID")
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_negative_price_raises_error(self, mock_market_service):
         """Test that negative price raises ValueError."""
         mock_market_service.get_price.return_value = -100.0
@@ -163,7 +153,7 @@ class TestUSDConverter:
         with pytest.raises(ValueError, match="Invalid price"):
             USDConverter.convert_usd_to_coin(100.0, "INVALID")
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_coin_not_found_raises_error(self, mock_market_service):
         """Test that coin not found raises ValueError."""
         mock_market_service.get_price.side_effect = ValueError("Coin 'NOTFOUND' not found")
@@ -171,7 +161,7 @@ class TestUSDConverter:
         with pytest.raises(ValueError, match="Failed to get price"):
             USDConverter.convert_usd_to_coin(100.0, "NOTFOUND")
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_usd_to_coin_api_failure_raises_runtime_error(self, mock_market_service):
         """Test that API failures raise RuntimeError."""
         mock_market_service.get_price.side_effect = Exception("Network error")
@@ -183,7 +173,7 @@ class TestUSDConverter:
     # convert_coin_to_usd() tests
     # ===================================================================
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_coin_to_usd_btc(self, mock_market_service):
         """Test BTC to USD conversion."""
         mock_market_service.get_price.return_value = 50000.0
@@ -194,7 +184,7 @@ class TestUSDConverter:
         assert usd_value == 25000.0
         assert price == 50000.0
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_coin_to_usd_eth(self, mock_market_service):
         """Test ETH to USD conversion."""
         mock_market_service.get_price.return_value = 3000.0
@@ -205,7 +195,7 @@ class TestUSDConverter:
         assert usd_value == 30000.0
         assert price == 3000.0
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_coin_to_usd_zero_coin(self, mock_market_service):
         """Test conversion with zero coin amount."""
         mock_market_service.get_price.return_value = 50000.0
@@ -214,7 +204,7 @@ class TestUSDConverter:
 
         assert usd_value == 0.0
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_coin_to_usd_small_amount(self, mock_market_service):
         """Test conversion with very small coin amount."""
         mock_market_service.get_price.return_value = 50000.0
@@ -224,7 +214,7 @@ class TestUSDConverter:
         # 0.0001 * 50000 = 5.0
         assert usd_value == 5.0
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_coin_to_usd_invalid_price_raises_error(self, mock_market_service):
         """Test that invalid price raises ValueError."""
         mock_market_service.get_price.return_value = 0.0
@@ -232,7 +222,7 @@ class TestUSDConverter:
         with pytest.raises(ValueError, match="Invalid price"):
             USDConverter.convert_coin_to_usd(1.0, "INVALID")
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_coin_to_usd_coin_not_found_raises_error(self, mock_market_service):
         """Test that coin not found raises ValueError."""
         mock_market_service.get_price.side_effect = ValueError("Coin not found")
@@ -240,7 +230,7 @@ class TestUSDConverter:
         with pytest.raises(ValueError, match="Failed to get price"):
             USDConverter.convert_coin_to_usd(1.0, "NOTFOUND")
 
-    @patch('src.use_cases.common.usd_converter.market_data_service')
+    @patch("src.use_cases.common.usd_converter.market_data_service")
     def test_convert_coin_to_usd_api_failure_raises_runtime_error(self, mock_market_service):
         """Test that API failures raise RuntimeError."""
         mock_market_service.get_price.side_effect = Exception("API Error")

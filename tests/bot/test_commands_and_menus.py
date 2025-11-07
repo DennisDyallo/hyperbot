@@ -1,19 +1,23 @@
 """
-Unit tests for basic bot command handlers.
+Unit tests for command handlers.
 
-Tests all command handlers and menu callbacks in bot/handlers/basic.py.
+Tests all command handlers in bot/handlers/commands.py.
 
 REFACTORED: Now using tests/helpers for cleaner Telegram mocking and data creation.
 - TelegramMockFactory replaces all manual Mock() creation
 - PositionBuilder replaces manual nested dictionaries
 - Result: ~100 fewer lines, more maintainable tests
 """
+
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
-from src.bot.handlers import basic
+
+from src.bot.handlers import commands as basic
+from src.bot.handlers import menus
 
 # Import helpers for cleaner test code
-from tests.helpers import TelegramMockFactory, PositionBuilder
+from tests.helpers import PositionBuilder, TelegramMockFactory
 
 
 @pytest.fixture
@@ -34,12 +38,13 @@ class TestStartCommand:
     @pytest.mark.asyncio
     async def test_start_authorized_user(self, authorized_user_id):
         """Test /start for authorized user shows welcome with menu."""
-        update = TelegramMockFactory.create_command_update(
-            "/start", user_id=authorized_user_id
-        )
+        update = TelegramMockFactory.create_command_update("/start", user_id=authorized_user_id)
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.settings.TELEGRAM_AUTHORIZED_USERS', [authorized_user_id]):
+        with patch(
+            "src.bot.handlers.commands.settings.TELEGRAM_AUTHORIZED_USERS",
+            [authorized_user_id],
+        ):
             await basic.start(update, context)
 
         # Should show welcome message with menu
@@ -54,12 +59,13 @@ class TestStartCommand:
     @pytest.mark.asyncio
     async def test_start_unauthorized_user(self, unauthorized_user_id, authorized_user_id):
         """Test /start for unauthorized user shows rejection."""
-        update = TelegramMockFactory.create_command_update(
-            "/start", user_id=unauthorized_user_id
-        )
+        update = TelegramMockFactory.create_command_update("/start", user_id=unauthorized_user_id)
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.settings.TELEGRAM_AUTHORIZED_USERS', [authorized_user_id]):
+        with patch(
+            "src.bot.handlers.commands.settings.TELEGRAM_AUTHORIZED_USERS",
+            [authorized_user_id],
+        ):
             await basic.start(update, context)
 
         # Should show rejection message
@@ -105,21 +111,21 @@ class TestAccountCommand:
         context = TelegramMockFactory.create_context()
 
         mock_summary = {
-            'total_account_value': 10000.0,
-            'perps_account_value': 8000.0,
-            'spot_account_value': 2000.0,
-            'available_balance': 5000.0,
-            'margin_used': 3000.0,
-            'num_perp_positions': 3,
-            'num_spot_balances': 2,
-            'total_unrealized_pnl': 150.50,
-            'cross_margin_ratio_pct': 25.5,
-            'cross_maintenance_margin': 500.0,
-            'cross_account_leverage': 2.5,
-            'is_testnet': True
+            "total_account_value": 10000.0,
+            "perps_account_value": 8000.0,
+            "spot_account_value": 2000.0,
+            "available_balance": 5000.0,
+            "margin_used": 3000.0,
+            "num_perp_positions": 3,
+            "num_spot_balances": 2,
+            "total_unrealized_pnl": 150.50,
+            "cross_margin_ratio_pct": 25.5,
+            "cross_maintenance_margin": 500.0,
+            "cross_account_leverage": 2.5,
+            "is_testnet": True,
         }
 
-        with patch('src.bot.handlers.basic.account_service') as mock_service:
+        with patch("src.bot.handlers.commands.account_service") as mock_service:
             mock_service.get_account_summary.return_value = mock_summary
 
             await basic.account_command(update, context)
@@ -143,7 +149,7 @@ class TestAccountCommand:
         update.message.reply_text = AsyncMock(return_value=mock_msg)
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.account_service') as mock_service:
+        with patch("src.bot.handlers.commands.account_service") as mock_service:
             mock_service.get_account_summary.side_effect = Exception("API error")
 
             await basic.account_command(update, context)
@@ -165,25 +171,29 @@ class TestPositionsCommand:
         context = TelegramMockFactory.create_context()
 
         # Use PositionBuilder for cleaner data creation
-        btc_pos = PositionBuilder()         \
-            .with_coin("BTC")               \
-            .with_size(0.5)                 \
-            .with_entry_price(100000.0)     \
-            .with_position_value(50000.0)   \
-            .with_pnl(1000.0)               \
-            .with_leverage(3)               \
+        btc_pos = (
+            PositionBuilder()
+            .with_coin("BTC")
+            .with_size(0.5)
+            .with_entry_price(100000.0)
+            .with_position_value(50000.0)
+            .with_pnl(1000.0)
+            .with_leverage(3)
             .build()
+        )
 
-        eth_pos = PositionBuilder()         \
-            .with_coin("ETH")               \
-            .with_size(-10.0)               \
-            .with_entry_price(4000.0)       \
-            .with_position_value(40000.0)   \
-            .with_pnl(-500.0)               \
-            .with_leverage(2)               \
+        eth_pos = (
+            PositionBuilder()
+            .with_coin("ETH")
+            .with_size(-10.0)
+            .with_entry_price(4000.0)
+            .with_position_value(40000.0)
+            .with_pnl(-500.0)
+            .with_leverage(2)
             .build()
+        )
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.commands.position_service") as mock_service:
             mock_service.list_positions.return_value = [btc_pos, eth_pos]
 
             await basic.positions_command(update, context)
@@ -205,7 +215,7 @@ class TestPositionsCommand:
         update.message.reply_text = AsyncMock(return_value=mock_msg)
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.commands.position_service") as mock_service:
             mock_service.list_positions.return_value = []
 
             await basic.positions_command(update, context)
@@ -224,7 +234,7 @@ class TestPositionsCommand:
         update.message.reply_text = AsyncMock(return_value=mock_msg)
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.commands.position_service") as mock_service:
             mock_service.list_positions.side_effect = Exception("API error")
 
             await basic.positions_command(update, context)
@@ -260,7 +270,7 @@ class TestMenuMainCallback:
         update = TelegramMockFactory.create_callback_update("menu_main")
         context = TelegramMockFactory.create_context()
 
-        await basic.menu_main_callback(update, context)
+        await menus.menu_main_callback(update, context)
 
         # Should answer and show main menu
         update.callback_query.answer.assert_called_once()
@@ -282,22 +292,22 @@ class TestMenuAccountCallback:
         context = TelegramMockFactory.create_context()
 
         mock_summary = {
-            'total_account_value': 10000.0,
-            'perps_account_value': 8000.0,
-            'spot_account_value': 2000.0,
-            'available_balance': 5000.0,
-            'margin_used': 3000.0,
-            'num_perp_positions': 3,
-            'num_spot_balances': 2,
-            'total_unrealized_pnl': 150.50,
-            'cross_margin_ratio_pct': 25.5,
-            'cross_account_leverage': 2.5
+            "total_account_value": 10000.0,
+            "perps_account_value": 8000.0,
+            "spot_account_value": 2000.0,
+            "available_balance": 5000.0,
+            "margin_used": 3000.0,
+            "num_perp_positions": 3,
+            "num_spot_balances": 2,
+            "total_unrealized_pnl": 150.50,
+            "cross_margin_ratio_pct": 25.5,
+            "cross_account_leverage": 2.5,
         }
 
-        with patch('src.bot.handlers.basic.account_service') as mock_service:
+        with patch("src.bot.handlers.menus.account_service") as mock_service:
             mock_service.get_account_summary.return_value = mock_summary
 
-            await basic.menu_account_callback(update, context)
+            await menus.menu_account_callback(update, context)
 
         # Should show loading then account
         assert update.callback_query.edit_message_text.call_count == 2
@@ -310,10 +320,10 @@ class TestMenuAccountCallback:
         update = TelegramMockFactory.create_callback_update("menu_account")
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.account_service') as mock_service:
+        with patch("src.bot.handlers.menus.account_service") as mock_service:
             mock_service.get_account_summary.side_effect = Exception("API error")
 
-            await basic.menu_account_callback(update, context)
+            await menus.menu_account_callback(update, context)
 
         # Should show error
         assert update.callback_query.edit_message_text.call_count == 2
@@ -331,19 +341,21 @@ class TestMenuPositionsCallback:
         context = TelegramMockFactory.create_context()
 
         # Use PositionBuilder for clean data creation
-        sol_pos = PositionBuilder()         \
-            .with_coin("SOL")               \
-            .with_size(10.0)                \
-            .with_entry_price(150.0)        \
-            .with_position_value(1500.0)    \
-            .with_pnl(50.0)                 \
-            .with_leverage(5)               \
+        sol_pos = (
+            PositionBuilder()
+            .with_coin("SOL")
+            .with_size(10.0)
+            .with_entry_price(150.0)
+            .with_position_value(1500.0)
+            .with_pnl(50.0)
+            .with_leverage(5)
             .build()
+        )
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.menus.position_service") as mock_service:
             mock_service.list_positions.return_value = [sol_pos]
 
-            await basic.menu_positions_callback(update, context)
+            await menus.menu_positions_callback(update, context)
 
         # Should show positions
         assert update.callback_query.edit_message_text.call_count == 2
@@ -357,10 +369,10 @@ class TestMenuPositionsCallback:
         update = TelegramMockFactory.create_callback_update("menu_positions")
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.menus.position_service") as mock_service:
             mock_service.list_positions.return_value = []
 
-            await basic.menu_positions_callback(update, context)
+            await menus.menu_positions_callback(update, context)
 
         # Should show empty message
         assert update.callback_query.edit_message_text.call_count == 2
@@ -373,10 +385,10 @@ class TestMenuPositionsCallback:
         update = TelegramMockFactory.create_callback_update("menu_positions")
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.menus.position_service") as mock_service:
             mock_service.list_positions.side_effect = Exception("API error")
 
-            await basic.menu_positions_callback(update, context)
+            await menus.menu_positions_callback(update, context)
 
         # Should show error
         assert update.callback_query.edit_message_text.call_count == 2
@@ -393,7 +405,7 @@ class TestMenuHelpCallback:
         update = TelegramMockFactory.create_callback_update("menu_help")
         context = TelegramMockFactory.create_context()
 
-        await basic.menu_help_callback(update, context)
+        await menus.menu_help_callback(update, context)
 
         # Should show help
         update.callback_query.answer.assert_called_once()
@@ -411,7 +423,7 @@ class TestMenuStatusCallback:
         update = TelegramMockFactory.create_callback_update("menu_status")
         context = TelegramMockFactory.create_context()
 
-        await basic.menu_status_callback(update, context)
+        await menus.menu_status_callback(update, context)
 
         # Should show status
         update.callback_query.answer.assert_called_once()
@@ -433,10 +445,10 @@ class TestMenuCloseCallback:
         # Use PositionBuilder for clean data
         btc_pos = PositionBuilder().with_coin("BTC").with_size(0.1).with_pnl(100.0).build()
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.menus.position_service") as mock_service:
             mock_service.list_positions.return_value = [btc_pos]
 
-            await basic.menu_close_callback(update, context)
+            await menus.menu_close_callback(update, context)
 
         # Should show close menu
         assert update.callback_query.edit_message_text.call_count == 2
@@ -449,10 +461,10 @@ class TestMenuCloseCallback:
         update = TelegramMockFactory.create_callback_update("menu_close")
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.menus.position_service") as mock_service:
             mock_service.list_positions.return_value = []
 
-            await basic.menu_close_callback(update, context)
+            await menus.menu_close_callback(update, context)
 
         # Should show no positions message
         assert update.callback_query.edit_message_text.call_count == 2
@@ -465,10 +477,10 @@ class TestMenuCloseCallback:
         update = TelegramMockFactory.create_callback_update("menu_close")
         context = TelegramMockFactory.create_context()
 
-        with patch('src.bot.handlers.basic.position_service') as mock_service:
+        with patch("src.bot.handlers.menus.position_service") as mock_service:
             mock_service.list_positions.side_effect = Exception("API error")
 
-            await basic.menu_close_callback(update, context)
+            await menus.menu_close_callback(update, context)
 
         # Should show error
         assert update.callback_query.edit_message_text.call_count == 2
@@ -486,8 +498,10 @@ class TestMenuRebalanceCallback:
         context = TelegramMockFactory.create_context()
 
         # rebalance_command is imported inside the function from advanced module
-        with patch('src.bot.handlers.advanced.rebalance_command', new_callable=AsyncMock) as mock_rebalance:
-            await basic.menu_rebalance_callback(update, context)
+        with patch(
+            "src.bot.handlers.commands.rebalance_command", new_callable=AsyncMock
+        ) as mock_rebalance:
+            await menus.menu_rebalance_callback(update, context)
 
             # Should answer callback and delegate
             update.callback_query.answer.assert_called_once()
@@ -503,7 +517,7 @@ class TestMenuScaleCallback:
         update = TelegramMockFactory.create_callback_update("menu_scale")
         context = TelegramMockFactory.create_context()
 
-        await basic.menu_scale_callback(update, context)
+        await menus.menu_scale_callback(update, context)
 
         # Should show scale order info
         update.callback_query.answer.assert_called_once()

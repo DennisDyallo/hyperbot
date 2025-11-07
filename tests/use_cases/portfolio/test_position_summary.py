@@ -4,17 +4,18 @@ Unit tests for PositionSummaryUseCase.
 Tests portfolio position aggregation and summary logic.
 This is the primary dashboard data source.
 """
-import pytest
+
 from unittest.mock import Mock
+
+import pytest
+
+from src.services.risk_calculator import PositionRisk, RiskLevel
 from src.use_cases.portfolio.position_summary import (
     PositionSummaryRequest,
-    PositionSummaryResponse,
     PositionSummaryUseCase,
-    PositionDetail
 )
-from src.services.risk_calculator import RiskLevel, PositionRisk
-from tests.helpers.service_mocks import create_service_with_mocks, ServiceMockBuilder
 from tests.helpers.mock_data import PositionBuilder
+from tests.helpers.service_mocks import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestPositionSummaryUseCase:
@@ -25,23 +26,23 @@ class TestPositionSummaryUseCase:
         """Sample position data using PositionBuilder."""
         return [
             PositionBuilder()
-                .with_coin("BTC")
-                .with_size(1.0)
-                .with_entry_price(48000.0)
-                .with_position_value(50000.0)
-                .with_pnl(2000.0)
-                .with_leverage(3, "cross")
-                .with_liquidation_price(40000.0)
-                .build(),
+            .with_coin("BTC")
+            .with_size(1.0)
+            .with_entry_price(48000.0)
+            .with_position_value(50000.0)
+            .with_pnl(2000.0)
+            .with_leverage(3, "cross")
+            .with_liquidation_price(40000.0)
+            .build(),
             PositionBuilder()
-                .with_coin("ETH")
-                .with_size(-10.0)  # Short position
-                .with_entry_price(3200.0)
-                .with_position_value(30000.0)
-                .with_pnl(-500.0)
-                .with_leverage(2, "cross")
-                .with_liquidation_price(3400.0)
-                .build()
+            .with_coin("ETH")
+            .with_size(-10.0)  # Short position
+            .with_entry_price(3200.0)
+            .with_position_value(30000.0)
+            .with_pnl(-500.0)
+            .with_leverage(2, "cross")
+            .with_liquidation_price(3400.0)
+            .build(),
         ]
 
     @pytest.fixture
@@ -51,7 +52,7 @@ class TestPositionSummaryUseCase:
             "margin_summary": {
                 "account_value": 100000.0,
                 "available_balance": 70000.0,
-                "total_margin_used": 30000.0
+                "total_margin_used": 30000.0,
             }
         }
 
@@ -65,13 +66,13 @@ class TestPositionSummaryUseCase:
 
         return create_service_with_mocks(
             PositionSummaryUseCase,
-            'src.use_cases.portfolio.position_summary',
+            "src.use_cases.portfolio.position_summary",
             {
-                'position_service': mock_position,
-                'account_service': mock_account,
-                'market_data_service': mock_market_data,
-                'risk_calculator': mock_risk
-            }
+                "position_service": mock_position,
+                "account_service": mock_account,
+                "market_data_service": mock_market_data,
+                "risk_calculator": mock_risk,
+            },
         )
 
     # ===================================================================
@@ -86,10 +87,7 @@ class TestPositionSummaryUseCase:
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
 
-        request = PositionSummaryRequest(
-            include_risk_metrics=False,
-            include_spot_balances=False
-        )
+        request = PositionSummaryRequest(include_risk_metrics=False, include_spot_balances=False)
 
         response = await use_case.execute(request)
 
@@ -104,9 +102,7 @@ class TestPositionSummaryUseCase:
         assert len(response.positions) == 2
 
     @pytest.mark.asyncio
-    async def test_position_summary_with_no_positions(
-        self, use_case, sample_account_info
-    ):
+    async def test_position_summary_with_no_positions(self, use_case, sample_account_info):
         """Test summary with no open positions."""
         use_case.position_service.list_positions.return_value = []
         use_case.account_service.get_account_info.return_value = sample_account_info
@@ -123,9 +119,7 @@ class TestPositionSummaryUseCase:
         assert len(response.positions) == 0
 
     @pytest.mark.asyncio
-    async def test_position_detail_fields(
-        self, use_case, sample_positions, sample_account_info
-    ):
+    async def test_position_detail_fields(self, use_case, sample_positions, sample_account_info):
         """Test position detail fields are correctly populated."""
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
@@ -204,10 +198,7 @@ class TestPositionSummaryUseCase:
         """Test summary with risk metrics enabled."""
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
-        use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0,
-            "ETH": 3000.0
-        }
+        use_case.market_data.get_all_prices.return_value = {"BTC": 50000.0, "ETH": 3000.0}
 
         # Mock risk assessments
         btc_risk = Mock(spec=PositionRisk)
@@ -293,7 +284,7 @@ class TestPositionSummaryUseCase:
 
         use_case.risk_calculator.assess_position_risk.side_effect = [
             btc_risk,
-            Exception("Risk calculation failed")
+            Exception("Risk calculation failed"),
         ]
 
         request = PositionSummaryRequest(include_risk_metrics=True)
@@ -320,14 +311,11 @@ class TestPositionSummaryUseCase:
             "balances": [
                 {"coin": "USDC", "total": "5000.0"},
                 {"coin": "SOL", "total": "100.5"},
-                {"coin": "AVAX", "total": "0.0"}  # Zero balance (filtered out)
+                {"coin": "AVAX", "total": "0.0"},  # Zero balance (filtered out)
             ]
         }
 
-        request = PositionSummaryRequest(
-            include_risk_metrics=False,
-            include_spot_balances=True
-        )
+        request = PositionSummaryRequest(include_risk_metrics=False, include_spot_balances=True)
 
         response = await use_case.execute(request)
 
@@ -345,10 +333,7 @@ class TestPositionSummaryUseCase:
         use_case.position_service.list_positions.return_value = sample_positions
         use_case.account_service.get_account_info.return_value = sample_account_info
         # Need to mock prices for position details
-        use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0,
-            "ETH": 3000.0
-        }
+        use_case.market_data.get_all_prices.return_value = {"BTC": 50000.0, "ETH": 3000.0}
 
         request = PositionSummaryRequest(include_spot_balances=False)
 
@@ -367,10 +352,7 @@ class TestPositionSummaryUseCase:
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.account_service.get_spot_state.side_effect = Exception("API Error")
         # Need to mock prices for position details
-        use_case.market_data.get_all_prices.return_value = {
-            "BTC": 50000.0,
-            "ETH": 3000.0
-        }
+        use_case.market_data.get_all_prices.return_value = {"BTC": 50000.0, "ETH": 3000.0}
 
         request = PositionSummaryRequest(include_spot_balances=True)
 
@@ -386,16 +368,14 @@ class TestPositionSummaryUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_zero_account_value_handled(
-        self, use_case
-    ):
+    async def test_zero_account_value_handled(self, use_case):
         """Test handling of zero account value (prevents division by zero)."""
         use_case.position_service.list_positions.return_value = []
         use_case.account_service.get_account_info.return_value = {
             "margin_summary": {
                 "account_value": 0.0,
                 "available_balance": 0.0,
-                "total_margin_used": 0.0
+                "total_margin_used": 0.0,
             }
         }
 
@@ -407,26 +387,24 @@ class TestPositionSummaryUseCase:
         assert response.total_unrealized_pnl_pct == 0.0
 
     @pytest.mark.asyncio
-    async def test_zero_position_value_handled(
-        self, use_case
-    ):
+    async def test_zero_position_value_handled(self, use_case):
         """Test handling of zero position value."""
         positions = [
             PositionBuilder()
-                .with_coin("TEST")
-                .with_size(0.0)
-                .with_entry_price(1.0)
-                .with_position_value(0.0)
-                .with_pnl(0.0)
-                .with_leverage(1, "cross")
-                .build()
+            .with_coin("TEST")
+            .with_size(0.0)
+            .with_entry_price(1.0)
+            .with_position_value(0.0)
+            .with_pnl(0.0)
+            .with_leverage(1, "cross")
+            .build()
         ]
         use_case.position_service.list_positions.return_value = positions
         use_case.account_service.get_account_info.return_value = {
             "margin_summary": {
                 "account_value": 100000.0,
                 "available_balance": 100000.0,
-                "total_margin_used": 0.0
+                "total_margin_used": 0.0,
             }
         }
 
@@ -438,9 +416,7 @@ class TestPositionSummaryUseCase:
         assert test_pos.unrealized_pnl_pct == 0.0  # No division by zero
 
     @pytest.mark.asyncio
-    async def test_service_failure_raises_runtime_error(
-        self, use_case
-    ):
+    async def test_service_failure_raises_runtime_error(self, use_case):
         """Test service failure raises RuntimeError."""
         use_case.position_service.list_positions.side_effect = Exception("API Error")
 
@@ -462,7 +438,7 @@ class TestPositionSummaryUseCase:
         use_case.account_service.get_account_info.return_value = sample_account_info
         use_case.market_data.get_all_prices.return_value = {
             "BTC": 55000.0,  # Different from entry price
-            "ETH": 3100.0
+            "ETH": 3100.0,
         }
 
         request = PositionSummaryRequest(include_risk_metrics=True)

@@ -19,12 +19,12 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.services.hyperliquid_service import hyperliquid_service
-from src.services.rebalance_service import rebalance_service
-from src.services.account_service import account_service
-from src.services.position_service import position_service
-from src.services.risk_calculator import risk_calculator
 from src.config import logger, settings
+from src.services.account_service import account_service
+from src.services.hyperliquid_service import hyperliquid_service
+from src.services.position_service import position_service
+from src.services.rebalance_service import rebalance_service
+from src.services.risk_calculator import risk_calculator
 
 
 def print_section(title: str):
@@ -93,9 +93,7 @@ async def test_equal_weight_rebalance(positions):
         num_positions = len(positions)
         equal_weight = 100.0 / num_positions
 
-        target_allocations = {
-            item["position"]["coin"]: equal_weight for item in positions
-        }
+        target_allocations = {item["position"]["coin"]: equal_weight for item in positions}
 
         print(f"Target: Equal weight ({equal_weight:.1f}% per position)")
         print("\nTarget Allocations:")
@@ -215,6 +213,7 @@ async def test_risk_assessment(positions):
 
         # Get current prices
         from src.services.market_data_service import market_data_service
+
         prices = market_data_service.get_all_prices()
 
         # Assess portfolio risk
@@ -222,13 +221,13 @@ async def test_risk_assessment(positions):
         portfolio_risk = risk_calculator.assess_portfolio_risk(
             positions=positions,  # Pass full items, not just position dicts
             margin_summary=margin_summary,
-            prices=prices
+            prices=prices,
         )
 
         print(f"Overall Risk Level: {portfolio_risk.overall_risk_level.value}")
         print(f"Overall Health Score: {portfolio_risk.overall_health_score}/100")
         print(f"Total Positions: {portfolio_risk.position_count}")
-        print(f"\nPositions by Risk:")
+        print("\nPositions by Risk:")
         print(f"  SAFE: {portfolio_risk.positions_by_risk.get('SAFE', 0)}")
         print(f"  LOW: {portfolio_risk.positions_by_risk.get('LOW', 0)}")
         print(f"  MODERATE: {portfolio_risk.positions_by_risk.get('MODERATE', 0)}")
@@ -319,29 +318,29 @@ async def test_calculation_accuracy(positions):
         total_value = sum(abs(p["position"]["position_value"]) for p in positions)
         total_pnl = sum(p["position"]["unrealized_pnl"] for p in positions)
 
-        print(f"Manual Calculation:")
+        print("Manual Calculation:")
         print(f"  Total Position Value: ${total_value:.2f}")
         print(f"  Total Unrealized PnL: ${total_pnl:.2f}")
 
         # Get summary from service
         summary = position_service.get_position_summary()
 
-        print(f"\nService Calculation:")
+        print("\nService Calculation:")
         print(f"  Total Position Value: ${summary['total_position_value']:.2f}")
         print(f"  Total Unrealized PnL: ${summary['total_unrealized_pnl']:.2f}")
 
         # Compare
-        value_diff = abs(total_value - summary['total_position_value'])
-        pnl_diff = abs(total_pnl - summary['total_unrealized_pnl'])
+        value_diff = abs(total_value - summary["total_position_value"])
+        pnl_diff = abs(total_pnl - summary["total_unrealized_pnl"])
 
-        print(f"\nDifferences:")
+        print("\nDifferences:")
         print(f"  Value: ${value_diff:.2f}")
         print(f"  PnL: ${pnl_diff:.2f}")
 
         if value_diff < 0.01 and pnl_diff < 0.01:
             print("\n✅ PASS: Calculations match (within $0.01)")
         else:
-            print(f"\n⚠️  WARNING: Calculations differ by more than $0.01")
+            print("\n⚠️  WARNING: Calculations differ by more than $0.01")
 
         # Test allocation percentages add to 100%
         print_subsection("Allocation Percentage Validation")

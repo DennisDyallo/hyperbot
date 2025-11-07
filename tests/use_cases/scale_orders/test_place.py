@@ -8,18 +8,15 @@ MIGRATED: Now using tests/helpers for service mocking.
 - create_service_with_mocks replaces manual fixture boilerplate
 - AsyncMock configured manually for scale_order_service (no builder yet)
 """
+
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
-from datetime import datetime
+
+from src.models.scale_order import OrderPlacement, ScaleOrderConfig, ScaleOrderResult
 from src.use_cases.scale_orders.place import (
     PlaceScaleOrderRequest,
-    PlaceScaleOrderResponse,
-    PlaceScaleOrderUseCase
-)
-from src.models.scale_order import (
-    ScaleOrderConfig,
-    ScaleOrderResult,
-    OrderPlacement
+    PlaceScaleOrderUseCase,
 )
 
 # Import helpers for cleaner service mocking
@@ -38,10 +35,8 @@ class TestPlaceScaleOrderUseCase:
 
         return create_service_with_mocks(
             PlaceScaleOrderUseCase,
-            'src.use_cases.scale_orders.place',
-            {
-                'scale_order_service': mock_scale_order
-            }
+            "src.use_cases.scale_orders.place",
+            {"scale_order_service": mock_scale_order},
         )
 
     @pytest.fixture
@@ -60,7 +55,7 @@ class TestPlaceScaleOrderUseCase:
             start_price=50000.0,
             end_price=48000.0,
             distribution_type="linear",
-            time_in_force="Gtc"
+            time_in_force="Gtc",
         )
 
     # ===================================================================
@@ -85,13 +80,13 @@ class TestPlaceScaleOrderUseCase:
                 OrderPlacement(order_id=1002, price=49500.0, size=0.040, status="success"),
                 OrderPlacement(order_id=1003, price=49000.0, size=0.041, status="success"),
                 OrderPlacement(order_id=1004, price=48500.0, size=0.041, status="success"),
-                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success")
+                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success"),
             ],
             orders_placed=5,
             orders_failed=0,
             average_price=49000.0,
             total_placed_size=0.204,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -113,9 +108,7 @@ class TestPlaceScaleOrderUseCase:
         assert len(response.result.placements) == 5
 
     @pytest.mark.asyncio
-    async def test_place_sell_orders_success(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_place_sell_orders_success(self, use_case, mock_scale_order_service):
         """Test SELL scale order placement."""
         config = ScaleOrderConfig(
             coin="ETH",
@@ -123,7 +116,7 @@ class TestPlaceScaleOrderUseCase:
             total_usd_amount=5000.0,
             num_orders=3,
             start_price=3000.0,
-            end_price=3300.0
+            end_price=3300.0,
         )
 
         result = ScaleOrderResult(
@@ -136,13 +129,13 @@ class TestPlaceScaleOrderUseCase:
             placements=[
                 OrderPlacement(order_id=2001, price=3000.0, size=0.533, status="success"),
                 OrderPlacement(order_id=2002, price=3150.0, size=0.533, status="success"),
-                OrderPlacement(order_id=2003, price=3300.0, size=0.534, status="success")
+                OrderPlacement(order_id=2003, price=3300.0, size=0.534, status="success"),
             ],
             orders_placed=3,
             orders_failed=0,
             average_price=3150.0,
             total_placed_size=1.6,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -159,9 +152,7 @@ class TestPlaceScaleOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_place_partial_success(
-        self, use_case, mock_scale_order_service, sample_config
-    ):
+    async def test_place_partial_success(self, use_case, mock_scale_order_service, sample_config):
         """Test some orders placed, some failed."""
         result = ScaleOrderResult(
             scale_order_id="scale_partial",
@@ -173,15 +164,23 @@ class TestPlaceScaleOrderUseCase:
             placements=[
                 OrderPlacement(order_id=1001, price=50000.0, size=0.040, status="success"),
                 OrderPlacement(order_id=1002, price=49500.0, size=0.040, status="success"),
-                OrderPlacement(order_id=None, price=49000.0, size=0.041, status="failed", error="Insufficient liquidity"),
+                OrderPlacement(
+                    order_id=None,
+                    price=49000.0,
+                    size=0.041,
+                    status="failed",
+                    error="Insufficient liquidity",
+                ),
                 OrderPlacement(order_id=1004, price=48500.0, size=0.041, status="success"),
-                OrderPlacement(order_id=None, price=48000.0, size=0.042, status="failed", error="API timeout")
+                OrderPlacement(
+                    order_id=None, price=48000.0, size=0.042, status="failed", error="API timeout"
+                ),
             ],
             orders_placed=3,
             orders_failed=2,
             average_price=49300.0,
             total_placed_size=0.121,
-            status="partial"
+            status="partial",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -199,9 +198,7 @@ class TestPlaceScaleOrderUseCase:
         assert failed_placements[0].error is not None
 
     @pytest.mark.asyncio
-    async def test_place_mostly_failed(
-        self, use_case, mock_scale_order_service, sample_config
-    ):
+    async def test_place_mostly_failed(self, use_case, mock_scale_order_service, sample_config):
         """Test mostly failed orders (only 1 success)."""
         result = ScaleOrderResult(
             scale_order_id="scale_mostly_failed",
@@ -212,16 +209,24 @@ class TestPlaceScaleOrderUseCase:
             num_orders=5,
             placements=[
                 OrderPlacement(order_id=1001, price=50000.0, size=0.040, status="success"),
-                OrderPlacement(order_id=None, price=49500.0, size=0.040, status="failed", error="Rate limit"),
-                OrderPlacement(order_id=None, price=49000.0, size=0.041, status="failed", error="Rate limit"),
-                OrderPlacement(order_id=None, price=48500.0, size=0.041, status="failed", error="Rate limit"),
-                OrderPlacement(order_id=None, price=48000.0, size=0.042, status="failed", error="Rate limit")
+                OrderPlacement(
+                    order_id=None, price=49500.0, size=0.040, status="failed", error="Rate limit"
+                ),
+                OrderPlacement(
+                    order_id=None, price=49000.0, size=0.041, status="failed", error="Rate limit"
+                ),
+                OrderPlacement(
+                    order_id=None, price=48500.0, size=0.041, status="failed", error="Rate limit"
+                ),
+                OrderPlacement(
+                    order_id=None, price=48000.0, size=0.042, status="failed", error="Rate limit"
+                ),
             ],
             orders_placed=1,
             orders_failed=4,
             average_price=50000.0,
             total_placed_size=0.040,
-            status="partial"
+            status="partial",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -238,9 +243,7 @@ class TestPlaceScaleOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_place_all_orders_failed(
-        self, use_case, mock_scale_order_service, sample_config
-    ):
+    async def test_place_all_orders_failed(self, use_case, mock_scale_order_service, sample_config):
         """Test all orders failed to place."""
         result = ScaleOrderResult(
             scale_order_id="scale_failed",
@@ -250,17 +253,27 @@ class TestPlaceScaleOrderUseCase:
             total_coin_size=0.204,
             num_orders=5,
             placements=[
-                OrderPlacement(order_id=None, price=50000.0, size=0.040, status="failed", error="API Error"),
-                OrderPlacement(order_id=None, price=49500.0, size=0.040, status="failed", error="API Error"),
-                OrderPlacement(order_id=None, price=49000.0, size=0.041, status="failed", error="API Error"),
-                OrderPlacement(order_id=None, price=48500.0, size=0.041, status="failed", error="API Error"),
-                OrderPlacement(order_id=None, price=48000.0, size=0.042, status="failed", error="API Error")
+                OrderPlacement(
+                    order_id=None, price=50000.0, size=0.040, status="failed", error="API Error"
+                ),
+                OrderPlacement(
+                    order_id=None, price=49500.0, size=0.040, status="failed", error="API Error"
+                ),
+                OrderPlacement(
+                    order_id=None, price=49000.0, size=0.041, status="failed", error="API Error"
+                ),
+                OrderPlacement(
+                    order_id=None, price=48500.0, size=0.041, status="failed", error="API Error"
+                ),
+                OrderPlacement(
+                    order_id=None, price=48000.0, size=0.042, status="failed", error="API Error"
+                ),
             ],
             orders_placed=0,
             orders_failed=5,
             average_price=None,
             total_placed_size=0.0,
-            status="failed"
+            status="failed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -294,13 +307,13 @@ class TestPlaceScaleOrderUseCase:
                 OrderPlacement(order_id=12346, price=49500.0, size=0.040, status="success"),
                 OrderPlacement(order_id=12347, price=49000.0, size=0.041, status="success"),
                 OrderPlacement(order_id=12348, price=48500.0, size=0.041, status="success"),
-                OrderPlacement(order_id=12349, price=48000.0, size=0.042, status="success")
+                OrderPlacement(order_id=12349, price=48000.0, size=0.042, status="success"),
             ],
             orders_placed=5,
             orders_failed=0,
             average_price=49000.0,
             total_placed_size=0.204,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -331,13 +344,13 @@ class TestPlaceScaleOrderUseCase:
                 OrderPlacement(order_id=1002, price=49500.0, size=0.040, status="success"),
                 OrderPlacement(order_id=1003, price=49000.0, size=0.041, status="success"),
                 OrderPlacement(order_id=1004, price=48500.0, size=0.041, status="success"),
-                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success")
+                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success"),
             ],
             orders_placed=5,
             orders_failed=0,
             average_price=49000.0,
             total_placed_size=0.204,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -364,14 +377,26 @@ class TestPlaceScaleOrderUseCase:
             num_orders=3,
             placements=[
                 OrderPlacement(order_id=1001, price=50000.0, size=0.068, status="success"),
-                OrderPlacement(order_id=None, price=49000.0, size=0.068, status="failed", error="Insufficient margin"),
-                OrderPlacement(order_id=None, price=48000.0, size=0.068, status="failed", error="Order size below minimum")
+                OrderPlacement(
+                    order_id=None,
+                    price=49000.0,
+                    size=0.068,
+                    status="failed",
+                    error="Insufficient margin",
+                ),
+                OrderPlacement(
+                    order_id=None,
+                    price=48000.0,
+                    size=0.068,
+                    status="failed",
+                    error="Order size below minimum",
+                ),
             ],
             orders_placed=1,
             orders_failed=2,
             average_price=50000.0,
             total_placed_size=0.068,
-            status="partial"
+            status="partial",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -407,13 +432,13 @@ class TestPlaceScaleOrderUseCase:
                 OrderPlacement(order_id=1002, price=49500.0, size=0.040, status="success"),
                 OrderPlacement(order_id=1003, price=49000.0, size=0.041, status="success"),
                 OrderPlacement(order_id=1004, price=48500.0, size=0.041, status="success"),
-                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success")
+                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success"),
             ],
             orders_placed=5,
             orders_failed=0,
             average_price=49000.0,
             total_placed_size=0.204,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -441,13 +466,13 @@ class TestPlaceScaleOrderUseCase:
                 OrderPlacement(order_id=1002, price=49500.0, size=0.040, status="success"),
                 OrderPlacement(order_id=1003, price=49000.0, size=0.041, status="success"),
                 OrderPlacement(order_id=1004, price=48500.0, size=0.041, status="success"),
-                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success")
+                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success"),
             ],
             orders_placed=5,
             orders_failed=0,
             average_price=49000.0,
             total_placed_size=0.204,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -474,13 +499,13 @@ class TestPlaceScaleOrderUseCase:
                 OrderPlacement(order_id=1002, price=49500.0, size=0.040, status="success"),
                 OrderPlacement(order_id=1003, price=49000.0, size=0.041, status="success"),
                 OrderPlacement(order_id=1004, price=48500.0, size=0.041, status="success"),
-                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success")
+                OrderPlacement(order_id=1005, price=48000.0, size=0.042, status="success"),
             ],
             orders_placed=5,
             orders_failed=0,
             average_price=49000.0,
             total_placed_size=0.204,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -495,9 +520,7 @@ class TestPlaceScaleOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_invalid_config_raises_value_error(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_invalid_config_raises_value_error(self, use_case, mock_scale_order_service):
         """Test invalid configuration raises ValueError."""
         mock_scale_order_service.place_scale_order.side_effect = ValueError(
             "start_price must be different from end_price"
@@ -509,7 +532,7 @@ class TestPlaceScaleOrderUseCase:
             total_usd_amount=10000.0,
             num_orders=5,
             start_price=50000.0,
-            end_price=49000.0
+            end_price=49000.0,
         )
 
         request = PlaceScaleOrderRequest(config=config)
@@ -534,9 +557,7 @@ class TestPlaceScaleOrderUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_place_minimum_orders(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_place_minimum_orders(self, use_case, mock_scale_order_service):
         """Test placing minimum orders (2)."""
         config = ScaleOrderConfig(
             coin="BTC",
@@ -544,7 +565,7 @@ class TestPlaceScaleOrderUseCase:
             total_usd_amount=1000.0,
             num_orders=2,
             start_price=50000.0,
-            end_price=49000.0
+            end_price=49000.0,
         )
 
         result = ScaleOrderResult(
@@ -556,13 +577,13 @@ class TestPlaceScaleOrderUseCase:
             num_orders=2,
             placements=[
                 OrderPlacement(order_id=1001, price=50000.0, size=0.010, status="success"),
-                OrderPlacement(order_id=1002, price=49000.0, size=0.0104, status="success")
+                OrderPlacement(order_id=1002, price=49000.0, size=0.0104, status="success"),
             ],
             orders_placed=2,
             orders_failed=0,
             average_price=49500.0,
             total_placed_size=0.0204,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 
@@ -575,9 +596,7 @@ class TestPlaceScaleOrderUseCase:
         assert len(response.result.placements) == 2
 
     @pytest.mark.asyncio
-    async def test_place_many_orders(
-        self, use_case, mock_scale_order_service
-    ):
+    async def test_place_many_orders(self, use_case, mock_scale_order_service):
         """Test placing many orders (20)."""
         config = ScaleOrderConfig(
             coin="ETH",
@@ -585,7 +604,7 @@ class TestPlaceScaleOrderUseCase:
             total_usd_amount=20000.0,
             num_orders=20,
             start_price=3000.0,
-            end_price=2800.0
+            end_price=2800.0,
         )
 
         # Generate 20 placements
@@ -593,7 +612,7 @@ class TestPlaceScaleOrderUseCase:
         for i in range(20):
             price = 3000.0 - (i * 10.5)
             placements.append(
-                OrderPlacement(order_id=3000+i, price=price, size=0.333, status="success")
+                OrderPlacement(order_id=3000 + i, price=price, size=0.333, status="success")
             )
 
         result = ScaleOrderResult(
@@ -608,7 +627,7 @@ class TestPlaceScaleOrderUseCase:
             orders_failed=0,
             average_price=2900.0,
             total_placed_size=6.66,
-            status="completed"
+            status="completed",
         )
         mock_scale_order_service.place_scale_order.return_value = result
 

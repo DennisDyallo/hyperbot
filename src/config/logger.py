@@ -1,10 +1,14 @@
 """
 Logging configuration using loguru.
 """
+
 import sys
 from pathlib import Path
+
 from loguru import logger
+
 from src.config.settings import settings
+
 
 def setup_logger() -> None:
     """Configure application logger."""
@@ -33,10 +37,7 @@ def setup_logger() -> None:
         logger.add(
             settings.LOG_FILE,
             format=(
-                "{time:YYYY-MM-DD HH:mm:ss} | "
-                "{level: <8} | "
-                "{name}:{function}:{line} | "
-                "{message}"
+                "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}"
             ),
             level=settings.LOG_LEVEL,
             rotation="100 MB",  # Rotate when file reaches 100MB

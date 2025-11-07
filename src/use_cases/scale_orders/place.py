@@ -4,15 +4,18 @@ Place Scale Order Use Case.
 Unified logic for placing scale orders (multiple limit orders).
 Handles order placement, tracking, and result reporting.
 """
+
 from pydantic import BaseModel
-from src.use_cases.base import BaseUseCase
+
+from src.config import logger
 from src.models.scale_order import ScaleOrderConfig, ScaleOrderResult
 from src.services.scale_order_service import scale_order_service
-from src.config import logger
+from src.use_cases.base import BaseUseCase
 
 
 class PlaceScaleOrderRequest(BaseModel):
     """Request model for placing scale order."""
+
     config: ScaleOrderConfig
 
     class Config:
@@ -26,7 +29,7 @@ class PlaceScaleOrderRequest(BaseModel):
                     "start_price": 50000.0,
                     "end_price": 48000.0,
                     "distribution_type": "linear",
-                    "time_in_force": "Gtc"
+                    "time_in_force": "Gtc",
                 }
             }
         }
@@ -34,6 +37,7 @@ class PlaceScaleOrderRequest(BaseModel):
 
 class PlaceScaleOrderResponse(BaseModel):
     """Response model for scale order placement."""
+
     result: ScaleOrderResult
 
     class Config:
@@ -46,19 +50,14 @@ class PlaceScaleOrderResponse(BaseModel):
                     "total_size": 1.0,
                     "num_orders": 5,
                     "orders_placed": [
-                        {
-                            "price": 50000.0,
-                            "size": 0.2,
-                            "order_id": "order_1",
-                            "success": True
-                        }
+                        {"price": 50000.0, "size": 0.2, "order_id": "order_1", "success": True}
                     ],
                     "successful_orders": 5,
                     "failed_orders": 0,
                     "success_rate": 100.0,
                     "total_notional": 49000.0,
                     "estimated_avg_price": 49000.0,
-                    "created_at": "2025-11-05T20:00:00Z"
+                    "created_at": "2025-11-05T20:00:00Z",
                 }
             }
         }
@@ -121,7 +120,9 @@ class PlaceScaleOrderUseCase(BaseUseCase[PlaceScaleOrderRequest, PlaceScaleOrder
             # Place scale order via service
             result = await self.scale_order_service.place_scale_order(config)
 
-            success_rate = (result.orders_placed / result.num_orders * 100) if result.num_orders > 0 else 0.0
+            success_rate = (
+                (result.orders_placed / result.num_orders * 100) if result.num_orders > 0 else 0.0
+            )
             logger.info(
                 f"Scale order placed: {result.scale_order_id} - "
                 f"{result.orders_placed}/{result.num_orders} orders successful "
@@ -140,4 +141,4 @@ class PlaceScaleOrderUseCase(BaseUseCase[PlaceScaleOrderRequest, PlaceScaleOrder
             raise
         except Exception as e:
             logger.error(f"Failed to place scale order: {e}")
-            raise RuntimeError(f"Failed to place scale order: {str(e)}")
+            raise RuntimeError(f"Failed to place scale order: {str(e)}") from e

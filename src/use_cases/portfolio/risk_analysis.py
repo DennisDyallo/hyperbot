@@ -4,39 +4,34 @@ Risk Analysis Use Case.
 Unified risk assessment logic for both API and Bot interfaces.
 Calculates portfolio and position-level risk metrics.
 """
-from typing import List, Dict, Any
+
 from pydantic import BaseModel, Field
-from src.use_cases.base import BaseUseCase
-from src.services.risk_calculator import risk_calculator, RiskLevel
-from src.services.position_service import position_service
+
+from src.config import logger
 from src.services.account_service import account_service
 from src.services.market_data_service import market_data_service
-from src.config import logger
+from src.services.position_service import position_service
+from src.services.risk_calculator import risk_calculator
+from src.use_cases.base import BaseUseCase
 
 
 class RiskAnalysisRequest(BaseModel):
     """Request model for risk analysis."""
 
-    coins: List[str] | None = Field(
-        None,
-        description="Specific coins to analyze. If None, analyze all positions."
+    coins: list[str] | None = Field(
+        None, description="Specific coins to analyze. If None, analyze all positions."
     )
     include_cross_margin_ratio: bool = Field(
-        True,
-        description="Include cross margin ratio (official Hyperliquid metric)"
+        True, description="Include cross margin ratio (official Hyperliquid metric)"
     )
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "coins": None,
-                "include_cross_margin_ratio": True
-            }
-        }
+        json_schema_extra = {"example": {"coins": None, "include_cross_margin_ratio": True}}
 
 
 class PositionRiskDetail(BaseModel):
     """Risk details for a single position."""
+
     coin: str
     size: float
     side: str
@@ -50,7 +45,7 @@ class PositionRiskDetail(BaseModel):
     health_score: int
     liquidation_price: float
     liquidation_distance_pct: float
-    warnings: List[str]
+    warnings: list[str]
 
 
 class RiskAnalysisResponse(BaseModel):
@@ -79,10 +74,10 @@ class RiskAnalysisResponse(BaseModel):
     account_value: float
 
     # Position-level risks
-    positions: List[PositionRiskDetail]
+    positions: list[PositionRiskDetail]
 
     # Portfolio-level warnings
-    portfolio_warnings: List[str] = Field(default_factory=list)
+    portfolio_warnings: list[str] = Field(default_factory=list)
 
 
 class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]):
@@ -133,10 +128,7 @@ class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]
 
             # Filter positions if specific coins requested
             if request.coins:
-                all_positions = [
-                    p for p in all_positions
-                    if p["position"]["coin"] in request.coins
-                ]
+                all_positions = [p for p in all_positions if p["position"]["coin"] in request.coins]
 
             # Get current prices
             prices = self.market_data.get_all_prices()
@@ -144,7 +136,8 @@ class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]
             # Calculate margin utilization
             margin_util_pct = (
                 (margin_summary["total_margin_used"] / margin_summary["account_value"] * 100)
-                if margin_summary["account_value"] > 0 else 0
+                if margin_summary["account_value"] > 0
+                else 0
             )
 
             # Get Cross Margin Ratio if requested (Hyperliquid official metric)
@@ -156,22 +149,22 @@ class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]
                 try:
                     cross_data = account_info.get("crossMarginSummary")
                     if cross_data:
-                        cross_maintenance_margin = float(cross_data.get("crossMaintenanceMarginUsed", 0))
-                        cross_account_value = float(cross_data.get("accountValue", margin_summary["account_value"]))
+                        cross_maintenance_margin = float(
+                            cross_data.get("crossMaintenanceMarginUsed", 0)
+                        )
+                        cross_account_value = float(
+                            cross_data.get("accountValue", margin_summary["account_value"])
+                        )
                         if cross_account_value > 0:
-                            cross_margin_ratio = (cross_maintenance_margin / cross_account_value) * 100
+                            cross_margin_ratio = (
+                                cross_maintenance_margin / cross_account_value
+                            ) * 100
                 except Exception as e:
                     logger.warning(f"Failed to get cross margin ratio: {e}")
 
             # Analyze each position
             position_risks = []
-            risk_counts = {
-                "CRITICAL": 0,
-                "HIGH": 0,
-                "MODERATE": 0,
-                "LOW": 0,
-                "SAFE": 0
-            }
+            risk_counts = {"CRITICAL": 0, "HIGH": 0, "MODERATE": 0, "LOW": 0, "SAFE": 0}
 
             for pos_item in all_positions:
                 pos = pos_item["position"]
@@ -183,27 +176,29 @@ class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]
                     risk = self.risk_calculator.assess_position_risk(
                         position_data=pos,
                         current_price=current_price,
-                        margin_utilization_pct=margin_util_pct
+                        margin_utilization_pct=margin_util_pct,
                     )
 
                     # Count risk levels
                     risk_counts[risk.risk_level.value] += 1
 
                     # Build position risk detail
-                    position_risks.append(PositionRiskDetail(
-                        coin=coin,
-                        size=abs(float(pos["size"])),
-                        side="LONG" if float(pos["size"]) > 0 else "SHORT",
-                        entry_price=float(pos["entry_price"]),
-                        current_price=current_price,
-                        leverage=pos["leverage"]["value"],
-                        leverage_type=pos["leverage"]["type"],
-                        risk_level=risk.risk_level.value,
-                        health_score=risk.health_score,
-                        liquidation_price=risk.liquidation_price,
-                        liquidation_distance_pct=risk.liquidation_distance_pct,
-                        warnings=risk.warnings
-                    ))
+                    position_risks.append(
+                        PositionRiskDetail(
+                            coin=coin,
+                            size=abs(float(pos["size"])),
+                            side="LONG" if float(pos["size"]) > 0 else "SHORT",
+                            entry_price=float(pos["entry_price"]),
+                            current_price=current_price,
+                            leverage=pos["leverage_value"],
+                            leverage_type=pos["leverage_type"],
+                            risk_level=risk.risk_level.value,
+                            health_score=risk.health_score,
+                            liquidation_price=risk.liquidation_price,
+                            liquidation_distance_pct=risk.liquidation_distance_pct,
+                            warnings=risk.warnings,
+                        )
+                    )
 
                 except Exception as e:
                     logger.error(f"Failed to assess risk for {coin}: {e}")
@@ -211,14 +206,13 @@ class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]
 
             # Assess overall portfolio risk
             portfolio_risk_result = self.risk_calculator.assess_portfolio_risk(
-                all_positions,
-                account_info
+                all_positions, margin_summary, prices
             )
 
             # Build response
             return RiskAnalysisResponse(
                 overall_risk_level=portfolio_risk_result.overall_risk_level.value,
-                portfolio_health_score=portfolio_risk_result.portfolio_health_score,
+                portfolio_health_score=portfolio_risk_result.overall_health_score,
                 cross_margin_ratio_pct=cross_margin_ratio,
                 cross_maintenance_margin=cross_maintenance_margin,
                 cross_account_value=cross_account_value,
@@ -228,13 +222,13 @@ class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]
                 low_risk_positions=risk_counts["LOW"],
                 safe_positions=risk_counts["SAFE"],
                 margin_utilization_pct=margin_util_pct,
-                available_margin=margin_summary["available_balance"],
+                available_margin=margin_summary["total_raw_usd"],
                 total_margin_used=margin_summary["total_margin_used"],
                 account_value=margin_summary["account_value"],
                 positions=position_risks,
-                portfolio_warnings=portfolio_risk_result.warnings
+                portfolio_warnings=portfolio_risk_result.warnings,
             )
 
         except Exception as e:
             logger.error(f"Risk analysis failed: {e}")
-            raise RuntimeError(f"Failed to analyze risk: {str(e)}")
+            raise RuntimeError(f"Failed to analyze risk: {str(e)}") from e

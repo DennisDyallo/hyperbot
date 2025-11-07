@@ -4,39 +4,34 @@ Position Summary Use Case.
 Unified position summary logic for both API and Bot interfaces.
 Aggregates position data, calculates PnL, and includes risk metrics.
 """
-from typing import List, Dict, Any
+
 from pydantic import BaseModel, Field
-from src.use_cases.base import BaseUseCase
-from src.services.position_service import position_service
-from src.services.market_data_service import market_data_service
-from src.services.account_service import account_service
-from src.services.risk_calculator import risk_calculator, RiskLevel
+
 from src.config import logger
+from src.services.account_service import account_service
+from src.services.market_data_service import market_data_service
+from src.services.position_service import position_service
+from src.services.risk_calculator import RiskLevel, risk_calculator
+from src.use_cases.base import BaseUseCase
 
 
 class PositionSummaryRequest(BaseModel):
     """Request model for position summary."""
 
     include_risk_metrics: bool = Field(
-        True,
-        description="Include risk assessment for each position"
+        True, description="Include risk assessment for each position"
     )
-    include_spot_balances: bool = Field(
-        False,
-        description="Include spot token balances in summary"
-    )
+    include_spot_balances: bool = Field(False, description="Include spot token balances in summary")
 
     class Config:
         json_schema_extra = {
-            "example": {
-                "include_risk_metrics": True,
-                "include_spot_balances": False
-            }
+            "example": {"include_risk_metrics": True, "include_spot_balances": False}
         }
 
 
 class PositionDetail(BaseModel):
     """Detailed information for a single position."""
+
     coin: str
     size: float
     side: str  # "LONG" or "SHORT"
@@ -53,7 +48,7 @@ class PositionDetail(BaseModel):
     health_score: int | None = None
     liquidation_price: float | None = None
     liquidation_distance_pct: float | None = None
-    warnings: List[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class PositionSummaryResponse(BaseModel):
@@ -74,10 +69,10 @@ class PositionSummaryResponse(BaseModel):
     margin_utilization_pct: float
 
     # Position list
-    positions: List[PositionDetail]
+    positions: list[PositionDetail]
 
     # Optional spot balances
-    spot_balances: Dict[str, float] | None = None
+    spot_balances: dict[str, float] | None = None
     num_spot_balances: int = 0
 
     # Risk summary (if enabled)
@@ -136,7 +131,8 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
             # Calculate margin utilization
             margin_util_pct = (
                 (margin_summary["total_margin_used"] / margin_summary["account_value"] * 100)
-                if margin_summary["account_value"] > 0 else 0
+                if margin_summary["account_value"] > 0
+                else 0
             )
 
             # Process each position
@@ -167,7 +163,9 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
                 current_price = prices.get(coin, entry_price)
 
                 # Calculate PnL percentage
-                pnl_pct = (unrealized_pnl / abs(position_value) * 100) if position_value != 0 else 0.0
+                pnl_pct = (
+                    (unrealized_pnl / abs(position_value) * 100) if position_value != 0 else 0.0
+                )
 
                 # Aggregate totals
                 total_pnl += unrealized_pnl
@@ -183,8 +181,8 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
                     position_value=abs(position_value),
                     unrealized_pnl=unrealized_pnl,
                     unrealized_pnl_pct=pnl_pct,
-                    leverage=pos["leverage"]["value"],
-                    leverage_type=pos["leverage"]["type"],
+                    leverage=pos["leverage_value"],
+                    leverage_type=pos["leverage_type"],
                 )
 
                 # Add risk metrics if requested
@@ -193,7 +191,7 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
                         risk = self.risk_calculator.assess_position_risk(
                             position_data=pos,
                             current_price=current_price,
-                            margin_utilization_pct=margin_util_pct
+                            margin_utilization_pct=margin_util_pct,
                         )
 
                         detail.risk_level = risk.risk_level.value
@@ -216,7 +214,8 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
             # Calculate overall PnL percentage
             total_pnl_pct = (
                 (total_pnl / margin_summary["account_value"] * 100)
-                if margin_summary["account_value"] > 0 else 0.0
+                if margin_summary["account_value"] > 0
+                else 0.0
             )
 
             # Determine overall risk level
@@ -241,9 +240,7 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
                     spot_state = self.account_service.get_spot_state()
                     balances = spot_state.get("balances", [])
                     spot_balances = {
-                        b["coin"]: float(b["total"])
-                        for b in balances
-                        if float(b["total"]) > 0
+                        b["coin"]: float(b["total"]) for b in balances if float(b["total"]) > 0
                     }
                     num_spot = len(spot_balances)
                 except Exception as e:
@@ -258,7 +255,7 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
                 total_unrealized_pnl=total_pnl,
                 total_unrealized_pnl_pct=total_pnl_pct,
                 account_value=margin_summary["account_value"],
-                available_balance=margin_summary["available_balance"],
+                available_balance=margin_summary["total_raw_usd"],
                 margin_used=margin_summary["total_margin_used"],
                 margin_utilization_pct=margin_util_pct,
                 positions=position_details,
@@ -271,4 +268,4 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
 
         except Exception as e:
             logger.error(f"Position summary failed: {e}")
-            raise RuntimeError(f"Failed to get position summary: {str(e)}")
+            raise RuntimeError(f"Failed to get position summary: {str(e)}") from e

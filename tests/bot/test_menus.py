@@ -10,20 +10,21 @@ MIGRATION STATUS: ✅ REVIEWED - NO CHANGES NEEDED
 - All 16 tests passing (100% coverage on src/bot/menus.py)
 - Date: 2025-11-06
 """
-import pytest
+
 from telegram import InlineKeyboardButton
+
 from src.bot.menus import (
-    build_main_menu,
     build_back_button,
-    build_with_back,
-    build_positions_menu,
-    build_coin_selection_menu,
     build_buy_sell_menu,
+    build_coin_selection_menu,
     build_confirm_cancel,
+    build_main_menu,
+    build_num_orders_menu,
+    build_positions_menu,
     build_quick_amounts_menu,
     build_rebalance_menu,
     build_scale_order_menu,
-    build_num_orders_menu
+    build_with_back,
 )
 
 
@@ -88,7 +89,7 @@ class TestBuildWithBack:
         """Test adding back button to existing buttons."""
         buttons = [
             [InlineKeyboardButton("Button 1", callback_data="btn1")],
-            [InlineKeyboardButton("Button 2", callback_data="btn2")]
+            [InlineKeyboardButton("Button 2", callback_data="btn2")],
         ]
         menu = build_with_back(buttons)
 
@@ -105,20 +106,8 @@ class TestBuildPositionsMenu:
     def test_positions_menu_with_multiple_positions(self):
         """Test menu with multiple positions."""
         positions = [
-            {
-                "position": {
-                    "coin": "BTC",
-                    "size": 0.5,
-                    "unrealized_pnl": 125.50
-                }
-            },
-            {
-                "position": {
-                    "coin": "ETH",
-                    "size": -2.5,
-                    "unrealized_pnl": -50.25
-                }
-            }
+            {"position": {"coin": "BTC", "size": 0.5, "unrealized_pnl": 125.50}},
+            {"position": {"coin": "ETH", "size": -2.5, "unrealized_pnl": -50.25}},
         ]
 
         menu = build_positions_menu(positions)

@@ -2,14 +2,14 @@
 Orders API routes.
 Handles order placement, cancellation, and management.
 """
-from typing import List
-from fastapi import APIRouter, HTTPException, Body
+
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
-from src.services import order_service
-from src.api.models import OrderResponse, CancelOrderResponse
-from src.use_cases.trading import PlaceOrderUseCase, PlaceOrderRequest
+from src.api.models import CancelOrderResponse, OrderResponse
 from src.config import logger
+from src.services import order_service
+from src.use_cases.trading import PlaceOrderRequest, PlaceOrderUseCase
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
@@ -49,14 +49,14 @@ async def list_open_orders():
         return orders
     except RuntimeError as e:
         logger.error(f"Runtime error listing orders: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to list open orders: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch open orders")
+        raise HTTPException(status_code=500, detail="Failed to fetch open orders") from e
 
 
 @router.post("/market", response_model=OrderResponse)
-async def place_market_order(request: MarketOrderRequest = Body(...)):
+async def place_market_order(request: MarketOrderRequest = Body(...)):  # noqa: B008
     """
     Place a market order.
 
@@ -94,21 +94,21 @@ async def place_market_order(request: MarketOrderRequest = Body(...)):
                 "message": response.message,
                 "usd_value": response.usd_value,
                 "price": response.price,
-            }
+            },
         }
     except ValueError as e:
         logger.error(f"Validation error placing market order: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except RuntimeError as e:
         logger.error(f"Runtime error placing market order: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to place market order: {e}")
-        raise HTTPException(status_code=500, detail="Failed to place market order")
+        raise HTTPException(status_code=500, detail="Failed to place market order") from e
 
 
 @router.post("/limit", response_model=OrderResponse)
-async def place_limit_order(request: LimitOrderRequest = Body(...)):
+async def place_limit_order(request: LimitOrderRequest = Body(...)):  # noqa: B008
     """
     Place a limit order.
 
@@ -149,17 +149,17 @@ async def place_limit_order(request: LimitOrderRequest = Body(...)):
                 "message": response.message,
                 "usd_value": response.usd_value,
                 "order_id": response.order_id,
-            }
+            },
         }
     except ValueError as e:
         logger.error(f"Validation error placing limit order: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except RuntimeError as e:
         logger.error(f"Runtime error placing limit order: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to place limit order: {e}")
-        raise HTTPException(status_code=500, detail="Failed to place limit order")
+        raise HTTPException(status_code=500, detail="Failed to place limit order") from e
 
 
 @router.delete("/{coin}/{order_id}", response_model=CancelOrderResponse)
@@ -182,10 +182,10 @@ async def cancel_order(coin: str, order_id: int):
         return result
     except RuntimeError as e:
         logger.error(f"Runtime error canceling order: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to cancel order: {e}")
-        raise HTTPException(status_code=500, detail="Failed to cancel order")
+        raise HTTPException(status_code=500, detail="Failed to cancel order") from e
 
 
 @router.delete("/all", response_model=CancelOrderResponse)
@@ -204,7 +204,7 @@ async def cancel_all_orders():
         return result
     except RuntimeError as e:
         logger.error(f"Runtime error canceling all orders: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to cancel all orders: {e}")
-        raise HTTPException(status_code=500, detail="Failed to cancel all orders")
+        raise HTTPException(status_code=500, detail="Failed to cancel all orders") from e

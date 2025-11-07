@@ -5,17 +5,20 @@ Test error handling for Hyperliquid responses.
 Verifies that the API properly detects and raises exceptions for
 failed operations (e.g., invalid tick size, insufficient balance, etc.)
 """
+
+import asyncio
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.config import logger
-from src.services import hyperliquid_service, order_service
+from src.services import hyperliquid_service
+from src.use_cases.trading import PlaceOrderRequest, PlaceOrderUseCase
 
 
-def test_invalid_tick_size():
-    """Test that invalid tick size raises ValueError."""
+async def test_invalid_tick_size():
+    """Test that invalid tick size raises RuntimeError (use case wraps ValueError)."""
     logger.info("=" * 80)
     logger.info("TEST: Invalid Tick Size Error Handling")
     logger.info("=" * 80)
@@ -30,27 +33,39 @@ def test_invalid_tick_size():
         # Use an odd decimal that will fail tick size validation
         invalid_price = round(btc_price * 0.80, 3)  # 3 decimals will fail
 
-        logger.info(f"\nAttempting limit order with invalid price: ${invalid_price}")
-        logger.info("Expected: ValueError should be raised")
+        # Calculate size that meets $10 minimum
+        size = round(15 / invalid_price, 4)  # ~$15 order to ensure above $10 minimum
 
-        result = order_service.place_limit_order(
+        logger.info(f"\nAttempting limit order with invalid price: ${invalid_price}")
+        logger.info(f"Order size: {size} BTC (~$15)")
+        logger.info("Expected: RuntimeError should be raised (use case wraps service errors)")
+
+        # Use PlaceOrderUseCase (same as bot)
+        place_order_use_case = PlaceOrderUseCase()
+        request = PlaceOrderRequest(
             coin="BTC",
             is_buy=True,
-            size=0.0001,  # Small size
+            coin_size=size,
+            is_market=False,
             limit_price=invalid_price,
-            time_in_force="Gtc",
         )
+
+        response = await place_order_use_case.execute(request)
 
         # If we get here, error handling FAILED
         logger.error("❌ TEST FAILED: No exception was raised!")
-        logger.error(f"Result: {result}")
+        logger.error(f"Result: {response}")
         return False
 
-    except ValueError as e:
-        # This is the expected behavior
-        logger.info(f"\n✅ TEST PASSED: ValueError raised as expected")
-        logger.info(f"Error message: {e}")
-        return True
+    except RuntimeError as e:
+        # This is the expected behavior - use case wraps errors in RuntimeError
+        if "tick size" in str(e).lower():
+            logger.info("\n✅ TEST PASSED: RuntimeError raised with tick size error as expected")
+            logger.info(f"Error message: {e}")
+            return True
+        else:
+            logger.error(f"\n❌ TEST FAILED: RuntimeError but wrong message: {e}")
+            return False
 
     except Exception as e:
         logger.error(f"\n❌ TEST FAILED: Wrong exception type: {type(e).__name__}")
@@ -58,7 +73,7 @@ def test_invalid_tick_size():
         return False
 
 
-def test_successful_market_order():
+async def test_successful_market_order():
     """Test that successful orders don't raise exceptions."""
     logger.info("\n" + "=" * 80)
     logger.info("TEST: Successful Market Order (No Exception)")
@@ -70,24 +85,34 @@ def test_successful_market_order():
         all_mids = info.all_mids()
         btc_price = float(all_mids.get("BTC", 100000))
 
-        # Calculate small size ($10)
-        size = round(10 / btc_price, 4)
+        # Calculate small size ($20 to meet minimum order value)
+        size = round(20 / btc_price, 4)
 
-        logger.info(f"\nPlacing small market buy order: {size} BTC (~$10)")
+        logger.info(f"\nPlacing small market buy order: {size} BTC (~$20)")
         logger.info("Expected: Should complete without exception")
 
-        result = order_service.place_market_order(
-            coin="BTC", is_buy=True, size=size, slippage=0.05
+        # Use PlaceOrderUseCase (same as bot)
+        place_order_use_case = PlaceOrderUseCase()
+        request = PlaceOrderRequest(
+            coin="BTC",
+            is_buy=True,
+            coin_size=size,
+            is_market=True,
+            slippage=0.05,
         )
 
+        response = await place_order_use_case.execute(request)
+
         # Check that we got success status
-        if result.get("status") == "success":
-            logger.info(f"\n✅ TEST PASSED: Order placed successfully")
-            logger.info(f"Result: {result['result']}")
+        if response.status == "success":
+            logger.info("\n✅ TEST PASSED: Order placed successfully")
+            logger.info(
+                f"Result: {response.coin} {response.side} {response.size} @ ${response.price}"
+            )
             return True
         else:
-            logger.error(f"\n❌ TEST FAILED: Status is not 'success'")
-            logger.error(f"Result: {result}")
+            logger.error("\n❌ TEST FAILED: Status is not 'success'")
+            logger.error(f"Result: {response}")
             return False
 
     except Exception as e:
@@ -96,7 +121,7 @@ def test_successful_market_order():
         return False
 
 
-def main():
+async def main():
     """Run all error handling tests."""
     try:
         # Initialize services
@@ -106,10 +131,10 @@ def main():
         results = []
 
         # Test 1: Invalid tick size should raise ValueError
-        results.append(("Invalid Tick Size", test_invalid_tick_size()))
+        results.append(("Invalid Tick Size", await test_invalid_tick_size()))
 
         # Test 2: Valid order should not raise exception
-        results.append(("Successful Order", test_successful_market_order()))
+        results.append(("Successful Order", await test_successful_market_order()))
 
         # Summary
         logger.info("\n" + "=" * 80)
@@ -141,4 +166,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(asyncio.run(main()))

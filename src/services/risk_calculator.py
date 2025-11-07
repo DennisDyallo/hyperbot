@@ -6,9 +6,11 @@ for trading positions. Based on industry research (Binance, Bybit, dYdX, GMX).
 
 See: docs/research/risk-indicators-industry-research.md
 """
-from enum import Enum
+
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
+from enum import Enum
+from typing import Any
+
 from src.config import logger
 
 
@@ -23,6 +25,7 @@ class RiskLevel(str, Enum):
     - HIGH: 8-15% from liquidation (one bad day could liquidate)
     - CRITICAL: < 8% from liquidation (flash crash risk)
     """
+
     SAFE = "SAFE"
     LOW = "LOW"
     MODERATE = "MODERATE"
@@ -38,25 +41,27 @@ class RiskThresholds:
     Default values are CONSERVATIVE for crypto markets.
     Based on research from major exchanges (see docs/research/).
     """
-    safe_distance: float = 50.0      # > 50% from liquidation
-    low_distance: float = 30.0       # 30-50% from liquidation
+
+    safe_distance: float = 50.0  # > 50% from liquidation
+    low_distance: float = 30.0  # 30-50% from liquidation
     moderate_distance: float = 15.0  # 15-30% from liquidation
-    high_distance: float = 8.0       # 8-15% from liquidation
+    high_distance: float = 8.0  # 8-15% from liquidation
     # < 8% is CRITICAL
 
 
 @dataclass
 class PositionRisk:
     """Risk assessment for a single position."""
+
     coin: str
     risk_level: RiskLevel
     health_score: int  # 0-100, derived from risk_level
 
     # Liquidation metrics
-    liquidation_price: Optional[float]
+    liquidation_price: float | None
     current_price: float
-    liquidation_distance_pct: Optional[float]  # % price move to liquidation
-    liquidation_distance_usd: Optional[float]  # USD distance to liquidation
+    liquidation_distance_pct: float | None  # % price move to liquidation
+    liquidation_distance_usd: float | None  # USD distance to liquidation
 
     # Position details
     size: float
@@ -67,19 +72,20 @@ class PositionRisk:
     leverage_type: str
 
     # Guidance
-    warnings: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
 
 
 @dataclass
 class PortfolioRisk:
     """Risk assessment for entire portfolio."""
+
     overall_risk_level: RiskLevel
     overall_health_score: int  # 0-100
 
     # Position breakdown
     position_count: int
-    positions_by_risk: Dict[str, int]  # {"SAFE": 2, "CRITICAL": 1, ...}
+    positions_by_risk: dict[str, int]  # {"SAFE": 2, "CRITICAL": 1, ...}
 
     # Margin metrics
     account_value: float
@@ -88,12 +94,12 @@ class PortfolioRisk:
     available_margin: float
 
     # Risk positions
-    critical_positions: List[str]  # Coins at CRITICAL risk
-    high_risk_positions: List[str]  # Coins at HIGH risk
+    critical_positions: list[str]  # Coins at CRITICAL risk
+    high_risk_positions: list[str]  # Coins at HIGH risk
 
     # Warnings
-    warnings: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
 
 
 class RiskCalculator:
@@ -109,7 +115,7 @@ class RiskCalculator:
         portfolio_risk = calculator.assess_portfolio_risk(positions, margin_summary, prices)
     """
 
-    def __init__(self, thresholds: Optional[RiskThresholds] = None):
+    def __init__(self, thresholds: RiskThresholds | None = None):
         """
         Initialize risk calculator.
 
@@ -120,11 +126,8 @@ class RiskCalculator:
         logger.debug(f"Risk calculator initialized with thresholds: {self.thresholds}")
 
     def calculate_liquidation_distance(
-        self,
-        current_price: float,
-        liquidation_price: Optional[float],
-        position_size: float
-    ) -> Tuple[Optional[float], Optional[float]]:
+        self, current_price: float, liquidation_price: float | None, position_size: float
+    ) -> tuple[float | None, float | None]:
         """
         Calculate distance to liquidation (percentage and USD).
 
@@ -154,10 +157,7 @@ class RiskCalculator:
 
         return distance_pct, distance_usd
 
-    def determine_risk_level_from_margin_ratio(
-        self,
-        cross_margin_ratio_pct: float
-    ) -> RiskLevel:
+    def determine_risk_level_from_margin_ratio(self, cross_margin_ratio_pct: float) -> RiskLevel:
         """
         Determine risk level from Cross Margin Ratio (OFFICIAL HYPERLIQUID METRIC).
 
@@ -191,9 +191,7 @@ class RiskCalculator:
             return RiskLevel.SAFE
 
     def determine_risk_level(
-        self,
-        liquidation_distance_pct: Optional[float],
-        margin_utilization_pct: float = 0
+        self, liquidation_distance_pct: float | None,  # noqa: ARG002 margin_utilization_pct: float = 0
     ) -> RiskLevel:
         """
         Determine risk level from liquidation distance.
@@ -248,7 +246,6 @@ class RiskCalculator:
             - HIGH: 25-49
             - CRITICAL: 0-24
         """
-        import random
 
         ranges = {
             RiskLevel.SAFE: (90, 100),
@@ -267,10 +264,10 @@ class RiskCalculator:
     def generate_warnings(
         self,
         risk_level: RiskLevel,
-        liquidation_distance_pct: Optional[float],
+        liquidation_distance_pct: float | None,  # noqa: ARG002  # noqa: ARG002
         leverage: int,
-        unrealized_pnl: float
-    ) -> List[str]:
+        unrealized_pnl: float,
+    ) -> list[str]:
         """
         Generate position-specific warnings.
 
@@ -307,9 +304,9 @@ class RiskCalculator:
     def generate_recommendations(
         self,
         risk_level: RiskLevel,
-        liquidation_distance_pct: Optional[float],
-        leverage: int
-    ) -> List[str]:
+        liquidation_distance_pct: float | None,  # noqa: ARG002
+        leverage: int,  # noqa: ARG002
+    ) -> list[str]:
         """
         Generate position-specific recommendations.
 
@@ -342,10 +339,7 @@ class RiskCalculator:
         return recommendations
 
     def assess_position_risk(
-        self,
-        position_data: Dict[str, Any],
-        current_price: float,
-        margin_utilization_pct: float = 0
+        self, position_data: dict[str, Any], current_price: float, margin_utilization_pct: float = 0
     ) -> PositionRisk:
         """
         Assess risk for a single position.
@@ -380,18 +374,18 @@ class RiskCalculator:
             risk_level,
             distance_pct,
             position_data["leverage_value"],
-            position_data["unrealized_pnl"]
+            position_data["unrealized_pnl"],
         )
 
         recommendations = self.generate_recommendations(
-            risk_level,
-            distance_pct,
-            position_data["leverage_value"]
+            risk_level, distance_pct, position_data["leverage_value"]
         )
 
+        # Format liquidation distance safely (can be None)
+        liq_dist_str = f"{distance_pct:.1f}%" if distance_pct is not None else "N/A"
         logger.debug(
             f"Position risk for {coin}: {risk_level.value} "
-            f"(health: {health_score}, liq distance: {distance_pct:.1f}%)"
+            f"(health: {health_score}, liq distance: {liq_dist_str})"
         )
 
         return PositionRisk(
@@ -409,14 +403,14 @@ class RiskCalculator:
             leverage=position_data["leverage_value"],
             leverage_type=position_data["leverage_type"],
             warnings=warnings,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     def assess_portfolio_risk(
         self,
-        positions: List[Dict[str, Any]],
-        margin_summary: Dict[str, float],
-        prices: Dict[str, float]
+        positions: list[dict[str, Any]],
+        margin_summary: dict[str, float],
+        prices: dict[str, float],
     ) -> PortfolioRisk:
         """
         Assess risk for entire portfolio.
@@ -431,7 +425,9 @@ class RiskCalculator:
         """
         account_value = margin_summary["account_value"]
         total_margin_used = margin_summary["total_margin_used"]
-        margin_utilization_pct = (total_margin_used / account_value * 100) if account_value > 0 else 0
+        margin_utilization_pct = (
+            (total_margin_used / account_value * 100) if account_value > 0 else 0
+        )
         available_margin = account_value - total_margin_used
 
         # Assess each position
@@ -441,11 +437,7 @@ class RiskCalculator:
             coin = position_data["coin"]
             current_price = prices.get(coin, position_data.get("entry_price", 0))
 
-            risk = self.assess_position_risk(
-                position_data,
-                current_price,
-                margin_utilization_pct
-            )
+            risk = self.assess_position_risk(position_data, current_price, margin_utilization_pct)
             position_risks.append(risk)
 
         # Count positions by risk level
@@ -469,7 +461,7 @@ class RiskCalculator:
 
         # Determine overall risk level
         # For CROSS MARGIN positions, use Cross Margin Ratio (official Hyperliquid metric)
-        cross_margin_ratio_pct = margin_summary.get("cross_margin_ratio_pct", None)
+        cross_margin_ratio_pct = margin_summary.get("cross_margin_ratio_pct")
 
         if cross_margin_ratio_pct is not None:
             # Use Cross Margin Ratio as PRIMARY risk metric for cross positions
@@ -511,9 +503,7 @@ class RiskCalculator:
                     f"(Liquidation at 100%)"
                 )
             elif cross_margin_ratio_pct >= 50:
-                warnings.append(
-                    f"⚠️ MODERATE: Cross Margin Ratio at {cross_margin_ratio_pct:.1f}%"
-                )
+                warnings.append(f"⚠️ MODERATE: Cross Margin Ratio at {cross_margin_ratio_pct:.1f}%")
 
         if critical_positions:
             warnings.append(
@@ -552,7 +542,7 @@ class RiskCalculator:
             critical_positions=critical_positions,
             high_risk_positions=high_risk_positions,
             warnings=warnings,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
 

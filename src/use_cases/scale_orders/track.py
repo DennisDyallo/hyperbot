@@ -4,35 +4,33 @@ Track Scale Order Use Case.
 Unified logic for tracking and managing scale orders.
 Provides status, fill progress, and cancellation functionality.
 """
-from typing import List, Optional
-from pydantic import BaseModel, Field
-from src.use_cases.base import BaseUseCase
-from src.models.scale_order import ScaleOrder, ScaleOrderStatus, ScaleOrderCancel
-from src.services.scale_order_service import scale_order_service
-from src.config import logger
 
+from pydantic import BaseModel, Field
+
+from src.config import logger
+from src.models.scale_order import ScaleOrder, ScaleOrderStatus
+from src.services.scale_order_service import scale_order_service
+from src.use_cases.base import BaseUseCase
 
 # ============================================================================
 # List Scale Orders
 # ============================================================================
 
+
 class ListScaleOrdersRequest(BaseModel):
     """Request model for listing scale orders."""
-    coin: Optional[str] = Field(None, description="Filter by coin (optional)")
+
+    coin: str | None = Field(None, description="Filter by coin (optional)")
     active_only: bool = Field(True, description="Only show active scale orders")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "coin": None,
-                "active_only": True
-            }
-        }
+        json_schema_extra = {"example": {"coin": None, "active_only": True}}
 
 
 class ListScaleOrdersResponse(BaseModel):
     """Response model for listing scale orders."""
-    scale_orders: List[ScaleOrder]
+
+    scale_orders: list[ScaleOrder]
     total_count: int
     active_count: int
 
@@ -45,11 +43,11 @@ class ListScaleOrdersResponse(BaseModel):
                         "coin": "BTC",
                         "is_buy": True,
                         "num_orders": 5,
-                        "created_at": "2025-11-05T20:00:00Z"
+                        "created_at": "2025-11-05T20:00:00Z",
                     }
                 ],
                 "total_count": 1,
-                "active_count": 1
+                "active_count": 1,
             }
         }
 
@@ -88,7 +86,9 @@ class ListScaleOrdersUseCase(BaseUseCase[ListScaleOrdersRequest, ListScaleOrders
             RuntimeError: If listing fails
         """
         try:
-            logger.debug(f"Listing scale orders: coin={request.coin}, active_only={request.active_only}")
+            logger.debug(
+                f"Listing scale orders: coin={request.coin}, active_only={request.active_only}"
+            )
 
             # Get all scale orders from service
             all_orders = self.scale_order_service.list_scale_orders()
@@ -101,50 +101,38 @@ class ListScaleOrdersUseCase(BaseUseCase[ListScaleOrdersRequest, ListScaleOrders
 
             if request.active_only:
                 # Active = has at least one open order (order_ids list not empty)
-                filtered_orders = [
-                    o for o in filtered_orders
-                    if len(o.order_ids) > 0
-                ]
+                filtered_orders = [o for o in filtered_orders if len(o.order_ids) > 0]
 
-            active_count = len([
-                o for o in all_orders
-                if len(o.order_ids) > 0
-            ])
+            active_count = len([o for o in all_orders if len(o.order_ids) > 0])
 
-            logger.debug(
-                f"Found {len(filtered_orders)} scale orders "
-                f"({active_count} active)"
-            )
+            logger.debug(f"Found {len(filtered_orders)} scale orders ({active_count} active)")
 
             return ListScaleOrdersResponse(
-                scale_orders=filtered_orders,
-                total_count=len(all_orders),
-                active_count=active_count
+                scale_orders=filtered_orders, total_count=len(all_orders), active_count=active_count
             )
 
         except Exception as e:
             logger.error(f"Failed to list scale orders: {e}")
-            raise RuntimeError(f"Failed to list scale orders: {str(e)}")
+            raise RuntimeError(f"Failed to list scale orders: {str(e)}") from e
 
 
 # ============================================================================
 # Get Scale Order Status
 # ============================================================================
 
+
 class GetScaleOrderStatusRequest(BaseModel):
     """Request model for getting scale order status."""
+
     scale_order_id: str = Field(..., description="Scale order ID")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "scale_order_id": "scale_123"
-            }
-        }
+        json_schema_extra = {"example": {"scale_order_id": "scale_123"}}
 
 
 class GetScaleOrderStatusResponse(BaseModel):
     """Response model for scale order status."""
+
     status: ScaleOrderStatus
 
     class Config:
@@ -159,13 +147,15 @@ class GetScaleOrderStatusResponse(BaseModel):
                     "filled_orders": 2,
                     "cancelled_orders": 0,
                     "fill_percentage": 40.0,
-                    "created_at": "2025-11-05T20:00:00Z"
+                    "created_at": "2025-11-05T20:00:00Z",
                 }
             }
         }
 
 
-class GetScaleOrderStatusUseCase(BaseUseCase[GetScaleOrderStatusRequest, GetScaleOrderStatusResponse]):
+class GetScaleOrderStatusUseCase(
+    BaseUseCase[GetScaleOrderStatusRequest, GetScaleOrderStatusResponse]
+):
     """
     Use case for getting scale order status with unified logic for API and Bot.
 
@@ -220,27 +210,26 @@ class GetScaleOrderStatusUseCase(BaseUseCase[GetScaleOrderStatusRequest, GetScal
             raise
         except Exception as e:
             logger.error(f"Failed to get scale order status: {e}")
-            raise RuntimeError(f"Failed to get scale order status: {str(e)}")
+            raise RuntimeError(f"Failed to get scale order status: {str(e)}") from e
 
 
 # ============================================================================
 # Cancel Scale Order
 # ============================================================================
 
+
 class CancelScaleOrderRequest(BaseModel):
     """Request model for cancelling scale order."""
+
     scale_order_id: str = Field(..., description="Scale order ID")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "scale_order_id": "scale_123"
-            }
-        }
+        json_schema_extra = {"example": {"scale_order_id": "scale_123"}}
 
 
 class CancelScaleOrderResponse(BaseModel):
     """Response model for scale order cancellation."""
+
     result: dict
 
     class Config:
@@ -251,7 +240,7 @@ class CancelScaleOrderResponse(BaseModel):
                     "orders_cancelled": 3,
                     "cancellation_errors": [],
                     "success": True,
-                    "message": "Successfully cancelled 3 orders"
+                    "message": "Successfully cancelled 3 orders",
                 }
             }
         }
@@ -296,9 +285,9 @@ class CancelScaleOrderUseCase(BaseUseCase[CancelScaleOrderRequest, CancelScaleOr
 
             # Create cancel request object for service
             from src.models.scale_order import ScaleOrderCancel
+
             cancel_request = ScaleOrderCancel(
-                scale_order_id=request.scale_order_id,
-                cancel_all_orders=True
+                scale_order_id=request.scale_order_id, cancel_all_orders=True
             )
 
             # Cancel via service
@@ -322,4 +311,4 @@ class CancelScaleOrderUseCase(BaseUseCase[CancelScaleOrderRequest, CancelScaleOr
             raise
         except Exception as e:
             logger.error(f"Failed to cancel scale order: {e}")
-            raise RuntimeError(f"Failed to cancel scale order: {str(e)}")
+            raise RuntimeError(f"Failed to cancel scale order: {str(e)}") from e

@@ -4,12 +4,13 @@ Base class for all use cases.
 Use cases encapsulate business logic and orchestrate service calls.
 They are independent of presentation layer (API/Bot) and can be tested in isolation.
 """
+
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 # Generic type variables for request and response
-TRequest = TypeVar('TRequest')
-TResponse = TypeVar('TResponse')
+TRequest = TypeVar("TRequest")
+TResponse = TypeVar("TResponse")
 
 
 class BaseUseCase(ABC, Generic[TRequest, TResponse]):

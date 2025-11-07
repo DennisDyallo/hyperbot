@@ -4,22 +4,23 @@ Scale Order wizard handler for Telegram bot.
 Provides an interactive, user-friendly wizard for creating scale orders
 using inline keyboards and conversational flow.
 """
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
     ContextTypes,
     ConversationHandler,
-    CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
-    filters
+    filters,
 )
+
 from src.bot.middleware import authorized_only
-from src.bot.utils import send_success_and_end, send_error_and_end, send_cancel_and_end
-from src.services.scale_order_service import scale_order_service
-from src.services.market_data_service import market_data_service
-from src.models.scale_order import ScaleOrderConfig
+from src.bot.utils import send_cancel_and_end, send_error_and_end, send_success_and_end
 from src.config import logger
-from typing import Dict, Any
+from src.models.scale_order import ScaleOrderConfig
+from src.services.market_data_service import market_data_service
+from src.services.scale_order_service import scale_order_service
 
 # Conversation states
 (
@@ -56,7 +57,7 @@ class ScaleOrderWizard:
             "Let's create a scale order to gradually build or exit a position.\n\n"
             "First, which coin would you like to trade?\n"
             "_(Example: BTC, ETH, SOL)_",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
 
         logger.info(f"Scale wizard: Transitioning to SELECT_COIN state ({SELECT_COIN})")
@@ -78,7 +79,7 @@ class ScaleOrderWizard:
             "Let's create a scale order to gradually build or exit a position.\n\n"
             "First, which coin would you like to trade?\n"
             "_(Example: BTC, ETH, SOL)_",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
 
         logger.info(f"Scale wizard: Transitioning to SELECT_COIN state ({SELECT_COIN})")
@@ -99,9 +100,17 @@ class ScaleOrderWizard:
 
             # Ask for direction
             keyboard = [
-                [InlineKeyboardButton("📈 Scale IN (Buy as price drops)", callback_data="direction_in")],
-                [InlineKeyboardButton("📉 Scale OUT (Sell as price rises)", callback_data="direction_out")],
-                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+                [
+                    InlineKeyboardButton(
+                        "📈 Scale IN (Buy as price drops)", callback_data="direction_in"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📉 Scale OUT (Sell as price rises)", callback_data="direction_out"
+                    )
+                ],
+                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -111,25 +120,21 @@ class ScaleOrderWizard:
                 f"📈 *Scale IN*: Buy progressively as price drops (accumulate)\n"
                 f"📉 *Scale OUT*: Sell progressively as price rises (take profits)",
                 parse_mode="Markdown",
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
             )
 
             return SELECT_DIRECTION
 
         except ValueError as e:
             # Coin not found
-            await update.message.reply_text(
-                f"❌ {str(e)}\n\n"
-                f"Please enter a valid coin symbol."
-            )
+            await update.message.reply_text(f"❌ {str(e)}\n\nPlease enter a valid coin symbol.")
             return SELECT_COIN
         except Exception as e:
             # Unexpected error - log it and show to user
             logger.exception(f"Error in scale order wizard (select_coin): {e}")
             # Use utility function - automatically shows main menu!
             return await send_error_and_end(
-                update,
-                f"❌ Unexpected error: {str(e)}\n\nPlease try again or contact support."
+                update, f"❌ Unexpected error: {str(e)}\n\nPlease try again or contact support."
             )
 
     @staticmethod
@@ -148,9 +153,17 @@ class ScaleOrderWizard:
 
         # Ask for range method
         keyboard = [
-            [InlineKeyboardButton("🎯 Auto Range (I'll set a target price)", callback_data="range_auto")],
-            [InlineKeyboardButton("✍️ Manual Range (I'll set min/max)", callback_data="range_manual")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+            [
+                InlineKeyboardButton(
+                    "🎯 Auto Range (I'll set a target price)", callback_data="range_auto"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "✍️ Manual Range (I'll set min/max)", callback_data="range_manual"
+                )
+            ],
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -160,7 +173,7 @@ class ScaleOrderWizard:
             f"🎯 *Auto*: Just tell me your target price, I'll calculate the range\n"
             f"✍️ *Manual*: You specify exact min and max prices",
             parse_mode="Markdown",
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
         )
 
         return SELECT_RANGE_METHOD
@@ -190,7 +203,7 @@ class ScaleOrderWizard:
                 f"Current {coin} price: ${current_price:,.2f}\n\n"
                 f"What price do you expect {coin} to {direction_hint}?\n"
                 f"_(Enter target price)_",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
             return ENTER_TARGET_PRICE
         else:
@@ -199,7 +212,7 @@ class ScaleOrderWizard:
                 f"✍️ *Manual Range Mode*\n\n"
                 f"Current {coin} price: ${current_price:,.2f}\n\n"
                 f"Enter the *minimum* price for your range:",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
             return ENTER_MIN_PRICE
 
@@ -212,7 +225,7 @@ class ScaleOrderWizard:
 
             current_price = context.user_data["current_price"]
             is_buy = context.user_data["is_buy"]
-            coin = context.user_data["coin"]
+            context.user_data["coin"]
 
             # Validate direction makes sense
             if is_buy and target_price > current_price:
@@ -220,7 +233,7 @@ class ScaleOrderWizard:
                     f"⚠️ For Scale IN (buy), target should be *below* current price.\n"
                     f"Current: ${current_price:,.2f}, Target: ${target_price:,.2f}\n\n"
                     f"Please enter a lower target price:",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
                 )
                 return ENTER_TARGET_PRICE
 
@@ -229,7 +242,7 @@ class ScaleOrderWizard:
                     f"⚠️ For Scale OUT (sell), target should be *above* current price.\n"
                     f"Current: ${current_price:,.2f}, Target: ${target_price:,.2f}\n\n"
                     f"Please enter a higher target price:",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
                 )
                 return ENTER_TARGET_PRICE
 
@@ -239,7 +252,7 @@ class ScaleOrderWizard:
                 [InlineKeyboardButton("Medium Range (±10%)", callback_data="width_10")],
                 [InlineKeyboardButton("Wide Range (±15%)", callback_data="width_15")],
                 [InlineKeyboardButton("From Current to Target", callback_data="width_current")],
-                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -251,7 +264,7 @@ class ScaleOrderWizard:
                 f"*How wide should the range be?*\n\n"
                 f"This determines how spread out your orders will be.",
                 parse_mode="Markdown",
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
             )
 
             return SELECT_RANGE_WIDTH
@@ -316,7 +329,7 @@ class ScaleOrderWizard:
                 f"✅ Minimum price: ${min_price:,.2f}\n\n"
                 f"Current {coin} price: ${current_price:,.2f}\n\n"
                 f"Now enter the *maximum* price for your range:",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
 
             return ENTER_MAX_PRICE
@@ -338,7 +351,7 @@ class ScaleOrderWizard:
                 await update.message.reply_text(
                     f"❌ Maximum price (${max_price:,.2f}) must be *higher* than minimum (${min_price:,.2f}).\n\n"
                     f"Please enter a higher maximum price:",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
                 )
                 return ENTER_MAX_PRICE
 
@@ -369,7 +382,7 @@ class ScaleOrderWizard:
             [InlineKeyboardButton("5 orders (Recommended)", callback_data="num_5")],
             [InlineKeyboardButton("10 orders", callback_data="num_10")],
             [InlineKeyboardButton("Custom", callback_data="num_custom")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -382,7 +395,7 @@ class ScaleOrderWizard:
             f"*How many orders should I place?*\n\n"
             f"More orders = smoother distribution, but more fees",
             parse_mode="Markdown",
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
         )
 
         return SELECT_NUM_ORDERS
@@ -395,7 +408,7 @@ class ScaleOrderWizard:
             [InlineKeyboardButton("5 orders (Recommended)", callback_data="num_5")],
             [InlineKeyboardButton("10 orders", callback_data="num_10")],
             [InlineKeyboardButton("Custom", callback_data="num_custom")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -408,7 +421,7 @@ class ScaleOrderWizard:
             f"*How many orders should I place?*\n\n"
             f"More orders = smoother distribution, but more fees",
             parse_mode="Markdown",
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
         )
 
         return SELECT_NUM_ORDERS
@@ -425,8 +438,7 @@ class ScaleOrderWizard:
 
         if query.data == "num_custom":
             await query.edit_message_text(
-                "Enter custom number of orders (2-20):",
-                parse_mode="Markdown"
+                "Enter custom number of orders (2-20):", parse_mode="Markdown"
             )
             return ENTER_CUSTOM_NUM_ORDERS
 
@@ -439,7 +451,7 @@ class ScaleOrderWizard:
             f"✅ Number of orders: {num_orders}\n\n"
             f"What's the *total USD amount* you want to deploy?\n"
             f"_(Enter amount in USD, e.g., 1000)_",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
 
         return ENTER_TOTAL_SIZE
@@ -452,8 +464,7 @@ class ScaleOrderWizard:
 
             if num_orders < 2 or num_orders > 20:
                 await update.message.reply_text(
-                    "❌ Number of orders must be between 2 and 20.\n"
-                    "Please enter a valid number:"
+                    "❌ Number of orders must be between 2 and 20.\nPlease enter a valid number:"
                 )
                 return ENTER_CUSTOM_NUM_ORDERS
 
@@ -464,7 +475,7 @@ class ScaleOrderWizard:
                 f"✅ Number of orders: {num_orders}\n\n"
                 f"What's the *total USD amount* you want to deploy?\n"
                 f"_(Enter amount in USD, e.g., 1000)_",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
 
             return ENTER_TOTAL_SIZE
@@ -483,8 +494,7 @@ class ScaleOrderWizard:
 
             if total_usd_amount <= 0:
                 await update.message.reply_text(
-                    "❌ Amount must be greater than 0.\n"
-                    "Please enter a valid USD amount:"
+                    "❌ Amount must be greater than 0.\nPlease enter a valid USD amount:"
                 )
                 return ENTER_TOTAL_SIZE
 
@@ -492,9 +502,17 @@ class ScaleOrderWizard:
 
             # Ask for distribution type
             keyboard = [
-                [InlineKeyboardButton("📊 Linear (Equal USD per order)", callback_data="dist_linear")],
-                [InlineKeyboardButton("📈 Geometric (Weighted USD)", callback_data="dist_geometric")],
-                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+                [
+                    InlineKeyboardButton(
+                        "📊 Linear (Equal USD per order)", callback_data="dist_linear"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📈 Geometric (Weighted USD)", callback_data="dist_geometric"
+                    )
+                ],
+                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -507,7 +525,7 @@ class ScaleOrderWizard:
                 f"📊 *Linear*: Each order gets equal USD (~${avg_usd:,.2f})\n"
                 f"📈 *Geometric*: First orders get more USD, later orders less",
                 parse_mode="Markdown",
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
             )
 
             return SELECT_DISTRIBUTION
@@ -540,7 +558,7 @@ class ScaleOrderWizard:
                 num_orders=context.user_data["num_orders"],
                 start_price=context.user_data["start_price"],
                 end_price=context.user_data["end_price"],
-                distribution_type=distribution
+                distribution_type=distribution,
             )
 
             preview = await scale_order_service.preview_scale_order(config)
@@ -550,7 +568,7 @@ class ScaleOrderWizard:
             direction = "BUY" if config.is_buy else "SELL"
             current_price = context.user_data["current_price"]
 
-            preview_text = f"📊 *Scale Order Preview*\n\n"
+            preview_text = "📊 *Scale Order Preview*\n\n"
             preview_text += f"*Coin*: {coin}\n"
             preview_text += f"*Direction*: {direction}\n"
             preview_text += f"*Current Price*: ${current_price:,.2f}\n"
@@ -574,14 +592,12 @@ class ScaleOrderWizard:
             # Confirmation buttons
             keyboard = [
                 [InlineKeyboardButton("✅ Execute", callback_data="confirm_execute")],
-                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await query.edit_message_text(
-                preview_text,
-                parse_mode="Markdown",
-                reply_markup=reply_markup
+                preview_text, parse_mode="Markdown", reply_markup=reply_markup
             )
 
             # Store config for execution
@@ -593,8 +609,7 @@ class ScaleOrderWizard:
             logger.error(f"Preview generation failed: {e}")
             # Use utility function - automatically shows main menu!
             return await send_error_and_end(
-                update,
-                f"❌ Error generating preview: {str(e)}\n\nScale order cancelled."
+                update, f"❌ Error generating preview: {str(e)}\n\nScale order cancelled."
             )
 
     @staticmethod
@@ -620,7 +635,7 @@ class ScaleOrderWizard:
             direction = "BUY" if config.is_buy else "SELL"
 
             if result.status == "completed":
-                msg = f"✅ *Scale Order Placed Successfully!*\n\n"
+                msg = "✅ *Scale Order Placed Successfully!*\n\n"
                 msg += f"*Order ID*: `{result.scale_order_id}`\n"
                 msg += f"*Coin*: {coin}\n"
                 msg += f"*Direction*: {direction}\n"
@@ -631,25 +646,27 @@ class ScaleOrderWizard:
                 # Use utility function - automatically shows main menu!
                 return await send_success_and_end(update, msg)
             elif result.status == "partial":
-                msg = f"⚠️ *Scale Order Partially Placed*\n\n"
+                msg = "⚠️ *Scale Order Partially Placed*\n\n"
                 msg += f"*Order ID*: `{result.scale_order_id}`\n"
                 msg += f"*Successful*: {result.orders_placed}/{result.num_orders}\n"
                 msg += f"*Failed*: {result.orders_failed}\n"
                 msg += f"*Size Placed*: {result.total_placed_size:.6f} {coin}\n\n"
-                msg += f"Some orders failed to place. Check logs for details."
+                msg += "Some orders failed to place. Check logs for details."
                 # Partial success - use success handler with warning message
                 return await send_success_and_end(update, msg)
             else:
-                msg = f"❌ *Scale Order Failed*\n\n"
+                msg = "❌ *Scale Order Failed*\n\n"
                 msg += f"All {result.num_orders} orders failed to place.\n"
-                msg += f"Please check your account and try again."
+                msg += "Please check your account and try again."
                 # Use utility function - automatically shows main menu!
                 return await send_error_and_end(update, msg)
 
         except Exception as e:
             logger.error(f"Scale order execution failed: {e}")
             # Use utility function - automatically shows main menu!
-            return await send_error_and_end(update, f"❌ *Error placing scale order*\n\nError: {str(e)}")
+            return await send_error_and_end(
+                update, f"❌ *Error placing scale order*\n\nError: {str(e)}"
+            )
 
     @staticmethod
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -662,48 +679,38 @@ class ScaleOrderWizard:
 scale_order_conversation = ConversationHandler(
     entry_points=[
         CommandHandler("scale", ScaleOrderWizard.start),
-        CallbackQueryHandler(ScaleOrderWizard.start_from_callback, pattern="^menu_scale$")
+        CallbackQueryHandler(ScaleOrderWizard.start_from_callback, pattern="^menu_scale$"),
     ],
     states={
         SELECT_COIN: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, ScaleOrderWizard.select_coin)
         ],
-        SELECT_DIRECTION: [
-            CallbackQueryHandler(ScaleOrderWizard.select_direction)
-        ],
-        SELECT_RANGE_METHOD: [
-            CallbackQueryHandler(ScaleOrderWizard.select_range_method)
-        ],
+        SELECT_DIRECTION: [CallbackQueryHandler(ScaleOrderWizard.select_direction)],
+        SELECT_RANGE_METHOD: [CallbackQueryHandler(ScaleOrderWizard.select_range_method)],
         ENTER_TARGET_PRICE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, ScaleOrderWizard.enter_target_price)
         ],
-        SELECT_RANGE_WIDTH: [
-            CallbackQueryHandler(ScaleOrderWizard.select_range_width)
-        ],
+        SELECT_RANGE_WIDTH: [CallbackQueryHandler(ScaleOrderWizard.select_range_width)],
         ENTER_MIN_PRICE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, ScaleOrderWizard.enter_min_price)
         ],
         ENTER_MAX_PRICE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, ScaleOrderWizard.enter_max_price)
         ],
-        SELECT_NUM_ORDERS: [
-            CallbackQueryHandler(ScaleOrderWizard.select_num_orders)
-        ],
+        SELECT_NUM_ORDERS: [CallbackQueryHandler(ScaleOrderWizard.select_num_orders)],
         ENTER_CUSTOM_NUM_ORDERS: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, ScaleOrderWizard.enter_custom_num_orders)
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND, ScaleOrderWizard.enter_custom_num_orders
+            )
         ],
         ENTER_TOTAL_SIZE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, ScaleOrderWizard.enter_total_size)
         ],
-        SELECT_DISTRIBUTION: [
-            CallbackQueryHandler(ScaleOrderWizard.select_distribution)
-        ],
-        PREVIEW_CONFIRM: [
-            CallbackQueryHandler(ScaleOrderWizard.preview_confirm)
-        ],
+        SELECT_DISTRIBUTION: [CallbackQueryHandler(ScaleOrderWizard.select_distribution)],
+        PREVIEW_CONFIRM: [CallbackQueryHandler(ScaleOrderWizard.preview_confirm)],
     },
     fallbacks=[CommandHandler("cancel", ScaleOrderWizard.cancel)],
     name="scale_order_wizard",
     persistent=False,
-    allow_reentry=True  # Allow restarting wizard
+    allow_reentry=True,  # Allow restarting wizard
 )

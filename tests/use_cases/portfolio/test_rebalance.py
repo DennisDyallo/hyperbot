@@ -8,19 +8,20 @@ MIGRATED: Now using tests/helpers for service mocking.
 - create_service_with_mocks replaces manual fixture boilerplate
 - ServiceMockBuilder provides pre-configured rebalance_service mock
 """
-import pytest
+
 from unittest.mock import Mock
-from src.use_cases.portfolio.rebalance import (
-    RebalanceRequest,
-    RebalanceResponse,
-    RebalanceUseCase,
-    TradeDetail
-)
+
+import pytest
+
 from src.services.rebalance_service import TradeAction
 from src.services.risk_calculator import RiskLevel
+from src.use_cases.portfolio.rebalance import (
+    RebalanceRequest,
+    RebalanceUseCase,
+)
 
 # Import helpers for cleaner service mocking
-from tests.helpers import create_service_with_mocks, ServiceMockBuilder
+from tests.helpers import ServiceMockBuilder, create_service_with_mocks
 
 
 class TestRebalanceUseCase:
@@ -31,10 +32,8 @@ class TestRebalanceUseCase:
         """Create RebalanceUseCase with mocked dependencies."""
         return create_service_with_mocks(
             RebalanceUseCase,
-            'src.use_cases.portfolio.rebalance',
-            {
-                'rebalance_service': ServiceMockBuilder.rebalance_service()
-            }
+            "src.use_cases.portfolio.rebalance",
+            {"rebalance_service": ServiceMockBuilder.rebalance_service()},
         )
 
     @pytest.fixture
@@ -66,7 +65,7 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=40000.0,
                     estimated_risk_level=RiskLevel.LOW,
-                    estimated_health_score=75
+                    estimated_health_score=75,
                 ),
                 Mock(
                     coin="ETH",
@@ -83,7 +82,7 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=2500.0,
                     estimated_risk_level=RiskLevel.SAFE,
-                    estimated_health_score=85
+                    estimated_health_score=85,
                 ),
                 Mock(
                     coin="SOL",
@@ -100,8 +99,8 @@ class TestRebalanceUseCase:
                     error="Trade too small",
                     estimated_liquidation_price=None,
                     estimated_risk_level=None,
-                    estimated_health_score=None
-                )
+                    estimated_health_score=None,
+                ),
             ],
             executed_trades=0,
             successful_trades=0,
@@ -109,7 +108,7 @@ class TestRebalanceUseCase:
             skipped_trades=1,
             critical_risk_prevented=False,
             risk_warnings=["Leverage set to 3x for all positions"],
-            errors=[]
+            errors=[],
         )
 
     # ===================================================================
@@ -127,7 +126,7 @@ class TestRebalanceUseCase:
             target_weights={"BTC": 50.0, "ETH": 30.0, "SOL": 20.0},
             leverage=3,
             dry_run=True,
-            min_trade_usd=10.0
+            min_trade_usd=10.0,
         )
 
         response = await use_case.execute(request)
@@ -136,7 +135,7 @@ class TestRebalanceUseCase:
         mock_rebalance_service.preview_rebalance.assert_called_once_with(
             target_weights={"BTC": 50.0, "ETH": 30.0, "SOL": 20.0},
             leverage=3,
-            min_trade_usd=10.0
+            min_trade_usd=10.0,
         )
 
         # Verify response
@@ -156,10 +155,7 @@ class TestRebalanceUseCase:
         """Test preview includes risk warnings."""
         mock_rebalance_service.preview_rebalance.return_value = sample_preview_result
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 50.0, "ETH": 50.0},
-            dry_run=True
-        )
+        request = RebalanceRequest(target_weights={"BTC": 50.0, "ETH": 50.0}, dry_run=True)
 
         response = await use_case.execute(request)
 
@@ -167,9 +163,7 @@ class TestRebalanceUseCase:
         assert "Leverage set to 3x" in response.warnings[0]
 
     @pytest.mark.asyncio
-    async def test_preview_high_risk_coins_identified(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_preview_high_risk_coins_identified(self, use_case, mock_rebalance_service):
         """Test high-risk coins are identified in preview."""
         # Mock result with high-risk trade
         high_risk_result = Mock(
@@ -193,7 +187,7 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=45000.0,
                     estimated_risk_level=RiskLevel.HIGH,
-                    estimated_health_score=40
+                    estimated_health_score=40,
                 )
             ],
             executed_trades=0,
@@ -202,14 +196,11 @@ class TestRebalanceUseCase:
             skipped_trades=0,
             critical_risk_prevented=False,
             risk_warnings=["BTC position would be HIGH risk"],
-            errors=[]
+            errors=[],
         )
         mock_rebalance_service.preview_rebalance.return_value = high_risk_result
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 60.0, "ETH": 40.0},
-            dry_run=True
-        )
+        request = RebalanceRequest(target_weights={"BTC": 60.0, "ETH": 40.0}, dry_run=True)
 
         response = await use_case.execute(request)
 
@@ -221,9 +212,7 @@ class TestRebalanceUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_execute_rebalance_success(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_execute_rebalance_success(self, use_case, mock_rebalance_service):
         """Test execution mode calls execute_rebalance()."""
         # Mock execution result
         execution_result = Mock(
@@ -247,7 +236,7 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=40000.0,
                     estimated_risk_level=RiskLevel.LOW,
-                    estimated_health_score=75
+                    estimated_health_score=75,
                 ),
                 Mock(
                     coin="ETH",
@@ -264,8 +253,8 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=2500.0,
                     estimated_risk_level=RiskLevel.SAFE,
-                    estimated_health_score=85
-                )
+                    estimated_health_score=85,
+                ),
             ],
             executed_trades=2,
             successful_trades=2,
@@ -273,7 +262,7 @@ class TestRebalanceUseCase:
             skipped_trades=0,
             critical_risk_prevented=False,
             risk_warnings=[],
-            errors=[]
+            errors=[],
         )
         mock_rebalance_service.execute_rebalance.return_value = execution_result
 
@@ -282,7 +271,7 @@ class TestRebalanceUseCase:
             leverage=3,
             dry_run=False,
             min_trade_usd=10.0,
-            max_slippage=0.05
+            max_slippage=0.05,
         )
 
         response = await use_case.execute(request)
@@ -293,7 +282,7 @@ class TestRebalanceUseCase:
             leverage=3,
             dry_run=False,
             min_trade_usd=10.0,
-            max_slippage=0.05
+            max_slippage=0.05,
         )
 
         # Verify response
@@ -304,9 +293,7 @@ class TestRebalanceUseCase:
         assert response.failed_trades == 0
 
     @pytest.mark.asyncio
-    async def test_execute_with_failures(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_execute_with_failures(self, use_case, mock_rebalance_service):
         """Test execution with some trade failures."""
         # Mock result with 1 success, 1 failure
         result_with_failures = Mock(
@@ -330,7 +317,7 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=40000.0,
                     estimated_risk_level=RiskLevel.LOW,
-                    estimated_health_score=75
+                    estimated_health_score=75,
                 ),
                 Mock(
                     coin="ETH",
@@ -347,8 +334,8 @@ class TestRebalanceUseCase:
                     error="Insufficient liquidity",
                     estimated_liquidation_price=None,
                     estimated_risk_level=None,
-                    estimated_health_score=None
-                )
+                    estimated_health_score=None,
+                ),
             ],
             executed_trades=2,
             successful_trades=1,
@@ -356,14 +343,11 @@ class TestRebalanceUseCase:
             skipped_trades=0,
             critical_risk_prevented=False,
             risk_warnings=[],
-            errors=["ETH trade failed: Insufficient liquidity"]
+            errors=["ETH trade failed: Insufficient liquidity"],
         )
         mock_rebalance_service.execute_rebalance.return_value = result_with_failures
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 50.0, "ETH": 50.0},
-            dry_run=False
-        )
+        request = RebalanceRequest(target_weights={"BTC": 50.0, "ETH": 50.0}, dry_run=False)
 
         response = await use_case.execute(request)
 
@@ -378,9 +362,7 @@ class TestRebalanceUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_trade_detail_fields_complete(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_trade_detail_fields_complete(self, use_case, mock_rebalance_service):
         """Test trade detail includes all fields."""
         result = Mock(
             success=True,
@@ -403,7 +385,7 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=40000.0,
                     estimated_risk_level=RiskLevel.MODERATE,
-                    estimated_health_score=65
+                    estimated_health_score=65,
                 )
             ],
             executed_trades=1,
@@ -412,14 +394,11 @@ class TestRebalanceUseCase:
             skipped_trades=0,
             critical_risk_prevented=False,
             risk_warnings=[],
-            errors=[]
+            errors=[],
         )
         mock_rebalance_service.execute_rebalance.return_value = result
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 100.0},
-            dry_run=False
-        )
+        request = RebalanceRequest(target_weights={"BTC": 100.0}, dry_run=False)
 
         response = await use_case.execute(request)
 
@@ -441,9 +420,7 @@ class TestRebalanceUseCase:
         assert trade.estimated_health_score == 65
 
     @pytest.mark.asyncio
-    async def test_trade_detail_rounding(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_trade_detail_rounding(self, use_case, mock_rebalance_service):
         """Test trade detail values are properly rounded."""
         result = Mock(
             success=True,
@@ -466,7 +443,7 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=None,
                     estimated_risk_level=None,
-                    estimated_health_score=None
+                    estimated_health_score=None,
                 )
             ],
             executed_trades=0,
@@ -475,14 +452,11 @@ class TestRebalanceUseCase:
             skipped_trades=0,
             critical_risk_prevented=False,
             risk_warnings=[],
-            errors=[]
+            errors=[],
         )
         mock_rebalance_service.preview_rebalance.return_value = result
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 100.0},
-            dry_run=True
-        )
+        request = RebalanceRequest(target_weights={"BTC": 100.0}, dry_run=True)
 
         response = await use_case.execute(request)
 
@@ -510,8 +484,7 @@ class TestRebalanceUseCase:
         mock_rebalance_service.preview_rebalance.return_value = sample_preview_result
 
         request = RebalanceRequest(
-            target_weights={"BTC": 50.0, "ETH": 30.0, "SOL": 20.0},
-            dry_run=True
+            target_weights={"BTC": 50.0, "ETH": 30.0, "SOL": 20.0}, dry_run=True
         )
 
         response = await use_case.execute(request)
@@ -529,8 +502,7 @@ class TestRebalanceUseCase:
         mock_rebalance_service.preview_rebalance.return_value = sample_preview_result
 
         request = RebalanceRequest(
-            target_weights={"BTC": 50.0, "ETH": 30.0, "SOL": 20.0},
-            dry_run=True
+            target_weights={"BTC": 50.0, "ETH": 30.0, "SOL": 20.0}, dry_run=True
         )
 
         response = await use_case.execute(request)
@@ -543,9 +515,7 @@ class TestRebalanceUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_critical_risk_prevented_flag(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_critical_risk_prevented_flag(self, use_case, mock_rebalance_service):
         """Test critical_risk_prevented flag is passed through."""
         result = Mock(
             success=False,
@@ -568,7 +538,7 @@ class TestRebalanceUseCase:
                     error="CRITICAL risk detected",
                     estimated_liquidation_price=None,
                     estimated_risk_level=RiskLevel.CRITICAL,
-                    estimated_health_score=5
+                    estimated_health_score=5,
                 )
             ],
             executed_trades=0,
@@ -577,14 +547,11 @@ class TestRebalanceUseCase:
             skipped_trades=1,
             critical_risk_prevented=True,
             risk_warnings=["BTC position would be CRITICAL risk"],
-            errors=["Rebalance blocked to prevent critical risk"]
+            errors=["Rebalance blocked to prevent critical risk"],
         )
         mock_rebalance_service.preview_rebalance.return_value = result
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 100.0},
-            dry_run=True
-        )
+        request = RebalanceRequest(target_weights={"BTC": 100.0}, dry_run=True)
 
         response = await use_case.execute(request)
 
@@ -596,9 +563,7 @@ class TestRebalanceUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_invalid_weights_raises_value_error(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_invalid_weights_raises_value_error(self, use_case, mock_rebalance_service):
         """Test invalid weights raise ValueError."""
         result = Mock(
             success=False,
@@ -612,22 +577,20 @@ class TestRebalanceUseCase:
             skipped_trades=0,
             critical_risk_prevented=False,
             risk_warnings=[],
-            errors=["Weights must sum to 100% (got 80%)"]
+            errors=["Weights must sum to 100% (got 80%)"],
         )
         mock_rebalance_service.preview_rebalance.return_value = result
 
         request = RebalanceRequest(
             target_weights={"BTC": 50.0, "ETH": 30.0},  # Only 80%
-            dry_run=True
+            dry_run=True,
         )
 
         with pytest.raises(ValueError, match="Weights must sum to 100%"):
             await use_case.execute(request)
 
     @pytest.mark.asyncio
-    async def test_negative_weight_raises_value_error(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_negative_weight_raises_value_error(self, use_case, mock_rebalance_service):
         """Test negative weight raises ValueError."""
         result = Mock(
             success=False,
@@ -641,14 +604,11 @@ class TestRebalanceUseCase:
             skipped_trades=0,
             critical_risk_prevented=False,
             risk_warnings=[],
-            errors=["Weight for BTC cannot be negative"]
+            errors=["Weight for BTC cannot be negative"],
         )
         mock_rebalance_service.preview_rebalance.return_value = result
 
-        request = RebalanceRequest(
-            target_weights={"BTC": -50.0, "ETH": 150.0},
-            dry_run=True
-        )
+        request = RebalanceRequest(target_weights={"BTC": -50.0, "ETH": 150.0}, dry_run=True)
 
         with pytest.raises(ValueError, match="Weight"):
             await use_case.execute(request)
@@ -658,16 +618,11 @@ class TestRebalanceUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_service_failure_raises_runtime_error(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_service_failure_raises_runtime_error(self, use_case, mock_rebalance_service):
         """Test service failure raises RuntimeError."""
         mock_rebalance_service.preview_rebalance.side_effect = Exception("API Error")
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 50.0, "ETH": 50.0},
-            dry_run=True
-        )
+        request = RebalanceRequest(target_weights={"BTC": 50.0, "ETH": 50.0}, dry_run=True)
 
         with pytest.raises(RuntimeError, match="Failed to execute rebalancing"):
             await use_case.execute(request)
@@ -677,9 +632,7 @@ class TestRebalanceUseCase:
     # ===================================================================
 
     @pytest.mark.asyncio
-    async def test_no_trades_needed(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_no_trades_needed(self, use_case, mock_rebalance_service):
         """Test when portfolio is already balanced."""
         result = Mock(
             success=True,
@@ -702,7 +655,7 @@ class TestRebalanceUseCase:
                     error="No trade needed",
                     estimated_liquidation_price=None,
                     estimated_risk_level=None,
-                    estimated_health_score=None
+                    estimated_health_score=None,
                 ),
                 Mock(
                     coin="ETH",
@@ -719,8 +672,8 @@ class TestRebalanceUseCase:
                     error="No trade needed",
                     estimated_liquidation_price=None,
                     estimated_risk_level=None,
-                    estimated_health_score=None
-                )
+                    estimated_health_score=None,
+                ),
             ],
             executed_trades=0,
             successful_trades=0,
@@ -728,14 +681,11 @@ class TestRebalanceUseCase:
             skipped_trades=2,
             critical_risk_prevented=False,
             risk_warnings=[],
-            errors=[]
+            errors=[],
         )
         mock_rebalance_service.preview_rebalance.return_value = result
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 50.0, "ETH": 50.0},
-            dry_run=True
-        )
+        request = RebalanceRequest(target_weights={"BTC": 50.0, "ETH": 50.0}, dry_run=True)
 
         response = await use_case.execute(request)
 
@@ -745,9 +695,7 @@ class TestRebalanceUseCase:
         assert response.total_usd_volume == 0.0
 
     @pytest.mark.asyncio
-    async def test_trade_without_estimated_risk(
-        self, use_case, mock_rebalance_service
-    ):
+    async def test_trade_without_estimated_risk(self, use_case, mock_rebalance_service):
         """Test trade without risk estimation (None values)."""
         result = Mock(
             success=True,
@@ -770,7 +718,7 @@ class TestRebalanceUseCase:
                     error=None,
                     estimated_liquidation_price=None,
                     estimated_risk_level=None,  # No risk assessment
-                    estimated_health_score=None
+                    estimated_health_score=None,
                 )
             ],
             executed_trades=0,
@@ -779,14 +727,11 @@ class TestRebalanceUseCase:
             skipped_trades=0,
             critical_risk_prevented=False,
             risk_warnings=[],
-            errors=[]
+            errors=[],
         )
         mock_rebalance_service.preview_rebalance.return_value = result
 
-        request = RebalanceRequest(
-            target_weights={"BTC": 100.0},
-            dry_run=True
-        )
+        request = RebalanceRequest(target_weights={"BTC": 100.0}, dry_run=True)
 
         response = await use_case.execute(request)
 

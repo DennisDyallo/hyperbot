@@ -13,8 +13,8 @@ After rebalance to 50/50 at 2x:
 """
 
 import sys
+
 import requests
-import json
 
 API_BASE = "http://localhost:8000/api"
 
@@ -31,14 +31,11 @@ def get_price(coin: str) -> float:
     # Use market data service
     response = requests.get(f"{API_BASE}/account/")  # This returns all data
     response.raise_for_status()
-    data = response.json()
+    response.json()
 
     # We'll need to fetch from hyperliquid directly
     # For now, use approximate prices
-    prices = {
-        "BTC": 112000,
-        "SOL": 188
-    }
+    prices = {"BTC": 112000, "SOL": 188}
     return prices.get(coin, 0)
 
 
@@ -48,7 +45,7 @@ def set_leverage(coin: str, leverage: int):
 
     # We need to call the Hyperliquid service directly
     # For now, we'll just document this needs to be done via API
-    print(f"  ℹ️  Note: Leverage will be set automatically on first trade")
+    print("  ℹ️  Note: Leverage will be set automatically on first trade")
 
 
 def open_position(coin: str, side: str, usd_value: float, leverage: int = 10):
@@ -75,8 +72,8 @@ def open_position(coin: str, side: str, usd_value: float, leverage: int = 10):
     # Place market order
     # Note: The system will use default leverage or we need to set it first
     # For now, just document what needs to happen
-    print(f"  ⚠️  Manual action needed:")
-    print(f"     1. Go to https://app.hyperliquid-testnet.xyz")
+    print("  ⚠️  Manual action needed:")
+    print("     1. Go to https://app.hyperliquid-testnet.xyz")
     print(f"     2. Set {coin} leverage to {leverage}x")
     print(f"     3. Open {side} position: {size} {coin} (${usd_value:.2f})")
     print()
@@ -100,7 +97,7 @@ def main():
         print(f"  Max at 2x: ${account_value * 2:.2f}")
     except Exception as e:
         print(f"  ⚠️  Could not fetch account: {e}")
-        print(f"  Using estimated values...")
+        print("  Using estimated values...")
         account_value = 416
 
     # Calculate position sizes
@@ -150,21 +147,21 @@ def main():
     print("\n  OR use API (if endpoints available):")
     print("-" * 40)
 
-    btc_size = btc_value / get_price('BTC')
-    sol_size = sol_value / get_price('SOL')
+    btc_size = btc_value / get_price("BTC")
+    sol_size = sol_value / get_price("SOL")
 
     print()
-    print(f"  # Set leverage (must be done before opening positions)")
-    print(f"  # This would need to be via Hyperliquid SDK directly")
+    print("  # Set leverage (must be done before opening positions)")
+    print("  # This would need to be via Hyperliquid SDK directly")
     print()
-    print(f"  # Open BTC position")
-    print(f'  curl -X POST http://localhost:8000/api/positions/BTC/open \\')
-    print(f'    -H "Content-Type: application/json" \\')
+    print("  # Open BTC position")
+    print("  curl -X POST http://localhost:8000/api/positions/BTC/open \\")
+    print('    -H "Content-Type: application/json" \\')
     print(f'    -d \'{{"size": {btc_size:.5f}, "is_buy": true, "leverage": 10}}\'')
     print()
-    print(f"  # Open SOL position")
-    print(f'  curl -X POST http://localhost:8000/api/positions/SOL/open \\')
-    print(f'    -H "Content-Type: application/json" \\')
+    print("  # Open SOL position")
+    print("  curl -X POST http://localhost:8000/api/positions/SOL/open \\")
+    print('    -H "Content-Type: application/json" \\')
     print(f'    -d \'{{"size": {sol_size:.2f}, "is_buy": true, "leverage": 10}}\'')
     print()
 

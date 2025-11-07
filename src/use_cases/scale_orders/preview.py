@@ -4,15 +4,18 @@ Preview Scale Order Use Case.
 Unified logic for previewing scale orders before placement.
 Calculates price levels, sizes, and estimated execution price.
 """
+
 from pydantic import BaseModel
-from src.use_cases.base import BaseUseCase
+
+from src.config import logger
 from src.models.scale_order import ScaleOrderConfig, ScaleOrderPreview
 from src.services.scale_order_service import scale_order_service
-from src.config import logger
+from src.use_cases.base import BaseUseCase
 
 
 class PreviewScaleOrderRequest(BaseModel):
     """Request model for previewing scale order."""
+
     config: ScaleOrderConfig
 
     class Config:
@@ -26,7 +29,7 @@ class PreviewScaleOrderRequest(BaseModel):
                     "start_price": 50000.0,
                     "end_price": 48000.0,
                     "distribution_type": "linear",
-                    "time_in_force": "Gtc"
+                    "time_in_force": "Gtc",
                 }
             }
         }
@@ -34,6 +37,7 @@ class PreviewScaleOrderRequest(BaseModel):
 
 class PreviewScaleOrderResponse(BaseModel):
     """Response model for scale order preview."""
+
     preview: ScaleOrderPreview
 
     class Config:
@@ -44,11 +48,9 @@ class PreviewScaleOrderResponse(BaseModel):
                     "is_buy": True,
                     "total_size": 1.0,
                     "num_orders": 5,
-                    "orders": [
-                        {"price": 50000.0, "size": 0.2, "notional": 10000.0}
-                    ],
+                    "orders": [{"price": 50000.0, "size": 0.2, "notional": 10000.0}],
                     "estimated_avg_price": 49000.0,
-                    "price_range_pct": 4.0
+                    "price_range_pct": 4.0,
                 }
             }
         }
@@ -123,4 +125,4 @@ class PreviewScaleOrderUseCase(BaseUseCase[PreviewScaleOrderRequest, PreviewScal
             raise
         except Exception as e:
             logger.error(f"Failed to generate scale order preview: {e}")
-            raise RuntimeError(f"Failed to generate preview: {str(e)}")
+            raise RuntimeError(f"Failed to generate preview: {str(e)}") from e
