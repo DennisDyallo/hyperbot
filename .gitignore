@@ -50,3 +50,6 @@ coverage/
 htmlcov/
 .coverage
 htmlcov/
+
+# Runtime data
+data/

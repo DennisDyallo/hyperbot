@@ -3,6 +3,7 @@ Hyperliquid service for interacting with the Hyperliquid API.
 Provides a wrapper around the hyperliquid-python-sdk.
 """
 
+from collections.abc import Callable
 from typing import Any
 
 from eth_account import Account
@@ -19,8 +20,10 @@ class HyperliquidService:
     def __init__(self):
         """Initialize Hyperliquid service."""
         self.info: Info | None = None
+        self.info_ws: Info | None = None  # WebSocket-enabled Info client
         self.exchange: Exchange | None = None
         self._initialized = False
+        self._websocket_initialized = False
 
     def initialize(self) -> None:
         """
@@ -113,7 +116,7 @@ class HyperliquidService:
             result["info_api_error"] = str(e)
 
         # Test Exchange API (if initialized)
-        if self.exchange and settings.HYPERLIQUID_WALLET_ADDRESS:
+        if self.exchange and settings.HYPERLIQUID_WALLET_ADDRESS and self.info:
             try:
                 # Try to fetch user state
                 user_state = self.info.user_state(settings.HYPERLIQUID_WALLET_ADDRESS)
@@ -228,7 +231,7 @@ class HyperliquidService:
             )
 
             logger.debug(f"Limit order result: {result}")
-            return result
+            return result  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(f"Failed to place limit order: {e}")
@@ -260,7 +263,7 @@ class HyperliquidService:
             result = self.exchange.cancel(name=coin, oid=order_id)
 
             logger.debug(f"Cancel result: {result}")
-            return result
+            return result  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(f"Failed to cancel order: {e}")
@@ -292,11 +295,115 @@ class HyperliquidService:
             orders = self.info.open_orders(settings.HYPERLIQUID_WALLET_ADDRESS)
 
             logger.debug(f"Retrieved {len(orders)} open orders")
-            return orders
+            return orders  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(f"Failed to get open orders: {e}")
             raise
+
+    def initialize_websocket(self) -> None:
+        """
+        Initialize WebSocket-enabled Info client for real-time subscriptions.
+
+        This creates a separate Info client with WebSocket support (skip_ws=False).
+        The regular Info client (self.info) remains WebSocket-free for polling.
+
+        Raises:
+            RuntimeError: If base service not initialized
+            Exception: If WebSocket initialization fails
+
+        Example:
+            >>> service.initialize()
+            >>> service.initialize_websocket()
+            >>> service.subscribe_user_events(my_callback)
+        """
+        if not self._initialized:
+            raise RuntimeError(
+                "Base service must be initialized first. Call initialize() before "
+                "initialize_websocket()"
+            )
+
+        if self._websocket_initialized:
+            logger.warning("WebSocket already initialized")
+            return
+
+        try:
+            # Determine base URL (same as regular initialization)
+            base_url = (
+                constants.TESTNET_API_URL
+                if settings.HYPERLIQUID_TESTNET
+                else constants.MAINNET_API_URL
+            )
+
+            logger.info("Initializing WebSocket-enabled Info client")
+
+            # Create Info client with WebSocket support (skip_ws=False)
+            self.info_ws = Info(base_url, skip_ws=False)
+
+            self._websocket_initialized = True
+            logger.info("WebSocket Info client initialized successfully")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize WebSocket: {e}")
+            raise
+
+    def subscribe_user_events(
+        self, callback: Callable[[dict[str, Any]], None], user_address: str | None = None
+    ) -> None:
+        """
+        Subscribe to user events (fills, funding, liquidations) via WebSocket.
+
+        Reference: docs/research/hyperliquid_fills_api.md - WebSocket API
+
+        Args:
+            callback: Function called for each event. Receives event dict with:
+                - channel: "userEvents"
+                - data: Event data (fills, orders, funding, etc.)
+            user_address: Wallet address to monitor. Defaults to configured wallet.
+
+        Raises:
+            RuntimeError: If WebSocket not initialized
+            ValueError: If user_address not provided and not configured
+
+        Example:
+            >>> def on_event(event: dict):
+            ...     if event.get("channel") == "userEvents":
+            ...         print(f"User event: {event['data']}")
+            >>> service.subscribe_user_events(on_event)
+        """
+        if not self._websocket_initialized or not self.info_ws:
+            raise RuntimeError("WebSocket not initialized. Call initialize_websocket() first.")
+
+        # Use provided address or fall back to configured address
+        address = user_address or settings.HYPERLIQUID_WALLET_ADDRESS
+        if not address:
+            raise ValueError(
+                "user_address must be provided or HYPERLIQUID_WALLET_ADDRESS must be configured"
+            )
+
+        logger.info(f"Subscribing to userEvents for {address}")
+
+        try:
+            # Subscribe to userEvents channel
+            # The callback will be invoked for each event received
+            self.info_ws.subscribe(
+                subscription={"type": "userEvents", "user": address}, callback=callback
+            )
+
+            logger.info(f"Successfully subscribed to userEvents for {address}")
+
+        except Exception as e:
+            logger.error(f"Failed to subscribe to userEvents: {e}")
+            raise
+
+    def is_websocket_initialized(self) -> bool:
+        """
+        Check if WebSocket is initialized.
+
+        Returns:
+            True if WebSocket initialized, False otherwise
+        """
+        return self._websocket_initialized
 
 
 # Global service instance
