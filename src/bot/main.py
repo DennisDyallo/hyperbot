@@ -24,12 +24,14 @@ filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBU
 from src.bot.handlers import (  # noqa: E402
     commands,
     menus,
+    notify,
     wizard_close_position,
     wizard_market_order,
     wizard_scale_order,
 )
 from src.config import logger, settings  # noqa: E402
 from src.services.hyperliquid_service import hyperliquid_service  # noqa: E402
+from src.services.order_monitor_service import order_monitor_service  # noqa: E402
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -54,7 +56,8 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle unknown commands."""
-    await update.message.reply_text("❓ Unknown command. Use /help to see available commands.")
+    if update.message:
+        await update.message.reply_text("❓ Unknown command. Use /help to see available commands.")
 
 
 def create_application() -> Application:
@@ -95,6 +98,11 @@ def create_application() -> Application:
     application.add_handler(CommandHandler("status", commands.status_command))
     application.add_handler(CommandHandler("rebalance", commands.rebalance_command))
 
+    # Register notification commands
+    application.add_handler(CommandHandler("notify_status", notify.notify_status))
+    application.add_handler(CommandHandler("notify_test", notify.notify_test))
+    application.add_handler(CommandHandler("notify_history", notify.notify_history))
+
     # Register menu navigation callback handlers
     for handler in menus.get_menu_handlers():
         application.add_handler(handler)
@@ -122,7 +130,7 @@ def create_application() -> Application:
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
 
     # Register error handler
-    application.add_error_handler(error_handler)
+    application.add_error_handler(error_handler)  # type: ignore[arg-type]
 
     logger.info("Bot application created successfully")
     return application
@@ -144,6 +152,17 @@ async def post_init(application: Application):
             logger.error(f"Failed to initialize Hyperliquid service: {e}")
             logger.warning("Bot will start but Hyperliquid features may not work")
 
+    # Start OrderMonitorService for fill notifications
+    try:
+        # Store bot instance in order_monitor_service for sending messages
+        order_monitor_service.bot = application.bot
+
+        await order_monitor_service.start()
+        logger.info("✅ Order fill monitoring started")
+    except Exception as e:
+        logger.error(f"Failed to start order monitor service: {e}")
+        logger.warning("Bot will start but fill notifications may not work")
+
     logger.info("Bot services initialized")
 
 
@@ -153,6 +172,15 @@ async def post_shutdown(application: Application):
     Called after the bot stops.
     """
     logger.info("Shutting down bot...")
+
+    # Stop OrderMonitorService
+    try:
+        await order_monitor_service.stop()
+        logger.info("✅ Order fill monitoring stopped")
+    except Exception as e:
+        logger.error(f"Error stopping order monitor service: {e}")
+
+    logger.info("Bot shutdown complete")
 
 
 def main():

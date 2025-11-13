@@ -50,6 +50,7 @@ class OrderMonitorService:
         """
         self.state_manager = StateManager(state_file)
         self.telegram_chat_id = telegram_chat_id or self._get_default_chat_id()
+        self.bot = None  # Set by bot.main.post_init()
         self._running = False
         self._reconnect_attempts = 0
         self._max_reconnect_attempts = 10
@@ -277,11 +278,22 @@ class OrderMonitorService:
 
         summary_text = "\n".join(summary_lines)
 
-        # Send notification
+        # Log notification
         logger.info(f"📱 [Batch Notification]\n{summary_text}")
 
-        # TODO: Integrate with Telegram (Phase 5D)
-        # await bot.send_message(chat_id=self.telegram_chat_id, text=summary_text)
+        # Send via Telegram bot if available
+        if self.bot:
+            try:
+                await self.bot.send_message(
+                    chat_id=self.telegram_chat_id,
+                    text=summary_text,
+                    parse_mode="Markdown",
+                )
+                logger.debug(f"✅ Batch notification sent to {self.telegram_chat_id}")
+            except Exception as e:
+                logger.error(f"Failed to send batch notification: {e}")
+        else:
+            logger.warning("Bot instance not set - batch notification logged but not sent")
 
         # Add all fills to state
         for fill in fills:
@@ -509,27 +521,35 @@ class OrderMonitorService:
         Raises:
             Exception: If notification fails
         """
-        # TODO: Integrate with Telegram bot (Phase 5D)
-        # For now, just log the notification text
-
         notification_text = fill.to_notification_text(include_emoji=True)
 
         # Add recovery tag if this is from recovery
         if is_recovery:
             notification_text = f"🔄 **[RECOVERY]**\n\n{notification_text}"
 
+        # Log notification
         logger.info(
             f"📱 [Telegram Notification{' - Recovery' if is_recovery else ''}]\n"
             f"Chat ID: {self.telegram_chat_id}\n{notification_text}"
         )
 
-        # Placeholder for actual Telegram integration:
-        # from src.bot.main import bot
-        # await bot.send_message(
-        #     chat_id=self.telegram_chat_id,
-        #     text=notification_text,
-        #     parse_mode="Markdown"
-        # )
+        # Send via Telegram bot if available
+        if self.bot:
+            try:
+                await self.bot.send_message(
+                    chat_id=self.telegram_chat_id,
+                    text=notification_text,
+                    parse_mode="Markdown",
+                )
+                logger.debug(f"✅ Telegram notification sent to {self.telegram_chat_id}")
+            except Exception as e:
+                logger.error(f"Failed to send Telegram notification: {e}")
+                raise
+        else:
+            logger.warning(
+                "Bot instance not set - notification logged but not sent. "
+                "Set order_monitor_service.bot in bot.main.post_init()"
+            )
 
     async def _reconnect_with_backoff(self) -> None:
         """
