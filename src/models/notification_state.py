@@ -112,8 +112,15 @@ class NotificationState(BaseModel):
         temp_file = file_path.with_suffix(".tmp")
 
         try:
+            # Get model data and convert sets to lists for JSON serialization
+            data = self.model_dump()
+
+            # Convert set to list for JSON
+            if isinstance(data.get("recent_fill_hashes"), set):
+                data["recent_fill_hashes"] = list(data["recent_fill_hashes"])
+
             with open(temp_file, "w") as f:
-                json.dump(self.model_dump(), f, indent=2, default=str)
+                json.dump(data, f, indent=2, default=str)
 
             # Atomic rename
             temp_file.replace(file_path)
