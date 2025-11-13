@@ -195,6 +195,99 @@ curl -X POST '/api/scale-orders/place' -d '{
 
 ---
 
+### 🔄 Phase 5: Order Fill Notifications (Real-time + Recovery)
+**Goal**: Real-time Telegram notifications for all order fills with offline recovery
+**Duration**: 2.5-3.5 weeks (13-18 days)
+**Status**: 🔄 In Progress - Phase 5A (Foundation + Learning Tests)
+**Priority**: HIGH - Critical for active trading monitoring
+
+**Architecture**: Hybrid WebSocket + Smart Polling
+
+```
+OrderMonitorService
+├── WebSocket Subscriber (real-time fills)
+│   └── Subscribe to Hyperliquid userEvents
+├── Recovery Manager (startup polling)
+│   └── Query user_fills() for missed events
+├── Periodic Backup Polling (every 5 min)
+│   └── Safety net if WebSocket fails
+└── Deduplication Layer
+    └── Fill hash cache (prevent duplicates)
+```
+
+**Key Design Decisions**:
+- **WebSocket Primary**: <1s notification latency for fills
+- **Polling Recovery**: Back-notify missed fills after bot restart
+- **Minimal State**: Only store `last_processed_timestamp` + deduplication hashes
+- **Smart Batching**: Individual notifications for ≤5 fills, summary for >5
+- **Stateless Where Possible**: Rely on Hyperliquid API for state reconstruction
+
+**State Persistence** (`data/notification_state.json`):
+```json
+{
+  "last_processed_timestamp": "2025-11-12T14:23:45Z",
+  "recent_fill_hashes": ["abc123...", "def456...", ...],
+  "last_websocket_heartbeat": "2025-11-12T14:25:00Z",
+  "websocket_reconnect_count": 2
+}
+```
+
+**Notification Format Example**:
+```
+🎯 Limit Order Filled!
+
+Coin: BTC
+Side: BUY 📈
+Size: 0.5 BTC
+Avg Price: $67,850.00
+Total Value: $33,925.00
+Time: 2025-11-12 14:23:45 UTC
+
+💰 Position opened at 3x leverage
+```
+
+**Sub-phases**:
+- **5A**: Foundation + Learning Tests (3-4 days)
+  - Integration tests to learn Hyperliquid WebSocket/fills APIs
+  - Create models (NotificationState, OrderFillEvent)
+  - Service skeletons
+
+- **5B**: WebSocket Implementation (4-5 days)
+  - WebSocket connection and subscription
+  - Real-time fill event processing
+  - Reconnection logic
+  - Unit tests
+
+- **5C**: Recovery Mechanism (3-4 days)
+  - Startup recovery (query missed fills)
+  - Periodic backup polling
+  - Batch notifications for >5 fills
+  - Unit tests
+
+- **5D**: Telegram Integration (2-3 days)
+  - Bot integration (post_init/post_shutdown)
+  - Notification commands (/notify_status, /notify_test, /notify_history)
+  - End-to-end testing
+
+- **5E**: Scale Order Enhancement (1-2 days)
+  - Aggregate notifications for scale order groups
+  - "3/5 orders filled (60%)" format
+  - User preferences
+
+**Success Metrics**:
+- ✅ 100% fill delivery (no missed notifications)
+- ✅ 0% duplicate notifications
+- ✅ <1s WebSocket notification latency
+- ✅ <5min recovery notification after restart
+- ✅ Handles 100+ fills/day reliably
+
+**Development Approach**: Test-Driven Development
+1. Write integration tests first (learn API behavior)
+2. Implement code to make tests pass
+3. Add comprehensive unit tests
+
+---
+
 ## Future Phases (Planned)
 
 > **Note**: See [TODO.md](TODO.md) for detailed planning of future phases.
@@ -306,6 +399,40 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 - Enables code reuse
 
 **Status**: ✅ Validated - Phase 4 Use Case Layer built on this foundation
+
+---
+
+### Decision 8: Hybrid WebSocket + Polling for Order Fill Notifications
+**When**: Phase 5 (Order Fill Notifications)
+**Context**: Need reliable fill notifications with recovery capability after bot downtime
+**Decision**: Hybrid architecture with WebSocket primary + polling recovery
+**Alternatives Considered**:
+- Pure WebSocket (no recovery for offline periods)
+- Pure polling (higher latency, more API usage)
+- WebSocket with message queue persistence (complex infrastructure)
+
+**Rationale**:
+- **Real-time performance**: WebSocket provides <1s notification latency
+- **Reliability**: Polling recovery ensures no fills missed during downtime
+- **API efficiency**: WebSocket reduces continuous polling overhead
+- **Minimal complexity**: No message queue infrastructure needed
+- **Stateless recovery**: Can reconstruct state from Hyperliquid API
+
+**Implementation Details**:
+- Primary: WebSocket subscription to `userEvents` (real-time)
+- Recovery: On startup, query `user_fills(start_time)` for missed events
+- Backup: 5-minute periodic polling as safety net
+- Deduplication: Fill hash cache prevents duplicate notifications
+- State: Only persist `last_processed_timestamp` + recent hashes
+
+**Consequences**:
+- ✅ Best of both worlds (real-time + reliability)
+- ✅ Simple state management (minimal persistence)
+- ✅ Graceful degradation (polling if WebSocket fails)
+- ⚠️ Need WebSocket reconnection logic
+- ⚠️ Small persistent state file required
+
+**Status**: 🔄 In Progress - Phase 5A (Foundation + Learning Tests)
 
 ---
 
