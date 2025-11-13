@@ -11,7 +11,6 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 from src.bot.menus import build_back_button, build_main_menu, build_positions_menu
 from src.bot.middleware import authorized_only
 from src.config import logger, settings
-from src.services.account_service import account_service
 from src.services.market_data_service import market_data_service
 from src.services.position_service import position_service
 
@@ -33,41 +32,45 @@ async def menu_main_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 @authorized_only
 async def menu_account_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show account summary via menu."""
+    """
+    Show account health via menu - delegates to account_command.
+
+    Design Reference: docs/preliminary-ux-plan.md
+    """
     query = update.callback_query
     await query.answer()
 
     try:
         # Show loading
-        await query.edit_message_text("⏳ Fetching account information...")
+        msg = await query.edit_message_text("⏳ Loading account health...")
 
-        # Get account summary
-        summary = account_service.get_account_summary()
-
-        # Format account message (using correct field names)
-        account_msg = (
-            "💰 **Account Summary**\n\n"
-            f"**Total Value**: ${summary['total_account_value']:.2f}\n"
-            f"├─ Perps: ${summary['perps_account_value']:.2f}\n"
-            f"└─ Spot: ${summary['spot_account_value']:.2f}\n\n"
-            f"**Available Balance**: ${summary['available_balance']:.2f}\n"
-            f"**Margin Used**: ${summary['margin_used']:.2f}\n\n"
-            f"**Perp Positions**: {summary['num_perp_positions']}\n"
-            f"**Spot Balances**: {summary['num_spot_balances']}\n\n"
-            f"**Total PnL**: ${summary['total_unrealized_pnl']:.2f}\n\n"
-            f"**Cross Margin Ratio**: {summary['cross_margin_ratio_pct']:.2f}%\n"
-            f"**Account Leverage**: {summary['cross_account_leverage']:.2f}x"
+        # Fetch risk analysis
+        from src.use_cases.portfolio.risk_analysis import (
+            RiskAnalysisRequest,
+            RiskAnalysisUseCase,
         )
 
-        await query.edit_message_text(
-            account_msg, parse_mode="Markdown", reply_markup=build_back_button()
+        use_case = RiskAnalysisUseCase()
+        risk_data = await use_case.execute(
+            RiskAnalysisRequest(coins=None, include_cross_margin_ratio=True)
         )
+
+        # Format message
+        from src.bot.formatters.account import format_account_health_message
+
+        message = format_account_health_message(risk_data)
+
+        # Update message with back button
+        await msg.edit_text(message, parse_mode="HTML", reply_markup=build_back_button())
+
+        # Store message_id for auto-refresh
+        context.user_data["account_message_id"] = msg.message_id
+        context.user_data["account_chat_id"] = msg.chat_id
 
     except Exception as e:
-        logger.exception("Failed to fetch account summary")
+        logger.exception("Account menu callback failed")
         await query.edit_message_text(
-            f"❌ Failed to fetch account information:\n`{str(e)}`",
-            parse_mode="Markdown",
+            f"❌ Failed to fetch account health:\n{str(e)}",
             reply_markup=build_back_button(),
         )
 
@@ -140,7 +143,7 @@ async def menu_positions_callback(update: Update, context: ContextTypes.DEFAULT_
 
             positions_msg += "\n".join(position_lines)
 
-        positions_msg += "_Use 🎯 Close Position menu to close_"
+        positions_msg += "_Use /close <coin> to close a position_"
 
         await query.edit_message_text(
             positions_msg, parse_mode="Markdown", reply_markup=build_back_button()

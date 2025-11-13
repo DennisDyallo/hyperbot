@@ -163,6 +163,60 @@ async def post_init(application: Application):
         logger.error(f"Failed to start order monitor service: {e}")
         logger.warning("Bot will start but fill notifications may not work")
 
+    # Schedule account health auto-refresh job
+    try:
+
+        async def refresh_account_messages(context):
+            """Auto-refresh active account health messages every 30s."""
+            from src.bot.formatters.account import format_account_health_message
+            from src.use_cases.portfolio.risk_analysis import (
+                RiskAnalysisRequest,
+                RiskAnalysisUseCase,
+            )
+
+            # Iterate over all users with active account messages
+            for user_data in context.application.user_data.values():
+                if "account_message_id" not in user_data:
+                    continue
+
+                try:
+                    # Fetch fresh risk data
+                    use_case = RiskAnalysisUseCase()
+                    risk_data = await use_case.execute(
+                        RiskAnalysisRequest(coins=None, include_cross_margin_ratio=True)
+                    )
+
+                    # Format message
+                    message = format_account_health_message(risk_data)
+
+                    # Update message
+                    await context.bot.edit_message_text(
+                        chat_id=user_data["account_chat_id"],
+                        message_id=user_data["account_message_id"],
+                        text=message,
+                        parse_mode="HTML",
+                    )
+
+                except Exception as e:
+                    # Message may have been deleted or edited manually
+                    logger.debug(f"Auto-refresh skipped (message unavailable): {e}")
+                    # Remove stale message_id
+                    user_data.pop("account_message_id", None)
+                    user_data.pop("account_chat_id", None)
+
+        # Run every 30 seconds
+        application.job_queue.run_repeating(
+            callback=refresh_account_messages,
+            interval=30,
+            first=30,  # Wait 30s before first run
+            name="account_health_refresh",
+        )
+
+        logger.info("✅ Account health auto-refresh enabled (30s interval)")
+    except Exception as e:
+        logger.error(f"Failed to schedule account refresh job: {e}")
+        logger.warning("Bot will start but account auto-refresh may not work")
+
     logger.info("Bot services initialized")
 
 

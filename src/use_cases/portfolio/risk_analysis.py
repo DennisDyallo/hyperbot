@@ -72,6 +72,8 @@ class RiskAnalysisResponse(BaseModel):
     available_margin: float
     total_margin_used: float
     account_value: float
+    perps_value: float = 0.0  # Perpetuals account value
+    spot_value: float = 0.0  # Spot balances value
 
     # Position-level risks
     positions: list[PositionRiskDetail]
@@ -209,6 +211,11 @@ class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]
                 all_positions, margin_summary, prices
             )
 
+            # Get perps and spot values
+            perps_value = margin_summary["account_value"]
+            spot_value = account_info.get("spot_total_usd", 0.0)
+            total_value = perps_value + spot_value
+
             # Build response
             return RiskAnalysisResponse(
                 overall_risk_level=portfolio_risk_result.overall_risk_level.value,
@@ -224,7 +231,9 @@ class RiskAnalysisUseCase(BaseUseCase[RiskAnalysisRequest, RiskAnalysisResponse]
                 margin_utilization_pct=margin_util_pct,
                 available_margin=margin_summary["total_raw_usd"],
                 total_margin_used=margin_summary["total_margin_used"],
-                account_value=margin_summary["account_value"],
+                account_value=total_value,  # Total value = perps + spot
+                perps_value=perps_value,
+                spot_value=spot_value,
                 positions=position_risks,
                 portfolio_warnings=portfolio_risk_result.warnings,
             )
