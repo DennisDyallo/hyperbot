@@ -1,0 +1,32 @@
+[Unit]
+Description=Hyperbot Telegram Trading Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dyallo
+WorkingDirectory=/home/dyallo/Code/hyperbot
+Environment="PATH=/home/dyallo/.local/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/home/dyallo/Code/hyperbot/.env.production
+
+# Run the Telegram bot
+ExecStart=/usr/bin/uv run python -m src.bot.main
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hyperbot
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
