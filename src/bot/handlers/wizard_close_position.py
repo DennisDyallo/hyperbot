@@ -40,18 +40,22 @@ close_position_use_case = ClosePositionUseCase()
 async def close_position_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle position selection for closing."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    assert query.data is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     # Extract coin from callback data
-    coin = query.data.split(":")[1]
+    coin = query.data.split(":")[1]  # type: ignore
 
     try:
         # Show loading
-        await query.edit_message_text(f"⏳ Fetching {coin} position details...")
+        await query.edit_message_text(f"⏳ Fetching {coin} position details...")  # type: ignore
 
         # Get position details
         position_data = position_service.get_position(coin)
-        p = position_data["position"]
+        p = position_data["position"]  # type: ignore
         size = p["size"]
         side = "LONG" if size > 0 else "SHORT"
         entry_price = p["entry_price"]
@@ -83,17 +87,17 @@ async def close_position_selected(update: Update, context: ContextTypes.DEFAULT_
             f"_Environment: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'}_"
         )
 
-        await query.edit_message_text(
+        await query.edit_message_text(  # type: ignore
             confirmation_msg,
             parse_mode="Markdown",
             reply_markup=build_confirm_cancel("close_pos", coin),
         )
 
     except ValueError as e:
-        await query.edit_message_text(f"❌ {str(e)}", reply_markup=build_main_menu())
+        await query.edit_message_text(f"❌ {str(e)}", reply_markup=build_main_menu())  # type: ignore
     except Exception as e:
         logger.exception(f"Failed to get position details for {coin}")
-        await query.edit_message_text(
+        await query.edit_message_text(  # type: ignore
             f"❌ Error: `{str(e)}`", parse_mode="Markdown", reply_markup=build_main_menu()
         )
 
@@ -102,17 +106,21 @@ async def close_position_selected(update: Update, context: ContextTypes.DEFAULT_
 async def close_position_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Execute the close position order."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    assert query.data is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     # Extract coin from callback data
-    coin = query.data.split(":")[1]
+    coin = query.data.split(":")[1]  # type: ignore
 
     try:
         # Show processing
-        await query.edit_message_text(f"⏳ Closing {coin} position...")
+        await query.edit_message_text(f"⏳ Closing {coin} position...")  # type: ignore
 
         # Create use case request
-        request = ClosePositionRequest(coin=coin)
+        request = ClosePositionRequest(coin=coin)  # type: ignore
 
         # Execute use case
         response = await close_position_use_case.execute(request)

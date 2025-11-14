@@ -7,7 +7,7 @@ managing leverage and monitoring liquidation risk.
 See: docs/research/hyperliquid-liquidation-mechanics.md
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 from src.config import logger
@@ -81,10 +81,10 @@ class RebalanceResult:
 
     # Risk assessment
     critical_risk_prevented: bool = False
-    risk_warnings: list[str] = None
+    risk_warnings: list[str] = field(default_factory=list)
 
     # Errors
-    errors: list[str] = None
+    errors: list[str] = field(default_factory=list)
 
 
 class RebalanceService:
@@ -384,7 +384,7 @@ class RebalanceService:
                 # Buy (open or increase)
                 # For OPEN actions, set leverage first (can only set when no position exists)
                 if trade.action == TradeAction.OPEN and hasattr(trade, "target_leverage"):
-                    leverage_set = self.set_leverage_for_coin(trade.coin, trade.target_leverage)
+                    leverage_set = self.set_leverage_for_coin(trade.coin, trade.target_leverage)  # type: ignore
                     if not leverage_set:
                         logger.warning(
                             f"Failed to set leverage for {trade.coin} - "

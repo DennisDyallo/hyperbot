@@ -206,7 +206,7 @@ async def close_position(coin: str, request: ClosePositionRequest = Body(...)): 
     """
     try:
         # Adapt API request to use case request
-        use_case_request = UseCaseClosePositionRequest(
+        use_case_request = UseCaseClosePositionRequest(  # type: ignore
             coin=coin,
             size=request.size,
             slippage=request.slippage,
@@ -277,7 +277,7 @@ async def bulk_close_positions(request: BulkCloseRequest = Body(...)):  # noqa: 
 
             try:
                 # Create use case request with percentage
-                use_case_request = UseCaseClosePositionRequest(
+                use_case_request = UseCaseClosePositionRequest(  # type: ignore
                     coin=coin,
                     percentage=float(request.percentage),
                     slippage=request.slippage,

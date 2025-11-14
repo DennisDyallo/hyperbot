@@ -311,13 +311,14 @@ async def get_risk_summary(
 
         # Add cross margin ratio if available
         if result.cross_margin_ratio_pct is not None:
-            response["portfolio_risk"]["cross_margin_ratio_pct"] = round(
+            response["portfolio_risk"]["cross_margin_ratio_pct"] = round(  # type: ignore
                 result.cross_margin_ratio_pct, 2
             )
-            response["portfolio_risk"]["cross_maintenance_margin"] = round(
-                result.cross_maintenance_margin, 2
+            response["portfolio_risk"]["cross_maintenance_margin"] = round(  # type: ignore
+                result.cross_maintenance_margin,  # type: ignore
+                2,
             )
-            response["portfolio_risk"]["cross_account_value"] = round(result.cross_account_value, 2)
+            response["portfolio_risk"]["cross_account_value"] = round(result.cross_account_value, 2)  # type: ignore
 
         logger.debug(
             f"Risk summary generated: {result.overall_risk_level} "

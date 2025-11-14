@@ -8,7 +8,7 @@ Commands:
 """
 
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import CommandHandler, ContextTypes
 
 from src.bot.middleware import authorized_only
 from src.config import logger
@@ -56,10 +56,12 @@ async def notify_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             status_lines.append("  • No recovery run yet")
 
-        status_lines.extend([
-            "",
-            f"**Cache**: {len(state.recent_fill_hashes)} recent fill hashes",
-        ])
+        status_lines.extend(
+            [
+                "",
+                f"**Cache**: {len(state.recent_fill_hashes)} recent fill hashes",
+            ]
+        )
 
         status_text = "\n".join(status_lines)
 
@@ -77,6 +79,8 @@ async def notify_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     Usage: /notify_test
     """
+    assert update.message is not None
+
     if not update.message:
         return
 
@@ -110,6 +114,8 @@ async def notify_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Args:
         count: Number of recent fills to show (default: 10, max: 50)
     """
+    assert update.message is not None
+
     if not update.message:
         return
 
@@ -122,8 +128,7 @@ async def notify_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 count = max(1, min(count, 50))  # Clamp between 1 and 50
             except ValueError:
                 await update.message.reply_text(
-                    "❌ Invalid count. Usage: /notify_history [count]\n"
-                    "Example: /notify_history 20"
+                    "❌ Invalid count. Usage: /notify_history [count]\nExample: /notify_history 20"
                 )
                 return
 
@@ -133,8 +138,7 @@ async def notify_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not recent_hashes:
             await update.message.reply_text(
-                "ℹ️ No recent fills in cache.\n\n"
-                "Fills will appear here after orders are executed."
+                "ℹ️ No recent fills in cache.\n\nFills will appear here after orders are executed."
             )
             return
 
@@ -156,12 +160,14 @@ async def notify_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
             history_lines.append("")
             history_lines.append(f"_...and {len(recent_hashes) - count} more_")
 
-        history_lines.extend([
-            "",
-            "**Recovery Info:**",
-            f"Last recovery: {state.last_recovery_run or 'Never'}",
-            f"Fills recovered: {state.recovery_fills_found}",
-        ])
+        history_lines.extend(
+            [
+                "",
+                "**Recovery Info:**",
+                f"Last recovery: {state.last_recovery_run or 'Never'}",
+                f"Fills recovered: {state.recovery_fills_found}",
+            ]
+        )
 
         history_text = "\n".join(history_lines)
 
@@ -170,3 +176,17 @@ async def notify_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.exception("Error in notify_history command")
         await update.message.reply_text(f"❌ Error getting history: {str(e)}")
+
+
+# ============================================================================
+# Handler Registration
+# ============================================================================
+
+
+def get_notify_handlers() -> list:
+    """Return all notification command handlers."""
+    return [
+        CommandHandler("notify_status", notify_status),
+        CommandHandler("notify_test", notify_test),
+        CommandHandler("notify_history", notify_history),
+    ]

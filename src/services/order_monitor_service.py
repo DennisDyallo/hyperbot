@@ -134,9 +134,7 @@ class OrderMonitorService:
 
         # Start periodic backup polling task
         self._backup_polling_task = asyncio.create_task(self._backup_polling_loop())
-        logger.info(
-            f"📡 Started backup polling (every {self._backup_polling_interval}s)"
-        )
+        logger.info(f"📡 Started backup polling (every {self._backup_polling_interval}s)")
 
     async def _run_startup_recovery(self) -> None:
         """
@@ -274,7 +272,9 @@ class OrderMonitorService:
         # Add time range
         oldest = fills[0].timestamp
         newest = fills[-1].timestamp
-        summary_lines.append(f"Time range: {oldest.strftime('%Y-%m-%d %H:%M')} to {newest.strftime('%H:%M')} UTC")
+        summary_lines.append(
+            f"Time range: {oldest.strftime('%Y-%m-%d %H:%M')} to {newest.strftime('%H:%M')} UTC"
+        )
 
         summary_text = "\n".join(summary_lines)
 
@@ -363,9 +363,7 @@ class OrderMonitorService:
                         # Process missed fills
                         await self._process_missed_fills(new_fills)
 
-                        logger.info(
-                            f"✅ Backup polling processed {len(new_fills)} missed fills"
-                        )
+                        logger.info(f"✅ Backup polling processed {len(new_fills)} missed fills")
                     else:
                         logger.debug("Backup polling: no new fills")
 

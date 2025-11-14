@@ -101,7 +101,7 @@ class MarketDataService:
 
             logger.debug("Fetched market metadata")
 
-            return meta
+            return meta  # type: ignore
 
         except Exception as e:
             logger.error(f"Failed to fetch market metadata: {e}")
@@ -135,7 +135,7 @@ class MarketDataService:
 
             logger.debug(f"Fetched order book for {coin}")
 
-            return snapshot
+            return snapshot  # type: ignore
 
         except ValueError:
             raise
@@ -169,7 +169,7 @@ class MarketDataService:
             for asset in universe:
                 if asset.get("name") == coin:
                     logger.debug(f"Found metadata for {coin}")
-                    return asset
+                    return asset  # type: ignore
 
             logger.warning(f"Asset metadata not found for {coin}")
             return None

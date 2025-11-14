@@ -125,7 +125,7 @@ class TestAccountCommand:
             "is_testnet": True,
         }
 
-        with patch("src.bot.handlers.commands.account_service") as mock_service:
+        with patch("src.bot.handlers.commands.RiskAnalysisUseCase") as mock_service:
             mock_service.get_account_summary.return_value = mock_summary
 
             await basic.account_command(update, context)
@@ -149,7 +149,7 @@ class TestAccountCommand:
         update.message.reply_text = AsyncMock(return_value=mock_msg)
         context = TelegramMockFactory.create_context()
 
-        with patch("src.bot.handlers.commands.account_service") as mock_service:
+        with patch("src.bot.handlers.commands.RiskAnalysisUseCase") as mock_service:
             mock_service.get_account_summary.side_effect = Exception("API error")
 
             await basic.account_command(update, context)
@@ -304,7 +304,7 @@ class TestMenuAccountCallback:
             "cross_account_leverage": 2.5,
         }
 
-        with patch("src.bot.handlers.menus.account_service") as mock_service:
+        with patch("src.bot.handlers.menus.RiskAnalysisUseCase") as mock_service:
             mock_service.get_account_summary.return_value = mock_summary
 
             await menus.menu_account_callback(update, context)
@@ -320,7 +320,7 @@ class TestMenuAccountCallback:
         update = TelegramMockFactory.create_callback_update("menu_account")
         context = TelegramMockFactory.create_context()
 
-        with patch("src.bot.handlers.menus.account_service") as mock_service:
+        with patch("src.bot.handlers.menus.RiskAnalysisUseCase") as mock_service:
             mock_service.get_account_summary.side_effect = Exception("API error")
 
             await menus.menu_account_callback(update, context)
@@ -499,7 +499,7 @@ class TestMenuRebalanceCallback:
 
         # rebalance_command is imported inside the function from advanced module
         with patch(
-            "src.bot.handlers.commands.rebalance_command", new_callable=AsyncMock
+            "src.bot.handlers.wizard_rebalance.rebalance_command", new_callable=AsyncMock
         ) as mock_rebalance:
             await menus.menu_rebalance_callback(update, context)
 

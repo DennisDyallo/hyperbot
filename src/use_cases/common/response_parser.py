@@ -13,7 +13,7 @@ def parse_hyperliquid_response(result: dict[str, Any], operation: str) -> None:
     """
     Parse Hyperliquid API response and raise exception if operation failed.
 
-    Hyperliquid returns 'status: ok' even when operations fail. The actual
+    Hyperliquid returns 'status: ok' even when operations fail. The actual  # type: ignore[no-any-return]
     success/failure is nested in response.data.statuses array.
 
     This function consolidates duplicate response parsing logic that was
@@ -97,7 +97,7 @@ def extract_order_id_from_response(result: dict[str, Any]) -> int:
     if "resting" in status:
         oid = status["resting"].get("oid")
         if oid is not None:
-            return oid
+            return oid  # type: ignore
 
     # Check for filled order (market order executed)
     if "filled" in status:

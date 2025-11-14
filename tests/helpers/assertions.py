@@ -11,7 +11,10 @@ import pytest
 
 
 def assert_float_approx(
-    actual: float, expected: float, precision: float = 0.01, msg: str = None
+    actual: float,
+    expected: float,
+    precision: float = 0.01,
+    msg: str = None,  # type: ignore
 ) -> None:
     """
     Assert that two floats are approximately equal.
@@ -115,7 +118,7 @@ def assert_service_called_with_params(
             )
 
 
-def assert_mock_called_n_times(mock: Mock, n: int, msg: str = None) -> None:
+def assert_mock_called_n_times(mock: Mock, n: int, msg: str = None) -> None:  # type: ignore
     """
     Assert that a mock was called exactly n times.
 
@@ -177,7 +180,7 @@ def assert_response_success(response: Any, expected_status: str = "success") -> 
     )
 
 
-def assert_list_length(items: list, expected_length: int, msg: str = None) -> None:
+def assert_list_length(items: list, expected_length: int, msg: str = None) -> None:  # type: ignore
     """
     Assert that a list has the expected length.
 

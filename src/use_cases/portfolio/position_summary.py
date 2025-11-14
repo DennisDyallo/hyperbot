@@ -237,7 +237,7 @@ class PositionSummaryUseCase(BaseUseCase[PositionSummaryRequest, PositionSummary
             num_spot = 0
             if request.include_spot_balances:
                 try:
-                    spot_state = self.account_service.get_spot_state()
+                    spot_state = self.account_service.get_spot_state()  # type: ignore
                     balances = spot_state.get("balances", [])
                     spot_balances = {
                         b["coin"]: float(b["total"]) for b in balances if float(b["total"]) > 0

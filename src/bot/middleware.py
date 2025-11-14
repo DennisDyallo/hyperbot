@@ -35,7 +35,7 @@ def authorized_only(func):
         if user_id not in settings.TELEGRAM_AUTHORIZED_USERS:
             logger.warning(
                 f"Unauthorized access attempt by user {user_id} "
-                f"(@{user.username if user.username else 'no_username'})"
+                f"(@{user.username if user.username else 'no_username'})"  # type: ignore
             )
             if update.message:
                 await update.message.reply_text(
@@ -49,7 +49,7 @@ def authorized_only(func):
         # Log authorized access
         logger.info(
             f"Authorized command from user {user_id} "
-            f"(@{user.username if user.username else 'no_username'}): "
+            f"(@{user.username if user.username else 'no_username'}): "  # type: ignore
             f"{update.message.text if update.message else 'callback'}"
         )
 

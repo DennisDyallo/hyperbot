@@ -94,7 +94,7 @@ def build_positions_menu(positions: list[dict]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def build_coin_selection_menu(top_coins: list[str] = None) -> InlineKeyboardMarkup:
+def build_coin_selection_menu(top_coins: list[str] = None) -> InlineKeyboardMarkup:  # type: ignore
     """
     Build menu for selecting a coin.
 

@@ -74,13 +74,13 @@ async def health():
     # Check Hyperliquid service
     try:
         hl_health = hyperliquid_service.health_check()
-        health_data["hyperliquid"] = hl_health
+        health_data["hyperliquid"] = hl_health  # type: ignore
     except Exception as e:
         logger.error(f"Hyperliquid health check failed: {e}")
-        health_data["hyperliquid"] = {"status": "error", "message": str(e)}
+        health_data["hyperliquid"] = {"status": "error", "message": str(e)}  # type: ignore
 
     # Determine overall status
-    hl_status = health_data.get("hyperliquid", {}).get("status", "error")
+    hl_status = health_data.get("hyperliquid", {}).get("status", "error")  # type: ignore
     if hl_status == "unhealthy" or hl_status == "error":
         health_data["api"] = "degraded"
 

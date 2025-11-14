@@ -55,7 +55,13 @@ MARKET_COIN, MARKET_SIDE, MARKET_AMOUNT, MARKET_CONFIRM = range(4)
 async def market_wizard_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start market order wizard - select coin."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
+    assert query.data is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     text = (
         "💰 **Market Order**\n\n"
@@ -63,7 +69,7 @@ async def market_wizard_start(update: Update, context: ContextTypes.DEFAULT_TYPE
         "Choose from popular coins or enter custom symbol:"
     )
 
-    await query.edit_message_text(
+    await query.edit_message_text(  # type: ignore
         text, parse_mode="Markdown", reply_markup=build_coin_selection_menu()
     )
 
@@ -73,15 +79,21 @@ async def market_wizard_start(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def market_coin_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle coin selection - ask for buy/sell."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
+    assert query.data is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     # Extract coin from callback data
-    coin = query.data.split(":")[1]
-    context.user_data["market_coin"] = coin
+    coin = query.data.split(":")[1]  # type: ignore
+    user_data["market_coin"] = coin
 
     text = f"💰 **Market Order: {coin}**\n\nStep 2/3: Buy or Sell?\n\nSelect order side:"
 
-    await query.edit_message_text(
+    await query.edit_message_text(  # type: ignore
         text, parse_mode="Markdown", reply_markup=build_buy_sell_menu(coin)
     )
 
@@ -91,16 +103,22 @@ async def market_coin_selected(update: Update, context: ContextTypes.DEFAULT_TYP
 async def market_side_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle buy/sell selection - ask for amount."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
+    assert query.data is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     # Extract side and coin from callback data (format: "side_buy:ETH")
-    parts = query.data.split(":")
+    parts = query.data.split(":")  # type: ignore
     side_str = parts[0].split("_")[1]  # "side_buy" -> "buy"
     coin = parts[1]
     is_buy = side_str == "buy"
 
-    context.user_data["market_is_buy"] = is_buy
-    context.user_data["market_side_str"] = side_str.upper()
+    user_data["market_is_buy"] = is_buy
+    user_data["market_side_str"] = side_str.upper()
 
     side_emoji = "🟢" if is_buy else "🔴"
 
@@ -110,7 +128,7 @@ async def market_side_selected(update: Update, context: ContextTypes.DEFAULT_TYP
         f"Choose a preset amount or enter custom:"
     )
 
-    await query.edit_message_text(
+    await query.edit_message_text(  # type: ignore
         text, parse_mode="Markdown", reply_markup=build_quick_amounts_menu()
     )
 
@@ -120,10 +138,16 @@ async def market_side_selected(update: Update, context: ContextTypes.DEFAULT_TYP
 async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle amount selection - show confirmation."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
+    assert query.data is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     # Extract amount from callback data
-    amount_str = query.data.split(":")[1]
+    amount_str = query.data.split(":")[1]  # type: ignore
 
     try:
         usd_amount = parse_usd_amount(amount_str)
@@ -133,12 +157,12 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
             update, f"❌ Invalid amount: {str(e)}\n\nReturning to main menu."
         )
 
-    coin = context.user_data["market_coin"]
-    is_buy = context.user_data["market_is_buy"]
-    side_str = context.user_data["market_side_str"]
+    coin = user_data["market_coin"]
+    is_buy = user_data["market_is_buy"]
+    side_str = user_data["market_side_str"]
 
     # Show loading
-    await query.edit_message_text(f"⏳ Fetching {coin} price...")
+    await query.edit_message_text(f"⏳ Fetching {coin} price...")  # type: ignore
 
     # Convert USD to coin size
     try:
@@ -148,9 +172,9 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
         return await send_error_and_end(update, f"❌ {str(e)}\n\nReturning to main menu.")
 
     # Store for confirmation
-    context.user_data["market_usd"] = usd_amount
-    context.user_data["market_coin_size"] = coin_size
-    context.user_data["market_price"] = current_price
+    user_data["market_usd"] = usd_amount
+    user_data["market_coin_size"] = coin_size
+    user_data["market_price"] = current_price
 
     # Show confirmation
     side_emoji = "🟢" if is_buy else "🔴"
@@ -166,7 +190,7 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
         f"_Environment: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'}_"
     )
 
-    await query.edit_message_text(
+    await query.edit_message_text(  # type: ignore
         text, parse_mode="Markdown", reply_markup=build_confirm_cancel("market", "")
     )
 
@@ -175,11 +199,17 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
 
 async def market_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle custom amount input request."""
+    assert update.message is not None
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
 
-    coin = context.user_data["market_coin"]
-    side_str = context.user_data["market_side_str"]
+    query = update.callback_query
+    await query.answer()  # type: ignore
+
+    coin = user_data["market_coin"]
+    side_str = user_data["market_side_str"]
 
     text = (
         f"✏️ **{side_str} {coin}**\n\n"
@@ -188,26 +218,30 @@ async def market_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYP
         f"Type the amount and send it."
     )
 
-    await query.edit_message_text(text, parse_mode="Markdown")
+    await query.edit_message_text(text, parse_mode="Markdown")  # type: ignore
 
     return MARKET_AMOUNT
 
 
 async def market_amount_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle text input for custom amount."""
+    assert update.message is not None
+    user_data = context.user_data
+    assert user_data is not None
+
     amount_str = update.message.text
 
     try:
-        usd_amount = parse_usd_amount(amount_str)
+        usd_amount = parse_usd_amount(amount_str)  # type: ignore
     except ValueError as e:
         await update.message.reply_text(
             f"❌ Invalid amount: {str(e)}\n\nPlease try again or /cancel"
         )
         return MARKET_AMOUNT
 
-    coin = context.user_data["market_coin"]
-    is_buy = context.user_data["market_is_buy"]
-    side_str = context.user_data["market_side_str"]
+    coin = user_data["market_coin"]
+    is_buy = user_data["market_is_buy"]
+    side_str = user_data["market_side_str"]
 
     # Show loading
     msg = await update.message.reply_text(f"⏳ Fetching {coin} price...")
@@ -220,9 +254,9 @@ async def market_amount_text_input(update: Update, context: ContextTypes.DEFAULT
         return await send_error_and_end(update, f"❌ {str(e)}\n\nReturning to main menu.")
 
     # Store for confirmation
-    context.user_data["market_usd"] = usd_amount
-    context.user_data["market_coin_size"] = coin_size
-    context.user_data["market_price"] = current_price
+    user_data["market_usd"] = usd_amount
+    user_data["market_coin_size"] = coin_size
+    user_data["market_price"] = current_price
 
     # Show confirmation
     side_emoji = "🟢" if is_buy else "🔴"
@@ -248,19 +282,24 @@ async def market_amount_text_input(update: Update, context: ContextTypes.DEFAULT
 async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Execute the market order."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
 
-    coin = context.user_data["market_coin"]
-    is_buy = context.user_data["market_is_buy"]
-    side_str = context.user_data["market_side_str"]
-    coin_size = context.user_data["market_coin_size"]
+    query = update.callback_query
+    await query.answer()  # type: ignore
+
+    coin = user_data["market_coin"]
+    is_buy = user_data["market_is_buy"]
+    side_str = user_data["market_side_str"]
+    coin_size = user_data["market_coin_size"]
 
     try:
         # Show processing
-        await query.edit_message_text(f"⏳ Placing {side_str} order for {coin}...")
+        await query.edit_message_text(f"⏳ Placing {side_str} order for {coin}...")  # type: ignore
 
         # Create use case request
-        request = PlaceOrderRequest(
+        request = PlaceOrderRequest(  # type: ignore
             coin=coin,
             is_buy=is_buy,
             coin_size=coin_size,
@@ -286,7 +325,7 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Clean up user data
-        context.user_data.clear()
+        user_data.clear()
 
         # Use utility function - automatically shows main menu!
         return await send_success_and_end(update, success_msg)
@@ -294,7 +333,7 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.exception(f"Failed to place market order for {coin}")
         # Clean up user data
-        context.user_data.clear()
+        user_data.clear()
 
         # Use utility function - automatically shows main menu!
         return await send_error_and_end(update, f"❌ Failed to place order:\n`{str(e)}`")
@@ -303,11 +342,16 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def wizard_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel any wizard and return to main menu."""
     query = update.callback_query
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
+
+    query = update.callback_query
     if query:
         await query.answer()
 
     # Clean up user data
-    context.user_data.clear()
+    user_data.clear()
 
     # Use utility function - automatically shows main menu!
     return await send_cancel_and_end(update, "❌ Operation cancelled.\n\nReturning to main menu...")

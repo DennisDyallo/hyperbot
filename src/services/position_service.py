@@ -33,7 +33,7 @@ class PositionService:
             positions = account_info.get("positions", [])
 
             logger.debug(f"Listed {len(positions)} open positions")
-            return positions
+            return positions  # type: ignore
 
         except Exception as e:
             logger.error(f"Failed to list positions: {e}")

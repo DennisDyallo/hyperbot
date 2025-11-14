@@ -258,7 +258,7 @@ class OrderResponseBuilder:
         }
 
         if self._order_id is not None:
-            response["response"]["data"]["statuses"][0]["resting"] = {"oid": self._order_id}
+            response["response"]["data"]["statuses"][0]["resting"] = {"oid": self._order_id}  # type: ignore
 
         return response
 
@@ -317,7 +317,7 @@ class MarketDataBuilder:
             Metadata dict or single coin metadata
         """
         if coin:
-            return self._metadata.get(coin)
+            return self._metadata.get(coin)  # type: ignore
         return self._metadata.copy()
 
 

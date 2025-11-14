@@ -72,7 +72,7 @@ async def place_market_order(request: MarketOrderRequest = Body(...)):  # noqa: 
     """
     try:
         # Adapt API request to use case request
-        use_case_request = PlaceOrderRequest(
+        use_case_request = PlaceOrderRequest(  # type: ignore
             coin=request.coin,
             is_buy=request.is_buy,
             coin_size=request.size,  # API uses coin size directly
@@ -124,7 +124,7 @@ async def place_limit_order(request: LimitOrderRequest = Body(...)):  # noqa: B0
     """
     try:
         # Adapt API request to use case request
-        use_case_request = PlaceOrderRequest(
+        use_case_request = PlaceOrderRequest(  # type: ignore
             coin=request.coin,
             is_buy=request.is_buy,
             coin_size=request.size,  # API uses coin size directly

@@ -245,7 +245,7 @@ async def send_success_and_end(
             message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
     else:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore
             message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
 
@@ -283,7 +283,7 @@ async def send_error_and_end(
             error_message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
     else:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore
             error_message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
 
@@ -320,7 +320,7 @@ async def send_cancel_and_end(
             cancel_message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
     else:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore
             cancel_message, parse_mode=parse_mode, reply_markup=build_main_menu()
         )
 

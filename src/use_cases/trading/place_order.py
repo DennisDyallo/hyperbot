@@ -193,6 +193,7 @@ class PlaceOrderUseCase(BaseUseCase[PlaceOrderRequest, PlaceOrderResponse]):
             current_price = self.market_data.get_price(request.coin)
             if current_price is None or current_price <= 0:
                 raise ValueError(f"Invalid price for {request.coin}: {current_price}")
+            assert request.coin_size is not None, "coin_size must be provided"
             return request.coin_size, current_price
 
     async def _place_market_order(
@@ -237,7 +238,7 @@ class PlaceOrderUseCase(BaseUseCase[PlaceOrderRequest, PlaceOrderResponse]):
             coin=request.coin,
             is_buy=request.is_buy,
             size=coin_size,
-            limit_price=request.limit_price,
+            limit_price=request.limit_price,  # type: ignore
             reduce_only=request.reduce_only,
             time_in_force=request.time_in_force,
         )

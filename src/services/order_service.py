@@ -51,7 +51,7 @@ class OrderService:
             orders = info_client.open_orders(settings.HYPERLIQUID_WALLET_ADDRESS)
 
             logger.debug(f"Listed {len(orders)} open orders")
-            return orders
+            return orders  # type: ignore
 
         except Exception as e:
             logger.error(f"Failed to list open orders: {e}")

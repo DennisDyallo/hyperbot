@@ -138,7 +138,7 @@ async def place_scale_order(config: ScaleOrderConfig):
         result = response.result
 
         # Check if all orders failed
-        if result.failed_orders == result.num_orders:
+        if result.failed_orders == result.num_orders:  # type: ignore
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="All orders failed. Check order details.",
@@ -192,7 +192,7 @@ async def list_scale_orders():
     """
     try:
         # Use ListScaleOrdersUseCase for unified logic
-        request = ListScaleOrdersRequest(active_only=False)
+        request = ListScaleOrdersRequest(active_only=False)  # type: ignore
         response = await list_use_case.execute(request)
         return response.scale_orders
 

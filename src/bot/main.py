@@ -7,7 +7,6 @@ from warnings import filterwarnings
 from telegram import Update
 from telegram.ext import (
     Application,
-    CommandHandler,
     ContextTypes,
     MessageHandler,
     filters,
@@ -27,6 +26,7 @@ from src.bot.handlers import (  # noqa: E402
     notify,
     wizard_close_position,
     wizard_market_order,
+    wizard_rebalance,
     wizard_scale_order,
 )
 from src.config import logger, settings  # noqa: E402
@@ -83,48 +83,56 @@ def create_application() -> Application:
     # Create application
     application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
 
-    # Register ConversationHandlers first (they have priority over simple callbacks)
+    # ============================================================================
+    # Register ConversationHandlers FIRST (they have priority over simple callbacks)
+    # ============================================================================
     logger.info("Registering ConversationHandlers...")
+
     application.add_handler(wizard_market_order.get_market_wizard_handler())
     logger.info("✅ Market wizard registered")
-    application.add_handler(wizard_scale_order.scale_order_conversation)
+
+    application.add_handler(wizard_scale_order.get_scale_order_handler())
     logger.info("✅ Scale order wizard registered")
 
-    # Register command handlers
-    application.add_handler(CommandHandler("start", commands.start))
-    application.add_handler(CommandHandler("help", commands.help_command))
-    application.add_handler(CommandHandler("account", commands.account_command))
-    application.add_handler(CommandHandler("positions", commands.positions_command))
-    application.add_handler(CommandHandler("status", commands.status_command))
-    application.add_handler(CommandHandler("rebalance", commands.rebalance_command))
+    # ============================================================================
+    # Register Command Handlers
+    # ============================================================================
+    logger.info("Registering command handlers...")
 
-    # Register notification commands
-    application.add_handler(CommandHandler("notify_status", notify.notify_status))
-    application.add_handler(CommandHandler("notify_test", notify.notify_test))
-    application.add_handler(CommandHandler("notify_history", notify.notify_history))
+    # Basic commands
+    for handler in commands.get_command_handlers():
+        application.add_handler(handler)
 
-    # Register menu navigation callback handlers
+    # Notification commands
+    for handler in notify.get_notify_handlers():
+        application.add_handler(handler)
+
+    logger.info("✅ Command handlers registered")
+
+    # ============================================================================
+    # Register Wizard Callback Handlers
+    # ============================================================================
+    logger.info("Registering wizard callback handlers...")
+
+    # Rebalancing wizard
+    for handler in wizard_rebalance.get_rebalance_handlers():
+        application.add_handler(handler)
+
+    # Close position wizard
+    for handler in wizard_close_position.get_close_position_handlers():
+        application.add_handler(handler)
+
+    logger.info("✅ Wizard handlers registered")
+
+    # ============================================================================
+    # Register Menu Navigation Handlers
+    # ============================================================================
+    logger.info("Registering menu handlers...")
+
     for handler in menus.get_menu_handlers():
         application.add_handler(handler)
 
-    # Register rebalancing callback handlers
-    from telegram.ext import CallbackQueryHandler
-
-    application.add_handler(
-        CallbackQueryHandler(commands.rebalance_preview_callback, pattern="^rebalance_preview:")
-    )
-    application.add_handler(
-        CallbackQueryHandler(commands.rebalance_execute_callback, pattern="^rebalance_execute:")
-    )
-    application.add_handler(
-        CallbackQueryHandler(
-            commands.rebalance_preview_callback, pattern="^rebalance_(custom|cancel)$"
-        )
-    )
-
-    # Register close position handlers
-    for handler in wizard_close_position.get_close_position_handlers():
-        application.add_handler(handler)
+    logger.info("✅ Menu handlers registered")
 
     # Unknown command handler (must be last)
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
@@ -205,7 +213,7 @@ async def post_init(application: Application):
                     user_data.pop("account_chat_id", None)
 
         # Run every 30 seconds
-        application.job_queue.run_repeating(
+        application.job_queue.run_repeating(  # type: ignore
             callback=refresh_account_messages,
             interval=30,
             first=30,  # Wait 30s before first run

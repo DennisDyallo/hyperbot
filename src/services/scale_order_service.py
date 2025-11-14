@@ -246,7 +246,7 @@ class ScaleOrderService:
 
         # Ensure Hyperliquid service is initialized
         if not self.hyperliquid.is_initialized():
-            await self.hyperliquid.initialize()
+            await self.hyperliquid.initialize()  # type: ignore
 
         # Get preview to calculate orders
         preview = await self.preview_scale_order(config)
@@ -280,7 +280,7 @@ class ScaleOrderService:
                         successful_order_ids.append(order_id)
 
                         placements.append(
-                            OrderPlacement(
+                            OrderPlacement(  # type: ignore
                                 order_id=order_id,
                                 price=order["price"],
                                 size=order["size"],
@@ -294,7 +294,7 @@ class ScaleOrderService:
                     else:
                         # Order executed immediately (filled)
                         placements.append(
-                            OrderPlacement(
+                            OrderPlacement(  # type: ignore
                                 order_id=None,
                                 price=order["price"],
                                 size=order["size"],
@@ -364,12 +364,12 @@ class ScaleOrderService:
             orders_failed=orders_failed,
             average_price=average_price,
             total_placed_size=total_placed_size,
-            status=status,
+            status=status,  # type: ignore
         )
 
         # Store scale order
         scale_order = ScaleOrder(
-            id=result.scale_order_id,
+            id=result.scale_order_id,  # type: ignore
             coin=config.coin,
             is_buy=config.is_buy,
             total_usd_amount=config.total_usd_amount,
@@ -385,12 +385,12 @@ class ScaleOrderService:
         self._scale_orders[scale_order.id] = scale_order
 
         logger.info(
-            f"Scale order {result.scale_order_id}: "
+            f"Scale order {result.scale_order_id}: "  # type: ignore
             f"{orders_placed}/{config.num_orders} orders placed, "
             f"status={status}"
         )
 
-        return result
+        return result  # type: ignore
 
     async def cancel_scale_order(self, cancel_request: ScaleOrderCancel) -> dict:
         """

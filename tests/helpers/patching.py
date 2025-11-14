@@ -62,7 +62,7 @@ def patch_services(**service_paths):
 
         # Return namespace with mock objects
         # Use a dynamic namedtuple to allow attribute access
-        MockNamespace = namedtuple("MockNamespace", service_paths.keys())
+        MockNamespace = namedtuple("MockNamespace", service_paths.keys())  # type: ignore
         yield MockNamespace(**mock_services)
 
     finally:
@@ -178,7 +178,7 @@ def patch_use_case_services(**service_mocks):
             p.__enter__()
 
         # Return namespace
-        MockNamespace = namedtuple("MockNamespace", mocks.keys())
+        MockNamespace = namedtuple("MockNamespace", mocks.keys())  # type: ignore
         yield MockNamespace(**mocks)
 
     finally:

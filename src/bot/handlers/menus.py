@@ -19,7 +19,12 @@ from src.services.position_service import position_service
 async def menu_main_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Return to main menu."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     text = (
         "🏠 **Main Menu**\n\n"
@@ -27,7 +32,7 @@ async def menu_main_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "Select an action:"
     )
 
-    await query.edit_message_text(text, parse_mode="Markdown", reply_markup=build_main_menu())
+    await query.edit_message_text(text, parse_mode="Markdown", reply_markup=build_main_menu())  # type: ignore
 
 
 @authorized_only
@@ -38,11 +43,16 @@ async def menu_account_callback(update: Update, context: ContextTypes.DEFAULT_TY
     Design Reference: docs/preliminary-ux-plan.md
     """
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     try:
         # Show loading
-        msg = await query.edit_message_text("⏳ Loading account health...")
+        msg = await query.edit_message_text("⏳ Loading account health...")  # type: ignore
 
         # Fetch risk analysis
         from src.use_cases.portfolio.risk_analysis import (
@@ -61,15 +71,15 @@ async def menu_account_callback(update: Update, context: ContextTypes.DEFAULT_TY
         message = format_account_health_message(risk_data)
 
         # Update message with back button
-        await msg.edit_text(message, parse_mode="HTML", reply_markup=build_back_button())
+        await msg.edit_text(message, parse_mode="HTML", reply_markup=build_back_button())  # type: ignore
 
         # Store message_id for auto-refresh
-        context.user_data["account_message_id"] = msg.message_id
-        context.user_data["account_chat_id"] = msg.chat_id
+        user_data["account_message_id"] = msg.message_id  # type: ignore
+        user_data["account_chat_id"] = msg.chat_id  # type: ignore
 
     except Exception as e:
         logger.exception("Account menu callback failed")
-        await query.edit_message_text(
+        await query.edit_message_text(  # type: ignore
             f"❌ Failed to fetch account health:\n{str(e)}",
             reply_markup=build_back_button(),
         )
@@ -79,17 +89,20 @@ async def menu_account_callback(update: Update, context: ContextTypes.DEFAULT_TY
 async def menu_positions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show positions via menu."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     try:
         # Show loading
-        await query.edit_message_text("⏳ Fetching positions...")
+        await query.edit_message_text("⏳ Fetching positions...")  # type: ignore
 
         # Get positions
         positions = position_service.list_positions()
 
         if not positions:
-            await query.edit_message_text("📭 No open positions.", reply_markup=build_back_button())
+            await query.edit_message_text("📭 No open positions.", reply_markup=build_back_button())  # type: ignore
             return
 
         # Format positions message
@@ -145,13 +158,13 @@ async def menu_positions_callback(update: Update, context: ContextTypes.DEFAULT_
 
         positions_msg += "_Use /close <coin> to close a position_"
 
-        await query.edit_message_text(
+        await query.edit_message_text(  # type: ignore
             positions_msg, parse_mode="Markdown", reply_markup=build_back_button()
         )
 
     except Exception as e:
         logger.exception("Failed to fetch positions")
-        await query.edit_message_text(
+        await query.edit_message_text(  # type: ignore
             f"❌ Failed to fetch positions:\n`{str(e)}`",
             parse_mode="Markdown",
             reply_markup=build_back_button(),
@@ -162,7 +175,10 @@ async def menu_positions_callback(update: Update, context: ContextTypes.DEFAULT_
 async def menu_help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show help via menu."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     help_text = (
         "📚 **Help & Commands**\n\n"
@@ -182,7 +198,7 @@ async def menu_help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"**Environment**: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'}"
     )
 
-    await query.edit_message_text(
+    await query.edit_message_text(  # type: ignore
         help_text, parse_mode="Markdown", reply_markup=build_back_button()
     )
 
@@ -191,7 +207,10 @@ async def menu_help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def menu_status_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show status via menu."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     status_msg = (
         "🤖 **Bot Status**\n\n"
@@ -203,7 +222,7 @@ async def menu_status_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         f"_Bot is running and connected to Hyperliquid._"
     )
 
-    await query.edit_message_text(
+    await query.edit_message_text(  # type: ignore
         status_msg, parse_mode="Markdown", reply_markup=build_back_button()
     )
 
@@ -212,30 +231,33 @@ async def menu_status_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 async def menu_close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show close position menu with position selection."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     try:
         # Show loading
-        await query.edit_message_text("⏳ Fetching positions...")
+        await query.edit_message_text("⏳ Fetching positions...")  # type: ignore
 
         # Get positions
         positions = position_service.list_positions()
 
         if not positions:
-            await query.edit_message_text(
+            await query.edit_message_text(  # type: ignore
                 "📭 No open positions to close.", reply_markup=build_back_button()
             )
             return
 
         text = f"🎯 **Close Position**\n\nSelect a position to close ({len(positions)} open):\n"
 
-        await query.edit_message_text(
+        await query.edit_message_text(  # type: ignore
             text, parse_mode="Markdown", reply_markup=build_positions_menu(positions)
         )
 
     except Exception as e:
         logger.exception("Failed to fetch positions for close menu")
-        await query.edit_message_text(
+        await query.edit_message_text(  # type: ignore
             f"❌ Failed to fetch positions:\n`{str(e)}`",
             parse_mode="Markdown",
             reply_markup=build_back_button(),
@@ -246,10 +268,13 @@ async def menu_close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def menu_rebalance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle rebalance menu button."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     # Import here to avoid circular import at module level
-    from src.bot.handlers.commands import rebalance_command
+    from src.bot.handlers.commands import rebalance_command  # type: ignore
 
     # Call the rebalance command handler
     await rebalance_command(update, context)
@@ -259,10 +284,13 @@ async def menu_rebalance_callback(update: Update, context: ContextTypes.DEFAULT_
 async def menu_scale_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle scale order menu button - directs to scale order wizard."""
     query = update.callback_query
-    await query.answer()
+    assert query is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
 
     # ConversationHandler requires command entry, so redirect user to use /scale
-    await query.edit_message_text(
+    await query.edit_message_text(  # type: ignore
         "📊 *Scale Order Wizard*\n\n"
         "Use the `/scale` command to start the interactive scale order wizard.\n\n"
         "*What is a scale order?*\n"

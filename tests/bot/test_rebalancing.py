@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from src.bot.handlers import commands as advanced
+from src.bot.handlers import wizard_rebalance as rebalance_module
 
 # Import helpers for cleaner test code
 from tests.helpers import TelegramMockFactory
@@ -41,10 +41,10 @@ class TestRebalanceCommand:
             {"position": {"coin": "ETH", "position_value": 5000.0}},
         ]
 
-        with patch("src.bot.handlers.commands.position_service") as mock_service:
+        with patch("src.bot.handlers.wizard_rebalance.position_service") as mock_service:
             mock_service.list_positions.return_value = mock_positions
 
-            await advanced.rebalance_command(update, context)
+            await rebalance_module.rebalance_command(update, context)
 
         # Should show portfolio and options
         mock_msg.edit_text.assert_called_once()
@@ -64,10 +64,10 @@ class TestRebalanceCommand:
         update.message.reply_text = AsyncMock(return_value=mock_msg)
         context = TelegramMockFactory.create_context()
 
-        with patch("src.bot.handlers.commands.position_service") as mock_service:
+        with patch("src.bot.handlers.wizard_rebalance.position_service") as mock_service:
             mock_service.list_positions.return_value = []
 
-            await advanced.rebalance_command(update, context)
+            await rebalance_module.rebalance_command(update, context)
 
         # Should show no positions message
         mock_msg.edit_text.assert_called_once()
@@ -82,10 +82,10 @@ class TestRebalanceCommand:
 
         mock_positions = [{"position": {"coin": "SOL", "position_value": 1000.0}}]
 
-        with patch("src.bot.handlers.commands.position_service") as mock_service:
+        with patch("src.bot.handlers.wizard_rebalance.position_service") as mock_service:
             mock_service.list_positions.return_value = mock_positions
 
-            await advanced.rebalance_command(update, context)
+            await rebalance_module.rebalance_command(update, context)
 
         # Should handle callback query
         update.callback_query.answer.assert_called_once()
@@ -97,10 +97,10 @@ class TestRebalanceCommand:
         update = TelegramMockFactory.create_command_update("/rebalance")
         context = TelegramMockFactory.create_context()
 
-        with patch("src.bot.handlers.commands.position_service") as mock_service:
+        with patch("src.bot.handlers.wizard_rebalance.position_service") as mock_service:
             mock_service.list_positions.side_effect = Exception("API error")
 
-            await advanced.rebalance_command(update, context)
+            await rebalance_module.rebalance_command(update, context)
 
         # Should handle error
         update.message.reply_text.assert_called()
@@ -115,7 +115,7 @@ class TestRebalancePreviewCallback:
         update = TelegramMockFactory.create_callback_update("rebalance_cancel")
         context = TelegramMockFactory.create_context()
 
-        await advanced.rebalance_preview_callback(update, context)
+        await rebalance_module.rebalance_preview_callback(update, context)
 
         # Should show cancelled message
         update.callback_query.answer.assert_called_once()
@@ -129,7 +129,7 @@ class TestRebalancePreviewCallback:
         update = TelegramMockFactory.create_callback_update("rebalance_custom")
         context = TelegramMockFactory.create_context()
 
-        await advanced.rebalance_preview_callback(update, context)
+        await rebalance_module.rebalance_preview_callback(update, context)
 
         # Should show not implemented message
         update.callback_query.answer.assert_called_once()
@@ -193,13 +193,13 @@ class TestRebalancePreviewCallback:
         )
 
         with (
-            patch("src.bot.handlers.commands.position_service") as mock_pos_service,
-            patch("src.bot.handlers.commands.rebalance_service") as mock_rebal_service,
+            patch("src.bot.handlers.wizard_rebalance.position_service") as mock_pos_service,
+            patch("src.bot.handlers.wizard_rebalance.rebalance_service") as mock_rebal_service,
         ):
             mock_pos_service.list_positions.return_value = mock_positions
             mock_rebal_service.preview_rebalance.return_value = mock_preview
 
-            await advanced.rebalance_preview_callback(update, context)
+            await rebalance_module.rebalance_preview_callback(update, context)
 
         # Should show preview with trades
         assert update.callback_query.edit_message_text.call_count == 2  # Processing + preview
@@ -253,13 +253,13 @@ class TestRebalancePreviewCallback:
         )
 
         with (
-            patch("src.bot.handlers.commands.position_service") as mock_pos_service,
-            patch("src.bot.handlers.commands.rebalance_service") as mock_rebal_service,
+            patch("src.bot.handlers.wizard_rebalance.position_service") as mock_pos_service,
+            patch("src.bot.handlers.wizard_rebalance.rebalance_service") as mock_rebal_service,
         ):
             mock_pos_service.list_positions.return_value = mock_positions
             mock_rebal_service.preview_rebalance.return_value = mock_preview
 
-            await advanced.rebalance_preview_callback(update, context)
+            await rebalance_module.rebalance_preview_callback(update, context)
 
         # Should show already balanced message
         assert update.callback_query.edit_message_text.call_count == 2
@@ -272,10 +272,10 @@ class TestRebalancePreviewCallback:
         update = TelegramMockFactory.create_callback_update("rebalance_preview:equal")
         context = TelegramMockFactory.create_context()
 
-        with patch("src.bot.handlers.commands.position_service") as mock_service:
+        with patch("src.bot.handlers.wizard_rebalance.position_service") as mock_service:
             mock_service.list_positions.side_effect = Exception("API error")
 
-            await advanced.rebalance_preview_callback(update, context)
+            await rebalance_module.rebalance_preview_callback(update, context)
 
         # Should show error
         assert update.callback_query.edit_message_text.call_count == 2  # Processing + error
@@ -312,13 +312,13 @@ class TestRebalanceExecuteCallback:
         )
 
         with (
-            patch("src.bot.handlers.commands.position_service") as mock_pos_service,
-            patch("src.bot.handlers.commands.rebalance_service") as mock_rebal_service,
+            patch("src.bot.handlers.wizard_rebalance.position_service") as mock_pos_service,
+            patch("src.bot.handlers.wizard_rebalance.rebalance_service") as mock_rebal_service,
         ):
             mock_pos_service.list_positions.return_value = mock_positions
             mock_rebal_service.execute_rebalance.return_value = mock_result
 
-            await advanced.rebalance_execute_callback(update, context)
+            await rebalance_module.rebalance_execute_callback(update, context)
 
         # Should show success
         assert update.callback_query.edit_message_text.call_count == 2  # Processing + result
@@ -356,13 +356,13 @@ class TestRebalanceExecuteCallback:
         )
 
         with (
-            patch("src.bot.handlers.commands.position_service") as mock_pos_service,
-            patch("src.bot.handlers.commands.rebalance_service") as mock_rebal_service,
+            patch("src.bot.handlers.wizard_rebalance.position_service") as mock_pos_service,
+            patch("src.bot.handlers.wizard_rebalance.rebalance_service") as mock_rebal_service,
         ):
             mock_pos_service.list_positions.return_value = mock_positions
             mock_rebal_service.execute_rebalance.return_value = mock_result
 
-            await advanced.rebalance_execute_callback(update, context)
+            await rebalance_module.rebalance_execute_callback(update, context)
 
         # Should show warning about failures
         assert update.callback_query.edit_message_text.call_count == 2
@@ -396,13 +396,13 @@ class TestRebalanceExecuteCallback:
         )
 
         with (
-            patch("src.bot.handlers.commands.position_service") as mock_pos_service,
-            patch("src.bot.handlers.commands.rebalance_service") as mock_rebal_service,
+            patch("src.bot.handlers.wizard_rebalance.position_service") as mock_pos_service,
+            patch("src.bot.handlers.wizard_rebalance.rebalance_service") as mock_rebal_service,
         ):
             mock_pos_service.list_positions.return_value = mock_positions
             mock_rebal_service.execute_rebalance.return_value = mock_result
 
-            await advanced.rebalance_execute_callback(update, context)
+            await rebalance_module.rebalance_execute_callback(update, context)
 
         # Should show failure
         assert update.callback_query.edit_message_text.call_count == 2
@@ -415,10 +415,10 @@ class TestRebalanceExecuteCallback:
         update = TelegramMockFactory.create_callback_update("rebalance_execute:equal")
         context = TelegramMockFactory.create_context()
 
-        with patch("src.bot.handlers.commands.position_service") as mock_service:
+        with patch("src.bot.handlers.wizard_rebalance.position_service") as mock_service:
             mock_service.list_positions.side_effect = Exception("API error")
 
-            await advanced.rebalance_execute_callback(update, context)
+            await rebalance_module.rebalance_execute_callback(update, context)
 
         # Should show error
         assert update.callback_query.edit_message_text.call_count == 2

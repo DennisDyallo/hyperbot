@@ -46,11 +46,17 @@ class ScaleOrderWizard:
     @authorized_only
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Start the scale order wizard."""
+        assert update.message is not None
+        query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+
         logger.info("🎯 Scale order wizard START called")
         logger.info(f"Update type: {type(update)}, has message: {update.message is not None}")
 
         # Clear any previous wizard data
-        context.user_data.clear()
+        user_data.clear()
 
         await update.message.reply_text(
             "📊 *Scale Order Wizard*\n\n"
@@ -67,12 +73,17 @@ class ScaleOrderWizard:
     @authorized_only
     async def start_from_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Start the scale order wizard from a callback query (menu button)."""
-        logger.info("🎯 Scale order wizard START called from callback")
+        assert update.message is not None
         query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+
+        logger.info("🎯 Scale order wizard START called from callback")
         await query.answer()
 
         # Clear any previous wizard data
-        context.user_data.clear()
+        user_data.clear()
 
         await query.edit_message_text(
             "📊 *Scale Order Wizard*\n\n"
@@ -88,15 +99,19 @@ class ScaleOrderWizard:
     @staticmethod
     async def select_coin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle coin selection."""
+        assert update.message is not None
+        user_data = context.user_data
+        assert user_data is not None
+
         logger.info("🎯 Scale wizard: select_coin called")
-        coin = update.message.text.strip().upper()
+        coin = update.message.text.strip().upper()  # type: ignore
         logger.info(f"Scale wizard: User entered coin: {coin}")
 
         # Validate coin exists
         try:
             current_price = market_data_service.get_price(coin)
-            context.user_data["coin"] = coin
-            context.user_data["current_price"] = current_price
+            user_data["coin"] = coin
+            user_data["current_price"] = current_price
 
             # Ask for direction
             keyboard = [
@@ -141,6 +156,11 @@ class ScaleOrderWizard:
     async def select_direction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle direction selection (Scale IN vs OUT)."""
         query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+        assert query.data is not None
+
         await query.answer()
 
         if query.data == "cancel":
@@ -148,7 +168,7 @@ class ScaleOrderWizard:
             return await send_cancel_and_end(update, "❌ Scale order cancelled.")
 
         is_buy = query.data == "direction_in"
-        context.user_data["is_buy"] = is_buy
+        user_data["is_buy"] = is_buy
         direction_text = "Scale IN (Buy)" if is_buy else "Scale OUT (Sell)"
 
         # Ask for range method
@@ -182,6 +202,11 @@ class ScaleOrderWizard:
     async def select_range_method(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle range method selection (Auto vs Manual)."""
         query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+        assert query.data is not None
+
         await query.answer()
 
         if query.data == "cancel":
@@ -189,11 +214,11 @@ class ScaleOrderWizard:
             return await send_cancel_and_end(update, "❌ Scale order cancelled.")
 
         is_auto = query.data == "range_auto"
-        context.user_data["range_auto"] = is_auto
+        user_data["range_auto"] = is_auto
 
-        coin = context.user_data["coin"]
-        current_price = context.user_data["current_price"]
-        is_buy = context.user_data["is_buy"]
+        coin = user_data["coin"]
+        current_price = user_data["current_price"]
+        is_buy = user_data["is_buy"]
 
         if is_auto:
             # Auto mode - ask for target price
@@ -219,13 +244,17 @@ class ScaleOrderWizard:
     @staticmethod
     async def enter_target_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle target price input for auto mode."""
-        try:
-            target_price = float(update.message.text.strip())
-            context.user_data["target_price"] = target_price
+        assert update.message is not None
+        user_data = context.user_data
+        assert user_data is not None
 
-            current_price = context.user_data["current_price"]
-            is_buy = context.user_data["is_buy"]
-            context.user_data["coin"]
+        try:
+            target_price = float(update.message.text.strip())  # type: ignore
+            user_data["target_price"] = target_price
+
+            current_price = user_data["current_price"]
+            is_buy = user_data["is_buy"]
+            user_data["coin"]
 
             # Validate direction makes sense
             if is_buy and target_price > current_price:
@@ -279,15 +308,20 @@ class ScaleOrderWizard:
     async def select_range_width(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle range width selection for auto mode."""
         query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+        assert query.data is not None
+
         await query.answer()
 
         if query.data == "cancel":
             # Use utility function - automatically shows main menu!
             return await send_cancel_and_end(update, "❌ Scale order cancelled.")
 
-        current_price = context.user_data["current_price"]
-        target_price = context.user_data["target_price"]
-        is_buy = context.user_data["is_buy"]
+        current_price = user_data["current_price"]
+        target_price = user_data["target_price"]
+        is_buy = user_data["is_buy"]
 
         # Calculate range based on selection
         if query.data == "width_current":
@@ -296,7 +330,9 @@ class ScaleOrderWizard:
             end_price = target_price
         else:
             # Use percentage width around target
-            width_pct = int(query.data.split("_")[1]) / 100  # 5, 10, or 15 → 0.05, 0.10, 0.15
+            width_pct = (
+                int(query.data.split("_")[1]) / 100
+            )  # 5, 10, or 15 → 0.05, 0.10, 0.15  # type: ignore
 
             if is_buy:
                 # Scale IN: range goes from higher to lower
@@ -309,8 +345,8 @@ class ScaleOrderWizard:
                 start_price = target_price * (1 - width_pct)
                 end_price = target_price
 
-        context.user_data["start_price"] = start_price
-        context.user_data["end_price"] = end_price
+        user_data["start_price"] = start_price
+        user_data["end_price"] = end_price
 
         # Continue to number of orders
         return await ScaleOrderWizard._ask_num_orders(query, context)
@@ -318,12 +354,16 @@ class ScaleOrderWizard:
     @staticmethod
     async def enter_min_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle minimum price input for manual mode."""
-        try:
-            min_price = float(update.message.text.strip())
-            context.user_data["min_price"] = min_price
+        assert update.message is not None
+        user_data = context.user_data
+        assert user_data is not None
 
-            coin = context.user_data["coin"]
-            current_price = context.user_data["current_price"]
+        try:
+            min_price = float(update.message.text.strip())  # type: ignore
+            user_data["min_price"] = min_price
+
+            coin = user_data["coin"]
+            current_price = user_data["current_price"]
 
             await update.message.reply_text(
                 f"✅ Minimum price: ${min_price:,.2f}\n\n"
@@ -343,9 +383,13 @@ class ScaleOrderWizard:
     @staticmethod
     async def enter_max_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle maximum price input for manual mode."""
+        assert update.message is not None
+        user_data = context.user_data
+        assert user_data is not None
+
         try:
-            max_price = float(update.message.text.strip())
-            min_price = context.user_data["min_price"]
+            max_price = float(update.message.text.strip())  # type: ignore
+            min_price = user_data["min_price"]
 
             if max_price <= min_price:
                 await update.message.reply_text(
@@ -355,15 +399,15 @@ class ScaleOrderWizard:
                 )
                 return ENTER_MAX_PRICE
 
-            is_buy = context.user_data["is_buy"]
+            is_buy = user_data["is_buy"]
 
             # For scale orders, start_price > end_price for buys, opposite for sells
             if is_buy:
-                context.user_data["start_price"] = max_price
-                context.user_data["end_price"] = min_price
+                user_data["start_price"] = max_price
+                user_data["end_price"] = min_price
             else:
-                context.user_data["start_price"] = min_price
-                context.user_data["end_price"] = max_price
+                user_data["start_price"] = min_price
+                user_data["end_price"] = max_price
 
             # Continue to number of orders
             return await ScaleOrderWizard._ask_num_orders_message(update, context)
@@ -377,6 +421,9 @@ class ScaleOrderWizard:
     @staticmethod
     async def _ask_num_orders(query, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Helper to ask for number of orders (after callback query)."""
+        user_data = context.user_data
+        assert user_data is not None
+
         keyboard = [
             [InlineKeyboardButton("3 orders", callback_data="num_3")],
             [InlineKeyboardButton("5 orders (Recommended)", callback_data="num_5")],
@@ -386,8 +433,8 @@ class ScaleOrderWizard:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        start = context.user_data["start_price"]
-        end = context.user_data["end_price"]
+        start = user_data["start_price"]
+        end = user_data["end_price"]
         range_pct = abs((end - start) / start * 100)
 
         await query.edit_message_text(
@@ -403,6 +450,13 @@ class ScaleOrderWizard:
     @staticmethod
     async def _ask_num_orders_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Helper to ask for number of orders (after text message)."""
+        assert update.message is not None
+        query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+        assert query.data is not None
+
         keyboard = [
             [InlineKeyboardButton("3 orders", callback_data="num_3")],
             [InlineKeyboardButton("5 orders (Recommended)", callback_data="num_5")],
@@ -412,8 +466,8 @@ class ScaleOrderWizard:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        start = context.user_data["start_price"]
-        end = context.user_data["end_price"]
+        start = user_data["start_price"]
+        end = user_data["end_price"]
         range_pct = abs((end - start) / start * 100)
 
         await update.message.reply_text(
@@ -429,7 +483,13 @@ class ScaleOrderWizard:
     @staticmethod
     async def select_num_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle number of orders selection."""
+        assert update.message is not None
         query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+        assert query.data is not None
+
         await query.answer()
 
         if query.data == "cancel":
@@ -444,7 +504,7 @@ class ScaleOrderWizard:
 
         # Extract number from callback data
         num_orders = int(query.data.split("_")[1])
-        context.user_data["num_orders"] = num_orders
+        user_data["num_orders"] = num_orders
 
         # Ask for total USD amount
         await query.edit_message_text(
@@ -459,8 +519,12 @@ class ScaleOrderWizard:
     @staticmethod
     async def enter_custom_num_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle custom number of orders input."""
+        assert update.message is not None
+        user_data = context.user_data
+        assert user_data is not None
+
         try:
-            num_orders = int(update.message.text.strip())
+            num_orders = int(update.message.text.strip())  # type: ignore
 
             if num_orders < 2 or num_orders > 20:
                 await update.message.reply_text(
@@ -468,7 +532,7 @@ class ScaleOrderWizard:
                 )
                 return ENTER_CUSTOM_NUM_ORDERS
 
-            context.user_data["num_orders"] = num_orders
+            user_data["num_orders"] = num_orders
 
             # Ask for total USD amount
             await update.message.reply_text(
@@ -489,8 +553,12 @@ class ScaleOrderWizard:
     @staticmethod
     async def enter_total_size(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle total USD amount input."""
+        assert update.message is not None
+        user_data = context.user_data
+        assert user_data is not None
+
         try:
-            total_usd_amount = float(update.message.text.strip())
+            total_usd_amount = float(update.message.text.strip())  # type: ignore
 
             if total_usd_amount <= 0:
                 await update.message.reply_text(
@@ -498,7 +566,7 @@ class ScaleOrderWizard:
                 )
                 return ENTER_TOTAL_SIZE
 
-            context.user_data["total_usd_amount"] = total_usd_amount
+            user_data["total_usd_amount"] = total_usd_amount
 
             # Ask for distribution type
             keyboard = [
@@ -516,7 +584,7 @@ class ScaleOrderWizard:
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            num_orders = context.user_data["num_orders"]
+            num_orders = user_data["num_orders"]
             avg_usd = total_usd_amount / num_orders
 
             await update.message.reply_text(
@@ -540,6 +608,11 @@ class ScaleOrderWizard:
     async def select_distribution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle distribution type selection."""
         query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+        assert query.data is not None
+
         await query.answer()
 
         if query.data == "cancel":
@@ -547,26 +620,26 @@ class ScaleOrderWizard:
             return await send_cancel_and_end(update, "❌ Scale order cancelled.")
 
         distribution = "geometric" if query.data == "dist_geometric" else "linear"
-        context.user_data["distribution"] = distribution
+        user_data["distribution"] = distribution
 
         # Generate preview
         try:
             config = ScaleOrderConfig(
-                coin=context.user_data["coin"],
-                is_buy=context.user_data["is_buy"],
-                total_usd_amount=context.user_data["total_usd_amount"],
-                num_orders=context.user_data["num_orders"],
-                start_price=context.user_data["start_price"],
-                end_price=context.user_data["end_price"],
-                distribution_type=distribution,
+                coin=user_data["coin"],
+                is_buy=user_data["is_buy"],
+                total_usd_amount=user_data["total_usd_amount"],
+                num_orders=user_data["num_orders"],
+                start_price=user_data["start_price"],
+                end_price=user_data["end_price"],
+                distribution_type=distribution,  # type: ignore
             )
 
             preview = await scale_order_service.preview_scale_order(config)
 
             # Build preview message
-            coin = context.user_data["coin"]
+            coin = user_data["coin"]
             direction = "BUY" if config.is_buy else "SELL"
-            current_price = context.user_data["current_price"]
+            current_price = user_data["current_price"]
 
             preview_text = "📊 *Scale Order Preview*\n\n"
             preview_text += f"*Coin*: {coin}\n"
@@ -601,7 +674,7 @@ class ScaleOrderWizard:
             )
 
             # Store config for execution
-            context.user_data["config"] = config
+            user_data["config"] = config
 
             return PREVIEW_CONFIRM
 
@@ -616,6 +689,11 @@ class ScaleOrderWizard:
     async def preview_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle preview confirmation."""
         query = update.callback_query
+        assert query is not None
+        user_data = context.user_data
+        assert user_data is not None
+        assert query.data is not None
+
         await query.answer()
 
         if query.data == "cancel":
@@ -624,7 +702,7 @@ class ScaleOrderWizard:
 
         # Execute scale order
         try:
-            config: ScaleOrderConfig = context.user_data["config"]
+            config: ScaleOrderConfig = user_data["config"]
 
             await query.edit_message_text("⏳ Placing scale order...")
 
@@ -675,7 +753,7 @@ class ScaleOrderWizard:
         return await send_cancel_and_end(update, "❌ Scale order wizard cancelled.")
 
 
-# Create conversation handler
+# Create conversation handler (module-level for backward compatibility)
 scale_order_conversation = ConversationHandler(
     entry_points=[
         CommandHandler("scale", ScaleOrderWizard.start),
@@ -714,3 +792,13 @@ scale_order_conversation = ConversationHandler(
     persistent=False,
     allow_reentry=True,  # Allow restarting wizard
 )
+
+
+# ============================================================================
+# Handler Registration
+# ============================================================================
+
+
+def get_scale_order_handler() -> ConversationHandler:
+    """Return the scale order wizard ConversationHandler."""
+    return scale_order_conversation
