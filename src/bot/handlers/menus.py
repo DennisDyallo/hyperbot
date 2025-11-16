@@ -274,7 +274,7 @@ async def menu_rebalance_callback(update: Update, context: ContextTypes.DEFAULT_
     await query.answer()  # type: ignore
 
     # Import here to avoid circular import at module level
-    from src.bot.handlers.commands import rebalance_command  # type: ignore
+    from src.bot.handlers.wizard_rebalance import rebalance_command
 
     # Call the rebalance command handler
     await rebalance_command(update, context)

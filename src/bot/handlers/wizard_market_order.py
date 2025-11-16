@@ -199,14 +199,12 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
 
 async def market_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle custom amount input request."""
-    assert update.message is not None
     query = update.callback_query
     assert query is not None
     user_data = context.user_data
     assert user_data is not None
 
-    query = update.callback_query
-    await query.answer()  # type: ignore
+    await query.answer()
 
     coin = user_data["market_coin"]
     side_str = user_data["market_side_str"]
@@ -218,7 +216,7 @@ async def market_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYP
         f"Type the amount and send it."
     )
 
-    await query.edit_message_text(text, parse_mode="Markdown")  # type: ignore
+    await query.edit_message_text(text, parse_mode="Markdown")
 
     return MARKET_AMOUNT
 
@@ -341,8 +339,6 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wizard_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel any wizard and return to main menu."""
-    query = update.callback_query
-    assert query is not None
     user_data = context.user_data
     assert user_data is not None
 

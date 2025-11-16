@@ -27,10 +27,6 @@ async def rebalance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     Reference: docs/hyperliquid/api-reference.md - Portfolio Rebalancing
     """
-    assert update.message is not None
-    query = update.callback_query
-    assert query is not None
-
     try:
         # Handle both command and callback query
         if update.callback_query:
@@ -38,7 +34,7 @@ async def rebalance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer()
             msg = await query.edit_message_text("⏳ Analyzing portfolio...")
         else:
-            msg = await update.message.reply_text("⏳ Analyzing portfolio...")
+            msg = await update.message.reply_text("⏳ Analyzing portfolio...")  # type: ignore
 
         # Get current positions
         positions = position_service.list_positions()
@@ -78,7 +74,7 @@ async def rebalance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.callback_query:
             await update.callback_query.edit_message_text(error_msg, parse_mode="Markdown")
         else:
-            await update.message.reply_text(error_msg, parse_mode="Markdown")
+            await update.message.reply_text(error_msg, parse_mode="Markdown")  # type: ignore
 
 
 async def rebalance_preview_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
