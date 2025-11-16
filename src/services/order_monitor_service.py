@@ -443,16 +443,17 @@ class OrderMonitorService:
         Returns:
             OrderFillEvent if this is a fill event, None otherwise
         """
-        # Check if this is a userEvents channel event
-        if event.get("channel") != "userEvents":
-            logger.debug(f"Ignoring non-userEvents channel: {event.get('channel')}")
+        # Check if this is a user channel event
+        # Note: The SDK sends events with channel="user" (not "userEvents")
+        if event.get("channel") != "user":
+            logger.debug(f"Ignoring non-user channel: {event.get('channel')}")
             return None
 
         # Get event data
         data = event.get("data", {})
 
         # Check if this is a fill event (data contains "fills" key)
-        # Structure: {"channel": "userEvents", "data": {"fills": [...]}}
+        # Structure: {"channel": "user", "data": {"fills": [...], "funding": [...], ...}}
         fills = data.get("fills")
         if not fills:
             logger.debug("Event does not contain fills")
