@@ -73,7 +73,6 @@ class ScaleOrderWizard:
     @authorized_only
     async def start_from_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Start the scale order wizard from a callback query (menu button)."""
-        assert update.message is not None
         query = update.callback_query
         assert query is not None
         user_data = context.user_data
@@ -451,11 +450,8 @@ class ScaleOrderWizard:
     async def _ask_num_orders_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Helper to ask for number of orders (after text message)."""
         assert update.message is not None
-        query = update.callback_query
-        assert query is not None
         user_data = context.user_data
         assert user_data is not None
-        assert query.data is not None
 
         keyboard = [
             [InlineKeyboardButton("3 orders", callback_data="num_3")],
@@ -483,7 +479,6 @@ class ScaleOrderWizard:
     @staticmethod
     async def select_num_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Handle number of orders selection."""
-        assert update.message is not None
         query = update.callback_query
         assert query is not None
         user_data = context.user_data

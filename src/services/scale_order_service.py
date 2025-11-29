@@ -267,10 +267,6 @@ class ScaleOrderService:
                     time_in_force=config.time_in_force,
                 )
 
-                # Handle result - ensure it's a dict
-                if not isinstance(result, dict):
-                    raise ValueError(f"Unexpected result type: {type(result)}, value: {result}")
-
                 # Check if successful
                 if result.get("status") == "ok":
                     # Extract order ID from response
@@ -306,8 +302,17 @@ class ScaleOrderService:
                             f"{config.coin} {order['size']} @ ${order['price']} (filled immediately)"
                         )
                 else:
-                    # Order failed
-                    error_msg = result.get("response", {}).get("message", "Unknown error")
+                    # Order failed - extract error message
+                    response = result.get("response", {})
+                    if isinstance(response, str):
+                        # Response is a simple error string
+                        error_msg = response
+                    elif isinstance(response, dict):
+                        # Response is a dict with message field
+                        error_msg = response.get("message", "Unknown error")
+                    else:
+                        error_msg = str(response) if response else "Unknown error"
+
                     placements.append(
                         OrderPlacement(
                             order_id=None,
@@ -322,6 +327,7 @@ class ScaleOrderService:
                     )
 
             except Exception as e:
+                # Handle any exception from API (connection errors, validation errors, etc.)
                 logger.error(f"Failed to place order at ${order['price']}: {e}")
                 placements.append(
                     OrderPlacement(

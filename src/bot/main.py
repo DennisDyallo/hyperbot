@@ -40,7 +40,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     Reference: docs/telegram/best-practices.md - Error Handling
     """
-    logger.error(f"Exception while handling an update: {context.error}")
+    logger.error(f"Exception while handling an update: {context.error}", exc_info=context.error)
 
     # Send error message to user if update is available
     if update and update.effective_message:
