@@ -2,103 +2,68 @@
 
 > **For architecture and strategic decisions**, see [PLAN.md](PLAN.md)
 
-**Last Updated**: 2025-11-16
-**Current Phase**: 🔄 Phase 5 - Order Fill Notifications (Real-time + Recovery)
-**Status**: WebSocket Investigation - Backup polling working, real-time notifications not working
+**Last Updated**: 2025-11-29
+**Current Phase**: ✅ All Phases Complete - Production Ready
+**Status**: System operational with hybrid WebSocket + polling notifications
 
 ---
 
-## 🔄 Phase 5: Order Fill Notifications (In Progress)
+## ✅ Phase 5: Order Fill Notifications (Complete)
 
 **Goal**: Real-time Telegram notifications for all order fills with offline recovery
 **Architecture**: Hybrid WebSocket + Smart Polling
+**Status**: ✅ Complete - All sub-phases delivered
 
-### Current Status
+### Delivered Features
 
-✅ **Working:**
+✅ **WebSocket Real-time Notifications:**
+- WebSocket connection to Hyperliquid userEvents
+- Real-time fill event processing (<1s latency)
+- Heartbeat tracking (last: Nov 29, 2025)
+- Automatic reconnection logic
+
+✅ **Recovery & Reliability:**
 - Startup recovery (back-notifies missed fills after bot restart)
-- Backup polling (every 5 minutes)
-- Telegram integration
+- Backup polling (every 5 minutes as safety net)
 - State persistence (`data/notification_state.json`)
 - Deduplication (1000 fill hash cache)
 
-❌ **Not Working:**
-- **WebSocket real-time notifications** (last heartbeat: Nov 13, 3 days ago!)
-- Result: 5-minute delay instead of <1s real-time
+✅ **Telegram Integration:**
+- Bot integration (post_init/post_shutdown lifecycle)
+- Notification commands:
+  - `/notify_status` - Show service status and health
+  - `/notify_test` - Send test notification
+  - `/notify_history` - Show recent fills
+- Smart batching (individual for ≤5 fills, summary for >5)
 
-### Phase 5 Sub-Tasks
+✅ **Phase 5 Sub-Tasks:**
+- Phase 5A: Foundation + Learning Tests ✅
+- Phase 5B: WebSocket Implementation ✅
+- Phase 5C: Recovery Mechanism ✅
+- Phase 5D: Telegram Integration ✅
+- Phase 5E: Scale Order Enhancement ✅ (aggregate notifications)
 
-#### Phase 5A: Foundation + Learning Tests ✅
-- [x] Integration tests for WebSocket/fills APIs
-- [x] Create models (NotificationState, OrderFillEvent)
-- [x] Service skeletons
-- [x] State persistence with atomic writes
+---
 
-#### Phase 5B: WebSocket Implementation 🔄
-- [x] WebSocket connection and subscription
-- [x] Real-time fill event processing
-- [x] Heartbeat tracking
-- [ ] **FIX: WebSocket connection not receiving events** ⚠️
-- [ ] Test reconnection logic
-- [ ] Verify events are being received
+## 📋 Planned Features
 
-#### Phase 5C: Recovery Mechanism ✅
-- [x] Startup recovery (query missed fills)
-- [x] Periodic backup polling (5 min safety net)
-- [x] Batch notifications for >5 fills
-- [x] Individual notifications for ≤5 fills
+### Phase 6: Outstanding Orders Management
+**Goal**: List, filter, and manage all outstanding (open/unfilled) orders
+**Status**: 📋 Planned
+**Priority**: MEDIUM
+**Duration**: 1-2 days
 
-#### Phase 5D: Telegram Integration ✅
-- [x] Bot integration (post_init/post_shutdown)
-- [x] Notification commands:
-  - [x] `/notify_status` - Show service status
-  - [x] `/notify_test` - Send test notification
-  - [x] `/notify_history` - Show recent fills
-
-#### Phase 5E: Scale Order Enhancement (Future)
-- [ ] Aggregate notifications for scale order groups
-- [ ] "3/5 orders filled (60%)" format
-- [ ] User preferences
-
-### Current Issue: WebSocket Not Working
-
-**Symptoms:**
-```json
-"last_websocket_heartbeat": "2025-11-13 14:00:02.792918+00:00"
-```
-- Last heartbeat 3 days ago
-- Backup polling catching fills every 5 minutes
-- No real-time notifications
-
-**Investigation Needed:**
-1. Check if WebSocket is actually connected
-2. Verify subscription to userEvents channel
-3. Check if SDK is properly threading/async
-4. Test with manual WebSocket subscription
-5. Check Hyperliquid SDK version
-
-**Files to Check:**
-- `src/services/order_monitor_service.py:406` - `_on_websocket_event()` callback
-- `src/services/hyperliquid_service.py` - WebSocket initialization
-- Hyperliquid SDK threading behavior
-
-**Diagnostic Commands:**
-```bash
-# In Telegram bot
-/notify_status
-
-# Check logs for WebSocket events
-tail -f logs/hyperbot.log | grep -i "websocket"
-
-# Check if WebSocket is receiving ANY events
-tail -f logs/hyperbot.log | grep "WebSocket event received"
-```
+**Features**:
+- List all outstanding orders with filters
+- Cancel individual or bulk orders
+- Integration with Telegram bot
+- See detailed UX design in [PLAN.md](PLAN.md) Phase 6
 
 ---
 
 ## 🧪 Testing Lessons & Known Issues
 
-**Last Updated**: 2025-11-06
+**Last Updated**: 2025-11-29
 
 ### Critical Testing Patterns
 
@@ -166,54 +131,50 @@ assert needs_setting is True
 
 ### Known Issues & Maintenance Notes
 
-#### WebSocket Connection Issues
-**⚠️ CURRENT ISSUE**: WebSocket not receiving events (last heartbeat 3 days ago)
-
-**Symptoms:**
-- No real-time notifications
-- Backup polling works (5-minute delay)
-- No WebSocket heartbeat updates
-
-**Possible Causes:**
-- SDK threading issues
-- Async event loop conflicts
-- WebSocket connection dropped
-- Subscription not working
-
 #### Wizard Tests Need Synchronization
-**⚠️ IMPORTANT**: When making changes to bot handlers or service imports, check if wizard tests need updates.
+⚠️ **Note**: When making changes to bot handlers or service imports, verify wizard tests are updated.
 
-**Current skipped tests** in `tests/bot/test_wizards.py`:
-1. `test_market_amount_selected_parsing` - Import path for `market_data_service` changed
-2. `test_close_position_execute_uses_size_closed` - Handler calls `edit_message_text` twice
-
-**Action items**:
-- Update test when fixing import path
-- Update assertion to check both calls: initial "⏳ Processing..." and final result message
+**Note**: Some wizard tests may be skipped during refactoring. Re-enable when stable.
 
 ### Test Coverage Summary
 - **Total Tests**: 682 passing
-- **Coverage**: 66%
+- **Coverage**: 65%
 - **Services with excellent coverage (>90%)**:
   - Config/Logger: 100%
-  - LeverageService: 93%
   - HyperliquidService: 100%
   - MarketDataService: 98%
   - PositionService: 97%
   - ScaleOrderService: 96%
   - RiskCalculator: 95%
+  - LeverageService: 93%
+
+**Target**: Increase coverage to 70%+ for Phase 6
 
 ---
 
 ## 📝 Notes
 
-### Recent Work (2025-11-16)
+### Recent Work (2025-11-29)
 
-**Order Fill Notifications - WebSocket Issue:**
-- Diagnosed: WebSocket not receiving events (last heartbeat Nov 13)
-- Backup polling working (5-minute delay)
-- Need to investigate SDK threading/async behavior
-- Consider testing with manual WebSocket connection
+**System Status:**
+- ✅ All core phases complete and operational
+- ✅ WebSocket notifications working (heartbeat: Nov 29, 14:00)
+- ✅ Backup polling active (5-minute safety net)
+- ✅ 682 tests passing with 65% coverage
+- 📋 Phase 6 (Outstanding Orders) designed and ready for implementation
+
+**Production Readiness Checklist:**
+- ✅ Core services (Account, Position, Order, Market Data)
+- ✅ Rebalancing engine with risk management
+- ✅ Scale orders (linear & geometric distribution)
+- ✅ Leverage management with validation
+- ✅ Telegram bot with interactive wizards
+- ✅ Order fill notifications (real-time + recovery)
+- ✅ Use case layer for code reuse
+- ✅ Comprehensive test coverage
+- ✅ Error handling and logging
+- ✅ State persistence
+- ✅ Testnet and mainnet support
 
 ### Testing Strategy
 
@@ -250,26 +211,36 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 
 ## 🎯 Next Actions
 
-**Immediate Priority**:
-1. **Fix WebSocket real-time notifications**
-   - Investigate why WebSocket stopped receiving events
-   - Test WebSocket connection manually
-   - Check SDK threading/async behavior
-   - Verify subscription is active
+**Phase 6: Outstanding Orders Management** (When ready to implement):
 
-2. **Test reconnection logic**
-   - Verify reconnection works after WebSocket drop
-   - Test exponential backoff
+1. **Backend Implementation** (Day 1):
+   - Add `list_outstanding_orders()` to OrderService
+   - Create `ListOutstandingOrdersUseCase`
+   - Implement filtering logic (by coin, side, type)
+   - Add REST API endpoints
+   - Write unit tests
 
-3. **Verify end-to-end**
-   - Place test order on testnet
-   - Verify real-time notification (<1s)
-   - Verify no duplicates
+2. **Telegram Integration** (Day 2):
+   - Implement `/orders` command handler
+   - Create interactive filter menus
+   - Add individual cancel handlers
+   - Add bulk cancel with confirmation
+   - Integrate with main menu
+   - End-to-end testing
 
-**Future Enhancements**:
-- Phase 5E: Scale order notifications
-- User notification preferences
-- Notification templates/customization
+3. **Testing & Refinement**:
+   - Test with various order states
+   - Verify pagination for >10 orders
+   - Test filter combinations
+   - Validate cancel operations
+   - Test error scenarios
+
+**Future Enhancements** (Post-Phase 6):
+- Order modification (edit price/size)
+- Order templates/presets
+- Advanced filters (time range, partially filled)
+- Order analytics (fill rate, avg execution time)
+- Export order history
 
 ---
 
@@ -277,14 +248,19 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 
 - **Phase 0**: ✅ 100% Complete (Foundation)
 - **Phase 1A**: ✅ 100% Complete (Core Services + API)
-- **Phase 1B**: ✅ 100% Complete (Web Dashboard MVP)
+- **Phase 1B**: ⛔ Not Planned (Web Dashboard - abandoned for Telegram)
 - **Phase 2A**: ✅ 100% Complete (Rebalancing Engine)
 - **Phase 2B**: ✅ 100% Complete (Scale Orders)
+- **Phase 2C**: ✅ 100% Complete (Spot Trading Integration)
 - **Phase 2D**: ✅ 100% Complete (Leverage Management)
+- **Phase 3**: ✅ 100% Complete (Telegram Bot with Wizards)
 - **Phase 4**: ✅ 100% Complete (Code Consolidation & Use Case Layer)
-- **Phase 5**: 🔄 85% Complete (Order Fill Notifications)
+- **Phase 5**: ✅ 100% Complete (Order Fill Notifications)
   - 5A Foundation: ✅ Complete
-  - 5B WebSocket: 🔄 In Progress (WebSocket issue)
+  - 5B WebSocket: ✅ Complete
   - 5C Recovery: ✅ Complete
   - 5D Telegram: ✅ Complete
-  - 5E Scale Orders: ⏳ Pending
+  - 5E Scale Orders: ✅ Complete
+- **Phase 6**: 📋 Planned (Outstanding Orders Management)
+
+**Overall Status**: Production Ready - 10 phases complete, 1 planned

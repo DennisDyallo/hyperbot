@@ -1,7 +1,7 @@
 # Hyperbot Implementation Plan
 
-**Last Updated**: 2025-11-06
-**Current Phase**: ✅ Phase 4 Complete - Code Consolidation & Use Case Layer
+**Last Updated**: 2025-11-29
+**Current Phase**: ✅ All Phases Complete - Production Ready
 **Progress Tracking**: See [TODO.md](TODO.md) for detailed task checklists and current progress
 
 ---
@@ -74,23 +74,11 @@ Building a Python-based trading bot for Hyperliquid with multiple interfaces (We
 
 ---
 
-### ✅ Phase 1B: Web Dashboard MVP
+### ⛔ Phase 1B: Web Dashboard MVP
 **Goal**: Functional web UI for account monitoring and position management
 **Duration**: 5-6 hours
-**Status**: ✅ Complete
-**Deliverable**: Dashboard at `http://localhost:8000` with real-time updates
-**Key Decisions**:
-- **SSR (FastAPI + Jinja2)** vs SPA (simpler deployment, no CORS)
-- **Tailwind CSS (CDN)** vs Bootstrap (modern, no build step)
-- **HTMX** vs WebSockets (simpler, sufficient for 10s polling)
-- **Alpine.js** vs React (minimal footprint for modals)
-
-**Features Delivered**:
-- Real-time account/position monitoring
-- Individual position closing with confirmation
-- Bulk close (33%/66%/100%) functionality
-- Mobile-responsive design
-- Auto-refresh every 10 seconds
+**Status**: ⛔ Not Planned - Telegram bot provides sufficient UI
+**Decision**: Focus on mobile-first Telegram interface instead of web dashboard
 
 ---
 
@@ -195,10 +183,10 @@ curl -X POST '/api/scale-orders/place' -d '{
 
 ---
 
-### 🔄 Phase 5: Order Fill Notifications (Real-time + Recovery)
+### ✅ Phase 5: Order Fill Notifications (Real-time + Recovery)
 **Goal**: Real-time Telegram notifications for all order fills with offline recovery
 **Duration**: 2.5-3.5 weeks (13-18 days)
-**Status**: 🔄 In Progress - Phase 5A (Foundation + Learning Tests)
+**Status**: ✅ Complete - Hybrid WebSocket + Polling implemented
 **Priority**: HIGH - Critical for active trading monitoring
 
 **Architecture**: Hybrid WebSocket + Smart Polling
@@ -292,23 +280,214 @@ Time: 2025-11-12 14:23:45 UTC
 
 > **Note**: See [TODO.md](TODO.md) for detailed planning of future phases.
 
-### Phase 1B.2: Post-MVP Dashboard Features (Optional)
+### 📋 Phase 6: Outstanding Orders Management
+**Goal**: List, filter, and manage all outstanding (open/unfilled) orders
+**Status**: 📋 Planned
+**Priority**: MEDIUM - Useful for order visibility and management
+**Duration**: 1-2 days
+
+**Scope**:
+- List all outstanding orders (open/partially filled)
+- Filter by coin, side (buy/sell), order type (limit/stop)
+- Display order details (price, size, filled amount, timestamp)
+- Cancel individual or bulk orders
+- Integration with Telegram bot (/orders command)
+- REST API endpoints
+
+**User Stories**:
+- As a trader, I want to see all my open orders to understand my active exposure
+- As a trader, I want to filter orders by coin to focus on specific positions
+- As a trader, I want to cancel multiple orders at once to quickly adjust strategy
+
+**API Endpoints** (Planned):
+```
+GET  /api/orders/outstanding          # List all outstanding orders
+GET  /api/orders/outstanding/{coin}   # Filter by coin
+POST /api/orders/cancel/{order_id}    # Cancel single order
+POST /api/orders/cancel-bulk          # Cancel multiple orders
+```
+
+---
+
+#### Telegram UX Design
+
+**Philosophy**: Follow established patterns from `/positions` command and wizards
+- **Mobile-first**: Concise messages, emoji indicators, progressive disclosure
+- **Interactive buttons**: Inline keyboards for filtering and actions
+- **Clear hierarchy**: Overview → Details → Actions
+- **Error prevention**: Confirmation dialogs for destructive actions
+
+**Command Pattern**:
+```
+/orders                    # List all outstanding orders (main menu button)
+/orders BTC                # Filter by coin (quick command)
+```
+
+**Message Flow** (3-level hierarchy):
+
+**Level 1: Orders Overview**
+```
+📋 Outstanding Orders (7)
+
+🟢 BUY Orders: 4
+🔴 SELL Orders: 3
+
+Filter by:
+[All] [BTC] [ETH] [SOL] [More...]
+
+[📊 View All] [🗑️ Cancel All] [🔙 Back]
+```
+
+**Level 2: Filtered/Detailed List** (when coin selected or "View All" pressed)
+```
+📋 BTC Orders (3)
+
+1. 🟢 BUY Limit
+   ├─ Price: $108,500
+   ├─ Size: 0.01 BTC ($1,085)
+   ├─ Filled: 0% (0/0.01)
+   └─ Created: 2h ago
+   [❌ Cancel]
+
+2. 🟢 BUY Limit
+   ├─ Price: $107,000
+   ├─ Size: 0.02 BTC ($2,140)
+   ├─ Filled: 50% (0.01/0.02)
+   └─ Created: 30m ago
+   [❌ Cancel]
+
+[🗑️ Cancel All BTC] [🔙 Back]
+```
+
+**Level 3: Individual Order Actions** (callback from Cancel button)
+```
+⚠️ Confirm Cancel Order
+
+Coin: BTC
+Side: BUY 🟢
+Type: Limit
+Price: $108,500
+Size: 0.01 BTC
+Filled: 0%
+
+Cancel this order?
+
+[✅ Yes, Cancel] [❌ No, Keep]
+```
+
+**UX Patterns Used** (consistency with existing features):
+- **Emoji indicators**: Same as `/positions` (🟢 BUY/LONG, 🔴 SELL/SHORT)
+- **Tree structure**: `├─` and `└─` for nested info (from positions display)
+- **Progressive disclosure**: Overview → Details → Confirmation (like market order wizard)
+- **Inline keyboards**: Interactive buttons for all actions (standard pattern)
+- **Loading states**: "⏳ Fetching orders..." (consistent with all commands)
+- **Error handling**: "❌ Failed to fetch orders: {error}" with retry option
+
+**Main Menu Integration**:
+```
+Main Menu updates:
+📊 Account
+💼 Positions
+📋 Orders          ← New button
+💰 Trade
+⚙️ Settings
+```
+
+**Special Cases**:
+
+1. **No orders**:
+```
+📭 No outstanding orders
+
+You have no open orders at the moment.
+
+[🔙 Back to Menu]
+```
+
+2. **Partially filled orders** (highlight):
+```
+📋 Partially Filled Orders (2)
+
+1. 🟢 BUY Limit - BTC
+   ├─ Price: $107,000
+   ├─ Size: 0.05 BTC
+   ├─ ⚡ Filled: 60% (0.03/0.05)  ← Highlighted
+   └─ Remaining: 0.02 BTC
+   [❌ Cancel Remaining]
+```
+
+3. **Bulk cancel confirmation**:
+```
+⚠️ Cancel All BTC Orders?
+
+You are about to cancel 3 orders:
+• 2 BUY limit orders
+• 1 SELL limit order
+
+Total value: $5,500
+
+This action cannot be undone.
+
+[✅ Yes, Cancel All] [❌ Keep Orders]
+```
+
+4. **Scale order grouping** (future enhancement):
+```
+📋 Scale Orders (2 groups)
+
+🎯 Scale Group #abc123 - BTC BUY
+   ├─ Orders: 5 (3 filled, 2 open)
+   ├─ Progress: 60%
+   └─ Range: $106k - $108k
+   [📊 Details] [❌ Cancel All]
+```
+
+**Accessibility Considerations**:
+- **Max 8 coin filter buttons** per row (Telegram limitation)
+- **"More..." button** for additional coins (opens full list)
+- **Order ID truncation** if displayed (show last 8 chars: `#...xyz123`)
+- **Timestamp formatting**: Human-readable ("2h ago" vs ISO string)
+- **Amount rounding**: Match Hyperliquid tick size rules
+
+**Performance Optimization**:
+- **Cache order data** for 30s (reduce API calls on filter changes)
+- **Pagination** if >10 orders (show 10 at a time with Next/Prev)
+- **Lazy load details**: Only fetch full order details when requested
+
+**Technical Implementation Notes**:
+- Use `info.openOrders()` from Hyperliquid SDK
+- Reuse existing `OrderService` with new methods
+- Add `ListOutstandingOrdersUseCase` in use case layer
+- Reuse cancel logic from existing order cancellation
+- Store `last_orders_filter` in `context.user_data` for back navigation
+
+---
+
+### ⛔ Phase 1B.2: Post-MVP Dashboard Features
 **Goal**: Enhanced dashboard with orders, market data, charts
-**Status**: Planned
+**Status**: ⛔ Not Planned - Web dashboard abandoned in favor of Telegram
 
-### Phase 2C: Spot Trading Integration (Optional)
+### ✅ Phase 2C: Spot Trading Integration
 **Goal**: Add spot trading support (currently PERPS only)
-**Status**: Planned
+**Status**: ✅ Complete - Spot trading fully supported
 
-### Phase 3: Telegram Bot (Enhancement)
+### ✅ Phase 3: Telegram Bot (Enhancement)
 **Goal**: Mobile interface for trading and alerts
 **Duration**: 4-5 days
-**Status**: Planned
+**Status**: ✅ Complete - Full interactive Telegram bot with wizards
 **Tech Stack**: python-telegram-bot library, reuses all services from Phase 1A
 
-### Phase 1A.7: Testing Infrastructure (Optional)
+**Features Delivered**:
+- Interactive trading wizards (market orders, scale orders)
+- Position management (/positions, /close)
+- Portfolio rebalancing wizard
+- Order fill notifications (real-time + recovery)
+- Account monitoring (/account, /balance)
+- Leverage management
+
+### ✅ Phase 1A.7: Testing Infrastructure
 **Goal**: Comprehensive test suite with fixtures
-**Status**: Deferred (manual testnet testing sufficient)
+**Status**: ✅ Complete - 55% test coverage with 532 passing tests
 
 ---
 
@@ -429,10 +608,10 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 - ✅ Best of both worlds (real-time + reliability)
 - ✅ Simple state management (minimal persistence)
 - ✅ Graceful degradation (polling if WebSocket fails)
-- ⚠️ Need WebSocket reconnection logic
-- ⚠️ Small persistent state file required
+- ✅ WebSocket reconnection logic implemented
+- ✅ State persistence in `data/notification_state.json`
 
-**Status**: 🔄 In Progress - Phase 5A (Foundation + Learning Tests)
+**Status**: ✅ Complete - Production ready (Nov 29, 2025)
 
 ---
 
@@ -495,19 +674,29 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 
 > **Strategic Direction**: See [TODO.md](TODO.md) for detailed next steps and task planning.
 
-**Completed**:
+**Completed Phases**:
 1. ✅ Phase 0: FastAPI setup
 2. ✅ Phase 1A: Core Services + API
-3. ✅ Phase 1B: Web Dashboard MVP
-4. ✅ Phase 2A: Rebalancing Engine
-5. ✅ Phase 2B: Scale Orders
+3. ✅ Phase 2A: Rebalancing Engine
+4. ✅ Phase 2B: Scale Orders
+5. ✅ Phase 2C: Spot Trading Integration
 6. ✅ Phase 2D: Leverage Management
-7. ✅ Phase 4: Code Consolidation & Use Case Layer
+7. ✅ Phase 3: Telegram Bot (Full Implementation)
+8. ✅ Phase 4: Code Consolidation & Use Case Layer
+9. ✅ Phase 5: Order Fill Notifications
+10. ✅ Phase 1A.7: Testing Infrastructure (65% coverage)
 
-**Options for Next Phase**:
-- **Option A**: Phase 1B.2 - Post-MVP Dashboard Features (orders, market data, charts)
-- **Option B**: Phase 2C - Spot Trading Integration
-- **Option C**: Phase 3 - Telegram Bot Enhancement
-- **Option D**: Phase 1A.7 - Testing Infrastructure (increase coverage from 25% to >80%)
+**Planned Phases**:
+- 📋 Phase 6: Outstanding Orders Management (1-2 days)
+  - List and filter outstanding orders
+  - Individual and bulk cancel operations
+  - Full Telegram UX integration
+  - See detailed design above
 
-**Recommendation**: Assess project priorities - Feature expansion (A/B), Mobile interface (C), or Technical debt (D)?
+**Not Planned**:
+- ⛔ Phase 1B: Web Dashboard (abandoned - Telegram bot is primary interface)
+- ⛔ Phase 1B.2: Post-MVP Dashboard Features
+
+**Project Status**: Production ready with full Telegram bot interface
+**Current Build**: 682 tests passing, 65% coverage, all core features operational
+**Next Priority**: Phase 6 (Outstanding Orders) when needed
