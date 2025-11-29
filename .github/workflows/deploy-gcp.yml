@@ -7,10 +7,10 @@ on:
   workflow_dispatch:  # Allow manual triggers
 
 env:
-  PROJECT_ID: ${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID }}
+  PROJECT_ID: ${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}
   REGION: us-central1
   SERVICE_NAME: hyperbot
-  IMAGE_NAME: gcr.io/${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID }}/hyperbot
+  IMAGE_NAME: gcr.io/${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}/hyperbot
 
 jobs:
   deploy:
@@ -28,12 +28,12 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_SA_KEY }}
+          credentials_json: ${{ secrets.LB_HYPERBOT_GCP_SA_KEY }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID }}
+          project_id: ${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}
 
       - name: Configure Docker for GCR
         run: |
@@ -61,8 +61,8 @@ jobs:
             --timeout 300 \
             --no-allow-unauthenticated \
             --set-env-vars ENVIRONMENT=production \
-            --set-env-vars HYPERLIQUID_TESTNET=true \
-            --set-env-vars GCP_PROJECT=${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID }} \
+            --set-env-vars HYPERLIQUID_TESTNET=false \
+            --set-env-vars GCP_PROJECT=${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }} \
             --set-secrets=TELEGRAM_BOT_TOKEN=lb-hyperbot-telegram-bot-token:latest \
             --set-secrets=TELEGRAM_AUTHORIZED_USERS=lb-hyperbot-telegram-authorized-users:latest \
             --set-secrets=HYPERLIQUID_SECRET_KEY=lb-hyperbot-hyperliquid-secret-key:latest \

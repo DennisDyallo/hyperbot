@@ -30,10 +30,10 @@ All secrets in GCP now have the `lb-hyperbot-` prefix:
 
 **Required GitHub repository secrets:**
 
-1. **`LIGHTBRINGER_HYPERBOT_GCP_SA_KEY`**
+1. **`LB_HYPERBOT_GCP_SA_KEY`**
    - Contents of `lb-hyperbot-github-actions-key.json`
 
-2. **`LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID`**
+2. **`LB_HYPERBOT_GCP_PROJECT_ID`**
    - Value: `hyperbot-479700`
 
 ---
@@ -68,8 +68,8 @@ All secrets in GCP now have the `lb-hyperbot-` prefix:
 Go to: https://github.com/DennisDyallo/hyperbot/settings/secrets/actions
 
 Add:
-- `LIGHTBRINGER_HYPERBOT_GCP_SA_KEY` = contents of `lb-hyperbot-github-actions-key.json`
-- `LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID` = `hyperbot-479700`
+- `LB_HYPERBOT_GCP_SA_KEY` = contents of `lb-hyperbot-github-actions-key.json`
+- `LB_HYPERBOT_GCP_PROJECT_ID` = `hyperbot-479700`
 
 ### 3. Clean Up
 ```bash
@@ -123,7 +123,7 @@ All Lightbringer Hyperbot-related GCP resources follow this pattern:
 |---------------|---------|---------|
 | Service Account | `lb-hyperbot-{purpose}` | `lb-hyperbot-github-actions` |
 | GCP Secrets | `lb-hyperbot-{secret-name}` | `lb-hyperbot-telegram-bot-token` |
-| GitHub Secrets | `LIGHTBRINGER_HYPERBOT_{NAME}` | `LIGHTBRINGER_HYPERBOT_GCP_SA_KEY` |
+| GitHub Secrets | `LB_HYPERBOT_{NAME}` | `LB_HYPERBOT_GCP_SA_KEY` |
 | Cloud Run Service | `hyperbot` | `hyperbot` |
 | Container Image | `gcr.io/{project}/hyperbot` | `gcr.io/hyperbot-479700/hyperbot` |
 
@@ -143,7 +143,7 @@ All Lightbringer Hyperbot-related GCP resources follow this pattern:
 
 1. ✅ Service account: `lb-hyperbot-github-actions`
 2. ✅ Secrets prefixed: `lb-hyperbot-*`
-3. ✅ GitHub secrets: `LIGHTBRINGER_HYPERBOT_GCP_*`
+3. ✅ GitHub secrets: `LB_HYPERBOT_GCP_*`
 4. ✅ Code updated to use new names
 5. 🔄 Run `./setup-github-actions.sh`
 6. 🔄 Add GitHub secrets

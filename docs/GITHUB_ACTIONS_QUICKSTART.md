@@ -28,13 +28,13 @@ After running the setup script, add these to GitHub:
 
 **Go to:** https://github.com/DennisDyallo/hyperbot/settings/secrets/actions
 
-### Secret 1: LIGHTBRINGER_HYPERBOT_GCP_SA_KEY
+### Secret 1: LB_HYPERBOT_GCP_SA_KEY
 ```bash
 # Copy entire file contents
 cat lb-hyperbot-github-actions-key.json
 ```
 
-### Secret 2: LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID
+### Secret 2: LB_HYPERBOT_GCP_PROJECT_ID
 ```
 hyperbot-479700
 ```
