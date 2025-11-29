@@ -145,6 +145,139 @@ Step 2: Read TODO.md → Phase 2A completed tasks
   - No duplicate tracking needed!
 ```
 
+## Environment Management
+
+Hyperbot supports multiple environments (development, production, testing) with different configurations. Understanding how to switch between them is crucial for safe development and deployment.
+
+### Environment Files
+
+The project uses these environment configuration files:
+
+- **`.env`** - Active configuration (currently in use)
+- **`.env.development`** - Development environment settings
+- **`.env.production`** - Production environment settings (used by systemd service)
+- **`.env.example`** - Template/example for new setups
+
+### Key Environment Variables
+
+Different environments are distinguished by these critical variables:
+
+- **`ENVIRONMENT`**: `development`, `production`, or `testing`
+- **`HYPERLIQUID_TESTNET`**:
+  - `true` = Safe testnet (no real money) ✅ Use for development
+  - `false` = Live mainnet ⚠️ **REAL MONEY**
+- **`LOG_LEVEL`**: Usually `DEBUG` for dev, `INFO` for prod
+
+### Switching Between Environments
+
+Use the `scripts/switch-env.sh` script to safely switch between environments:
+
+```bash
+# View current environment
+./scripts/switch-env.sh status
+
+# Switch to development (testnet, debug logging)
+./scripts/switch-env.sh dev
+
+# Switch to production (mainnet, production settings)
+./scripts/switch-env.sh prod
+
+# Switch to testing (if .env.test exists)
+./scripts/switch-env.sh test
+```
+
+### What the Switch Script Does
+
+When you switch environments, the script:
+
+1. ✅ **Backs up current `.env`** to `.env.backup`
+2. ✅ **Copies target environment file** to `.env`
+3. ✅ **Verifies configuration** (runs `./scripts/verify-env.sh`)
+4. ✅ **Warns if bot is running** and needs restart
+
+### Complete Workflow Examples
+
+**For Development:**
+```bash
+# 1. Switch to development environment
+./scripts/switch-env.sh dev
+
+# 2. Verify configuration
+./scripts/verify-env.sh
+
+# 3. Run locally (not as systemd service)
+uv run python -m src.bot.main
+
+# Or run API server
+uv run python run.py
+```
+
+**For Production Deployment:**
+```bash
+# 1. Switch to production environment
+./scripts/switch-env.sh prod
+
+# 2. Verify configuration
+./manage-bot.sh verify-env
+
+# 3. Install systemd service (first time only)
+./manage-bot.sh install
+
+# 4. Start the bot as a service
+./manage-bot.sh start
+
+# 5. Monitor logs
+./manage-bot.sh logs
+```
+
+**Updating Production:**
+```bash
+# 1. Make changes to .env.production
+nano .env.production
+
+# 2. Switch to it (activates the changes)
+./scripts/switch-env.sh prod
+
+# 3. If bot is running, restart to apply changes
+./manage-bot.sh restart
+
+# 4. Verify it's working
+./manage-bot.sh status
+./manage-bot.sh logs-tail
+```
+
+### Important Notes
+
+**systemd Service vs Local Execution:**
+- The systemd service (`hyperbot.service`) loads from `.env.production` directly
+- Local execution (`uv run python -m src.bot.main`) uses `.env`
+- Always use `switch-env.sh` to keep `.env` in sync
+
+**Safety Checks:**
+- The script shows current `ENVIRONMENT` and `HYPERLIQUID_TESTNET` values
+- ⚠️ Warnings appear when switching to mainnet (`HYPERLIQUID_TESTNET=false`)
+- Configuration verification runs automatically after switching
+
+**Best Practices:**
+- ✅ **Always use testnet for development** (`HYPERLIQUID_TESTNET=true`)
+- ✅ **Never commit `.env` files** (already in `.gitignore`)
+- ✅ **Use `switch-env.sh`** instead of manually copying files
+- ✅ **Verify after switching** to catch configuration errors early
+- ✅ **Restart bot after production changes** to apply new settings
+
+### Available Commands Summary
+
+```bash
+# Environment switching
+./scripts/switch-env.sh dev|prod|test|status
+
+# Environment verification
+./scripts/verify-env.sh [file]
+
+# Bot management (systemd service)
+./manage-bot.sh start|stop|restart|status|logs
+```
+
 ## When to Reference Documentation
 
 ### For Hyperliquid Tasks
