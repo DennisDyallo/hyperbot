@@ -46,8 +46,12 @@ RUN useradd -m -u 1000 hyperbot && \
     chown -R hyperbot:hyperbot /app
 USER hyperbot
 
-# Expose port (not used for bot-only mode, but kept for compatibility)
+# Expose port (Cloud Run provides $PORT, default to 8000 locally)
 EXPOSE 8000
 
-# Run only the Telegram Bot
-CMD ["python", "-m", "src.bot.main"]
+# Start the combined API + Bot server
+CMD ["python", "run.py"]
+
+# Health check endpoint (API provides /api/health)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8000}/api/health || exit 1

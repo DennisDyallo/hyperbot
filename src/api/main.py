@@ -2,7 +2,8 @@
 FastAPI application for Hyperbot.
 """
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -20,10 +21,16 @@ from src.api.routes import (
 from src.config import logger, settings
 from src.services import hyperliquid_service
 
+# Global bot application instance
+_bot_app = None
+_bot_task = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown."""
+    global _bot_app, _bot_task
+
     # Startup
     logger.info("Starting Hyperbot API...")
     try:
@@ -33,10 +40,44 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize Hyperliquid service: {e}")
         logger.warning("API will start but Hyperliquid features may not work")
 
+    # Start Telegram bot if in production/cloud
+    if settings.is_cloud_environment():
+        logger.info("Starting Telegram bot alongside API...")
+        try:
+            from src.bot.main import create_application
+
+            _bot_app = create_application()
+            await _bot_app.initialize()
+
+            # Start bot in background task
+            _bot_task = asyncio.create_task(_bot_app.start())
+            if _bot_app.updater:
+                await _bot_app.updater.start_polling()
+            logger.info("Telegram bot started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start Telegram bot: {e}")
+            logger.warning("API will continue without bot")
+
     yield
 
     # Shutdown
     logger.info("Shutting down Hyperbot API...")
+
+    # Stop Telegram bot if running
+    if _bot_app:
+        logger.info("Stopping Telegram bot...")
+        try:
+            if _bot_app.updater:
+                await _bot_app.updater.stop()
+            await _bot_app.stop()
+            await _bot_app.shutdown()
+            if _bot_task:
+                _bot_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await _bot_task
+            logger.info("Telegram bot stopped")
+        except Exception as e:
+            logger.error(f"Error stopping bot: {e}")
 
 
 app = FastAPI(
