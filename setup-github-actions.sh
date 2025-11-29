@@ -5,9 +5,9 @@
 set -e
 
 PROJECT_ID="hyperbot-479700"
-SERVICE_ACCOUNT_NAME="lightbringer-hyperbot-github-actions"
-SERVICE_ACCOUNT_EMAIL="lightbringer-hyperbot-github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
-KEY_FILE="lightbringer-hyperbot-github-actions-key.json"
+SERVICE_ACCOUNT_NAME="lb-hyperbot-github-actions"
+SERVICE_ACCOUNT_EMAIL="lb-hyperbot-github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
+KEY_FILE="lb-hyperbot-github-actions-key.json"
 
 # Colors
 GREEN='\033[0;32m'

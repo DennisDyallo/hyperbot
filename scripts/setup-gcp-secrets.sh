@@ -71,11 +71,11 @@ create_or_update_secret() {
 }
 
 # Create/update secrets
-create_or_update_secret "lightbringer-hyperbot-telegram-bot-token" "TELEGRAM_BOT_TOKEN"
-create_or_update_secret "lightbringer-hyperbot-telegram-authorized-users" "TELEGRAM_AUTHORIZED_USERS"
-create_or_update_secret "lightbringer-hyperbot-hyperliquid-secret-key" "HYPERLIQUID_SECRET_KEY"
-create_or_update_secret "lightbringer-hyperbot-hyperliquid-wallet-address" "HYPERLIQUID_WALLET_ADDRESS"
-create_or_update_secret "lightbringer-hyperbot-api-key" "API_KEY"echo ""
+create_or_update_secret "lb-hyperbot-telegram-bot-token" "TELEGRAM_BOT_TOKEN"
+create_or_update_secret "lb-hyperbot-telegram-authorized-users" "TELEGRAM_AUTHORIZED_USERS"
+create_or_update_secret "lb-hyperbot-hyperliquid-secret-key" "HYPERLIQUID_SECRET_KEY"
+create_or_update_secret "lb-hyperbot-hyperliquid-wallet-address" "HYPERLIQUID_WALLET_ADDRESS"
+create_or_update_secret "lb-hyperbot-api-key" "API_KEY"echo ""
 echo -e "${GREEN}✅ Secrets created/updated successfully!${NC}"
 echo ""
 
@@ -88,7 +88,7 @@ COMPUTE_SA="${PROJECT_ID}@appspot.gserviceaccount.com"
 
 echo -e "${BLUE}Granting Secret Manager access to: ${COMPUTE_SA}${NC}"
 
-for SECRET_NAME in lightbringer-hyperbot-telegram-bot-token lightbringer-hyperbot-telegram-authorized-users lightbringer-hyperbot-hyperliquid-secret-key lightbringer-hyperbot-hyperliquid-wallet-address lightbringer-hyperbot-api-key; do
+for SECRET_NAME in lb-hyperbot-telegram-bot-token lb-hyperbot-telegram-authorized-users lb-hyperbot-hyperliquid-secret-key lb-hyperbot-hyperliquid-wallet-address lb-hyperbot-api-key; do
     if gcloud secrets describe ${SECRET_NAME} --project=${PROJECT_ID} &> /dev/null; then
         gcloud secrets add-iam-policy-binding ${SECRET_NAME} \
             --member="serviceAccount:${COMPUTE_SA}" \
@@ -109,4 +109,4 @@ echo -e "${YELLOW}To verify secrets:${NC}"
 echo "gcloud secrets list --project=${PROJECT_ID}"
 echo ""
 echo -e "${YELLOW}To view a secret value:${NC}"
-echo "gcloud secrets versions access latest --secret=\"lightbringer-hyperbot-telegram-bot-token\" --project=${PROJECT_ID}"
+echo "gcloud secrets versions access latest --secret=\"lb-hyperbot-telegram-bot-token\" --project=${PROJECT_ID}"

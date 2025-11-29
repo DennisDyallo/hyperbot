@@ -44,7 +44,7 @@ echo -e "${GREEN}✅ Environment variables validated${NC}"
 
 # Check if secrets are set up in GCP
 echo -e "${YELLOW}Checking GCP Secret Manager...${NC}"
-if gcloud secrets describe lightbringer-hyperbot-telegram-bot-token --project=${PROJECT_ID} &> /dev/null; then
+if gcloud secrets describe lb-hyperbot-telegram-bot-token --project=${PROJECT_ID} &> /dev/null; then
     echo -e "${GREEN}✅ Secrets found in GCP Secret Manager${NC}"
     USE_SECRETS=true
 else
@@ -82,11 +82,11 @@ if [ "$USE_SECRETS" = true ]; then
       --set-env-vars ENVIRONMENT=production \
       --set-env-vars HYPERLIQUID_TESTNET=true \
       --set-env-vars GCP_PROJECT=${PROJECT_ID} \
-      --set-secrets=TELEGRAM_BOT_TOKEN=lightbringer-hyperbot-telegram-bot-token:latest \
-      --set-secrets=TELEGRAM_AUTHORIZED_USERS=lightbringer-hyperbot-telegram-authorized-users:latest \
-      --set-secrets=HYPERLIQUID_SECRET_KEY=lightbringer-hyperbot-hyperliquid-secret-key:latest \
-      --set-secrets=HYPERLIQUID_WALLET_ADDRESS=lightbringer-hyperbot-hyperliquid-wallet-address:latest \
-      --set-secrets=API_KEY=lightbringer-hyperbot-api-key:latest
+      --set-secrets=TELEGRAM_BOT_TOKEN=lb-hyperbot-telegram-bot-token:latest \
+      --set-secrets=TELEGRAM_AUTHORIZED_USERS=lb-hyperbot-telegram-authorized-users:latest \
+      --set-secrets=HYPERLIQUID_SECRET_KEY=lb-hyperbot-hyperliquid-secret-key:latest \
+      --set-secrets=HYPERLIQUID_WALLET_ADDRESS=lb-hyperbot-hyperliquid-wallet-address:latest \
+      --set-secrets=API_KEY=lb-hyperbot-api-key:latest
 else
     # Deploy using environment variables (fallback)
     echo -e "${BLUE}Using environment variables from .env${NC}"

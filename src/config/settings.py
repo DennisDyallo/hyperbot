@@ -33,8 +33,8 @@ def _get_config_value(key: str, default: str = "") -> str:
         try:
             from src.config.secrets import get_secret
 
-            # Convert env var name to secret name (e.g., TELEGRAM_BOT_TOKEN -> lightbringer-hyperbot-telegram-bot-token)
-            secret_name = "lightbringer-hyperbot-" + key.lower().replace("_", "-")
+            # Convert env var name to secret name (e.g., TELEGRAM_BOT_TOKEN -> lb-hyperbot-telegram-bot-token)
+            secret_name = "lb-hyperbot-" + key.lower().replace("_", "-")
             secret_value = get_secret(secret_name)
             if secret_value:
                 value = secret_value

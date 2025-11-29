@@ -31,7 +31,7 @@ After running the setup script, add these to GitHub:
 ### Secret 1: LIGHTBRINGER_HYPERBOT_GCP_SA_KEY
 ```bash
 # Copy entire file contents
-cat lightbringer-hyperbot-github-actions-key.json
+cat lb-hyperbot-github-actions-key.json
 ```
 
 ### Secret 2: LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID
@@ -45,7 +45,7 @@ hyperbot-479700
 
 ```bash
 # After adding secrets to GitHub, delete the local key
-rm lightbringer-hyperbot-github-actions-key.json
+rm lb-hyperbot-github-actions-key.json
 ```
 
 ---
@@ -66,7 +66,7 @@ git push origin main
 
 ### Create Service Account
 ```bash
-gcloud iam service-accounts create lightbringer-hyperbot-github-actions \
+gcloud iam service-accounts create lb-hyperbot-github-actions \
   --project=hyperbot-479700 \
   --description="Service account for GitHub Actions CI/CD" \
   --display-name="Lightbringer Hyperbot GitHub Actions"
@@ -75,7 +75,7 @@ gcloud iam service-accounts create lightbringer-hyperbot-github-actions \
 ### Grant Permissions
 ```bash
 PROJECT_ID="hyperbot-479700"
-SA_EMAIL="lightbringer-hyperbot-github-actions@hyperbot-479700.iam.gserviceaccount.com"
+SA_EMAIL="lb-hyperbot-github-actions@hyperbot-479700.iam.gserviceaccount.com"
 
 # Cloud Run Admin
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
@@ -110,8 +110,8 @@ gcloud services enable \
 
 ### Create Service Account Key
 ```bash
-gcloud iam service-accounts keys create lightbringer-hyperbot-github-actions-key.json \
-  --iam-account=lightbringer-hyperbot-github-actions@hyperbot-479700.iam.gserviceaccount.com \
+gcloud iam service-accounts keys create lb-hyperbot-github-actions-key.json \
+  --iam-account=lb-hyperbot-github-actions@hyperbot-479700.iam.gserviceaccount.com \
   --project=hyperbot-479700
 ```
 

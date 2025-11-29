@@ -15,14 +15,14 @@ def get_secret(secret_name: str, project_id: str | None = None) -> str | None:
     Get a secret from GCP Secret Manager.
 
     Args:
-        secret_name: Name of the secret (e.g., "lightbringer-hyperbot-telegram-bot-token")
+        secret_name: Name of the secret (e.g., "lb-hyperbot-telegram-bot-token")
         project_id: GCP project ID (defaults to GCP_PROJECT env var)
 
     Returns:
         Secret value or None if not found
 
     Example:
-        >>> token = get_secret("lightbringer-hyperbot-telegram-bot-token")
+        >>> token = get_secret("lb-hyperbot-telegram-bot-token")
         >>> if token:
         >>>     print(f"Got token: {token[:10]}...")
     """
@@ -63,22 +63,22 @@ def load_secrets_from_gcp() -> dict[str, str]:
         Dictionary of secret name -> value
 
     Secrets loaded:
-        - lightbringer-hyperbot-telegram-bot-token
-        - lightbringer-hyperbot-hyperliquid-secret-key
-        - lightbringer-hyperbot-hyperliquid-wallet-address
-        - lightbringer-hyperbot-api-key (optional)
+        - lb-hyperbot-telegram-bot-token
+        - lb-hyperbot-hyperliquid-secret-key
+        - lb-hyperbot-hyperliquid-wallet-address
+        - lb-hyperbot-api-key (optional)
     """
     secrets = {}
 
     # Required secrets
     secret_names = [
-        "lightbringer-hyperbot-telegram-bot-token",
-        "lightbringer-hyperbot-hyperliquid-secret-key",
-        "lightbringer-hyperbot-hyperliquid-wallet-address",
+        "lb-hyperbot-telegram-bot-token",
+        "lb-hyperbot-hyperliquid-secret-key",
+        "lb-hyperbot-hyperliquid-wallet-address",
     ]
 
     # Optional secrets
-    optional_secrets = ["lightbringer-hyperbot-api-key"]
+    optional_secrets = ["lb-hyperbot-api-key"]
 
     for secret_name in secret_names:
         value = get_secret(secret_name)
