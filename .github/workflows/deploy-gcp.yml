@@ -10,7 +10,7 @@ env:
   PROJECT_ID: ${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}
   REGION: us-central1
   SERVICE_NAME: hyperbot
-  IMAGE_NAME: gcr.io/${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}/hyperbot
+  IMAGE_NAME: us-docker.pkg.dev/${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}/hyperbot/hyperbot
 
 jobs:
   deploy:
@@ -38,9 +38,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Configure Docker for GCR
+      - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker
+          gcloud auth configure-docker us-docker.pkg.dev
 
       - name: Pull previous image for caching (if exists)
         continue-on-error: true
