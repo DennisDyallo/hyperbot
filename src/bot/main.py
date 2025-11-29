@@ -24,6 +24,7 @@ from src.bot.handlers import (  # noqa: E402
     commands,
     menus,
     notify,
+    orders,
     wizard_close_position,
     wizard_market_order,
     wizard_rebalance,
@@ -105,6 +106,10 @@ def create_application() -> Application:
 
     # Notification commands
     for handler in notify.get_notify_handlers():
+        application.add_handler(handler)
+
+    # Orders management commands
+    for handler in orders.get_orders_handlers():
         application.add_handler(handler)
 
     logger.info("✅ Command handlers registered")

@@ -45,19 +45,55 @@
 
 ---
 
+## ✅ Phase 6: Outstanding Orders Management (Complete)
+
+**Goal**: List, filter, and manage all outstanding (open/unfilled) orders
+**Status**: ✅ Complete
+**Completed**: 2025-11-29
+
+### Delivered Features
+
+✅ **Backend & Use Cases:**
+- `ListOrdersUseCase` - List orders with filtering (coin, side, type)
+- `CancelOrderUseCase` - Cancel individual orders
+- `CancelBulkOrdersUseCase` - Cancel multiple orders or all orders
+- Enhanced `OrderService.list_open_orders()` with filter support
+- 23 comprehensive unit tests (94-97% coverage)
+
+✅ **REST API:**
+- `GET /api/orders/` - List orders with query filters
+- `DELETE /api/orders/{coin}/{order_id}` - Cancel specific order
+- `POST /api/orders/cancel-bulk` - Bulk cancellation
+
+✅ **Telegram Bot:**
+- `/orders` command - View outstanding orders
+- Filter by side (buy/sell)
+- Individual order cancellation with confirmation
+- Bulk "cancel all" with confirmation
+- Pagination (shows first 10 orders)
+
+### Known Issues
+⚠️ **Filter by Coin** - Button exists in orders menu but handler not implemented
+- File: `src/bot/handlers/orders.py`
+- Missing: `handle_filter_coin_callback()` and coin selection menu
+- Workaround: Use API endpoint or filter via /orders view all
+- Priority: Low (nice-to-have, not blocking)
+
+---
+
 ## 📋 Planned Features
 
-### Phase 6: Outstanding Orders Management
-**Goal**: List, filter, and manage all outstanding (open/unfilled) orders
-**Status**: 📋 Planned
-**Priority**: MEDIUM
-**Duration**: 1-2 days
+### Phase 7: Future Enhancements
+**Status**: 📋 Planning
+**Priority**: LOW
 
-**Features**:
-- List all outstanding orders with filters
-- Cancel individual or bulk orders
-- Integration with Telegram bot
-- See detailed UX design in [PLAN.md](PLAN.md) Phase 6
+**Potential Features**:
+- Order modification (edit price/size)
+- Order templates/presets
+- Advanced filters (time range, partially filled)
+- Order analytics (fill rate, avg execution time)
+- Export order history
+- Telegram: Filter by coin implementation (complete the feature)
 
 ---
 

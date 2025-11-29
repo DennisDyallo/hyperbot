@@ -51,6 +51,7 @@ class OrderMonitorService:
         self.state_manager = StateManager(state_file)
         self.telegram_chat_id = telegram_chat_id or self._get_default_chat_id()
         self.bot = None  # Set by bot.main.post_init()
+        self._loop: asyncio.AbstractEventLoop | None = None  # Set when service starts
         self._running = False
         self._reconnect_attempts = 0
         self._max_reconnect_attempts = 10
@@ -107,6 +108,10 @@ class OrderMonitorService:
         if self._running:
             logger.warning("OrderMonitorService already running")
             return
+
+        # Capture the current event loop for cross-thread task scheduling
+        self._loop = asyncio.get_running_loop()
+        logger.info(f"Captured event loop: {self._loop}")
 
         # Ensure Hyperliquid is initialized
         if not hyperliquid_service.is_initialized():
@@ -426,10 +431,31 @@ class OrderMonitorService:
             if fill_event:
                 logger.info(f"Fill event detected: {fill_event.coin} {fill_event.side_text}")
                 # Process the fill (deduplication, notification)
-                asyncio.create_task(self._process_fill(fill_event))
+                # WebSocket runs in a separate thread, so we need to schedule on the bot's event loop
+                if self._loop is not None and not self._loop.is_closed():
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._process_fill(fill_event), self._loop
+                    )
+                    # Add callback to log any exceptions from the task
+                    future.add_done_callback(self._handle_task_exception)
+                else:
+                    logger.error("Cannot process fill: event loop not available or closed")
 
         except Exception as e:
             logger.exception(f"Error handling WebSocket event: {e}")
+
+    def _handle_task_exception(self, future):
+        """
+        Handle exceptions from tasks scheduled via run_coroutine_threadsafe.
+
+        Args:
+            future: The Future object returned by run_coroutine_threadsafe
+        """
+        try:
+            # This will raise any exception that occurred in the task
+            future.result()
+        except Exception as e:
+            logger.exception(f"Exception in background task: {e}")
 
     def _parse_fill_event(self, event: dict[str, Any]) -> OrderFillEvent | None:
         """

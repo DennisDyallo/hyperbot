@@ -35,8 +35,8 @@ class TestBuildMainMenu:
         """Test main menu has correct structure."""
         menu = build_main_menu()
 
-        # Should have 4 rows (info, trading, advanced, utility)
-        assert len(menu.inline_keyboard) == 4
+        # Should have 5 rows (info, orders, trading, advanced, utility)
+        assert len(menu.inline_keyboard) == 5
 
         # First row: Account, Positions
         assert len(menu.inline_keyboard[0]) == 2
@@ -45,20 +45,25 @@ class TestBuildMainMenu:
         assert menu.inline_keyboard[0][1].text == "📈 Positions"
         assert menu.inline_keyboard[0][1].callback_data == "menu_positions"
 
-        # Second row: Market Order, Close Position
-        assert len(menu.inline_keyboard[1]) == 2
-        assert menu.inline_keyboard[1][0].text == "💰 Market Order"
-        assert menu.inline_keyboard[1][0].callback_data == "menu_market"
+        # Second row: Orders
+        assert len(menu.inline_keyboard[1]) == 1
+        assert menu.inline_keyboard[1][0].text == "📋 Orders"
+        assert menu.inline_keyboard[1][0].callback_data == "menu_orders"
 
-        # Third row: Rebalance, Scale Order
+        # Third row: Market Order, Close Position
         assert len(menu.inline_keyboard[2]) == 2
-        assert menu.inline_keyboard[2][0].text == "⚖️ Rebalance"
-        assert menu.inline_keyboard[2][0].callback_data == "menu_rebalance"
+        assert menu.inline_keyboard[2][0].text == "💰 Market Order"
+        assert menu.inline_keyboard[2][0].callback_data == "menu_market"
 
-        # Fourth row: Help, Status
+        # Fourth row: Rebalance, Scale Order
         assert len(menu.inline_keyboard[3]) == 2
-        assert menu.inline_keyboard[3][0].text == "ℹ️ Help"
-        assert menu.inline_keyboard[3][0].callback_data == "menu_help"
+        assert menu.inline_keyboard[3][0].text == "⚖️ Rebalance"
+        assert menu.inline_keyboard[3][0].callback_data == "menu_rebalance"
+
+        # Fifth row: Help, Status
+        assert len(menu.inline_keyboard[4]) == 2
+        assert menu.inline_keyboard[4][0].text == "ℹ️ Help"
+        assert menu.inline_keyboard[4][0].callback_data == "menu_help"
 
 
 class TestBuildBackButton:

@@ -32,27 +32,71 @@ class OrderService:
         """Initialize order service."""
         self.hyperliquid = hyperliquid_service
 
-    def list_open_orders(self) -> list[dict[str, Any]]:
+    def list_open_orders(
+        self,
+        coin: str | None = None,
+        side: str | None = None,
+        order_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
-        List all open orders.
+        List all open orders with optional filters.
+
+        Args:
+            coin: Filter by coin symbol (e.g., "BTC", "ETH"). None = all coins
+            side: Filter by side ("buy" or "sell"). None = both sides
+            order_type: Filter by order type ("limit", "market", etc.). None = all types
 
         Returns:
-            List of open orders
+            List of open orders matching filters
 
         Raises:
             RuntimeError: If wallet address not configured
+            ValueError: If invalid filter value provided
             Exception: If API call fails
         """
         if not settings.HYPERLIQUID_WALLET_ADDRESS:
             raise RuntimeError("Wallet address not configured")
 
+        # Validate side parameter
+        if side and side.lower() not in ["buy", "sell"]:
+            raise ValueError(f"Invalid side: {side}. Must be 'buy' or 'sell'")
+
         try:
             info_client = self.hyperliquid.get_info_client()
             orders = info_client.open_orders(settings.HYPERLIQUID_WALLET_ADDRESS)
 
-            logger.debug(f"Listed {len(orders)} open orders")
-            return orders  # type: ignore
+            logger.debug(f"Listed {len(orders)} open orders before filtering")
 
+            # Apply filters
+            filtered_orders: list[dict[str, Any]] = orders
+
+            if coin:
+                filtered_orders = [o for o in filtered_orders if o.get("coin") == coin.upper()]
+
+            if side:
+                # Order side is a boolean field "side" where True = buy, False = sell
+                is_buy = side.lower() == "buy"
+                filtered_orders = [
+                    o for o in filtered_orders if o.get("side") == ("B" if is_buy else "A")
+                ]
+
+            if order_type:
+                # Filter by order type - this is nested in order object
+                filtered_orders = [
+                    o
+                    for o in filtered_orders
+                    if order_type.lower() in str(o.get("orderType", "")).lower()
+                ]
+
+            logger.debug(
+                f"Filtered to {len(filtered_orders)} orders "
+                f"(coin={coin}, side={side}, type={order_type})"
+            )
+            return list(filtered_orders)
+
+        except ValueError as e:
+            logger.error(f"Validation error listing orders: {e}")
+            raise
         except Exception as e:
             logger.error(f"Failed to list open orders: {e}")
             raise

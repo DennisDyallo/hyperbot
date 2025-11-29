@@ -228,6 +228,29 @@ async def menu_status_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 @authorized_only
+async def menu_orders_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle orders menu button - shows outstanding orders management."""
+    query = update.callback_query
+    assert query is not None
+
+    query = update.callback_query
+    await query.answer()  # type: ignore
+
+    # Import here to avoid circular import at module level
+    from src.bot.handlers.orders import build_orders_menu
+
+    menu_text = (
+        "📋 **Outstanding Orders Management**\n\n"
+        "View and manage your open orders.\n"
+        "Select an option below:"
+    )
+
+    await query.edit_message_text(  # type: ignore
+        menu_text, parse_mode="Markdown", reply_markup=build_orders_menu()
+    )
+
+
+@authorized_only
 async def menu_close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show close position menu with position selection."""
     query = update.callback_query
@@ -315,6 +338,7 @@ def get_menu_handlers():
         CallbackQueryHandler(menu_main_callback, pattern="^menu_main$"),
         CallbackQueryHandler(menu_account_callback, pattern="^menu_account$"),
         CallbackQueryHandler(menu_positions_callback, pattern="^menu_positions$"),
+        CallbackQueryHandler(menu_orders_callback, pattern="^menu_orders$"),
         CallbackQueryHandler(menu_help_callback, pattern="^menu_help$"),
         CallbackQueryHandler(menu_status_callback, pattern="^menu_status$"),
         CallbackQueryHandler(menu_close_callback, pattern="^menu_close$"),

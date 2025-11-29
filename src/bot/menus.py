@@ -19,6 +19,10 @@ def build_main_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton("📊 Account", callback_data="menu_account"),
             InlineKeyboardButton("📈 Positions", callback_data="menu_positions"),
         ],
+        # Orders row
+        [
+            InlineKeyboardButton("📋 Orders", callback_data="menu_orders"),
+        ],
         # Trading row
         [
             InlineKeyboardButton("💰 Market Order", callback_data="menu_market"),
