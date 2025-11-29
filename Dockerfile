@@ -46,13 +46,8 @@ RUN useradd -m -u 1000 hyperbot && \
     chown -R hyperbot:hyperbot /app
 USER hyperbot
 
-# Expose port for FastAPI (if running API server)
+# Expose port (not used for bot-only mode, but kept for compatibility)
 EXPOSE 8000
 
-# Default command: Run Telegram bot
-# Override with docker run command to run API server or other services
+# Run only the Telegram Bot
 CMD ["python", "-m", "src.bot.main"]
-
-# Health check for bot (checks if process is running)
-HEALTHCHECK --interval=60s --timeout=10s --start-period=40s --retries=3 \
-    CMD pgrep -f "src.bot.main" || exit 1
