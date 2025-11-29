@@ -1,0 +1,74 @@
+# Docker Compose for Hyperbot
+# Use this for local development and testing before cloud deployment
+
+version: '3.8'
+
+services:
+  # Telegram Bot Service
+  hyperbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hyperbot-telegram
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - HYPERLIQUID_TESTNET=true  # Always use testnet for safety
+    volumes:
+      # Mount logs directory for persistent logs
+      - ./logs:/app/logs
+      # Optional: Mount data directory for persistent state
+      - ./data:/app/data
+    command: python -m src.bot.main
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "src.bot.main"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # FastAPI Server (optional - only if running web dashboard)
+  # Uncomment if you want to run the API server alongside the bot
+  # api-server:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: hyperbot-api
+  #   restart: unless-stopped
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - HYPERLIQUID_TESTNET=true
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./logs:/app/logs
+  #     - ./data:/app/data
+  #   command: python run.py
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
+
+# Optional: Add Open WebUI as a separate service
+# Uncomment to run Open WebUI alongside Hyperbot
+#   openwebui:
+#     image: ghcr.io/open-webui/open-webui:main
+#     container_name: openwebui
+#     restart: unless-stopped
+#     ports:
+#       - "8080:8080"
+#     volumes:
+#       - openwebui-data:/app/backend/data
+#     environment:
+#       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+#       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+#     extra_hosts:
+#       - "host.docker.internal:host-gateway"
+
+volumes:
+  openwebui-data:
+    driver: local

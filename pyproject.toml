@@ -15,6 +15,7 @@ dependencies = [
     "jinja2>=3.1.4",
     "python-multipart>=0.0.9",
     "python-telegram-bot>=22.5",
+    "google-cloud-secret-manager>=2.20.0",  # For GCP Secret Manager
 ]
 
 [project.optional-dependencies]

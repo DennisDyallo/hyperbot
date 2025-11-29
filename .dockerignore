@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+
+# Git
+.git/
+.gitignore
+
+# Logs
+logs/*.log
+*.log
+
+# Environment files (should be passed at runtime)
+.env
+.env.*
+
+# Documentation
+docs/
+*.md
+# Keep README.md - required by pyproject.toml build
+!README.md
+
+# Data files
+data/
+*.json
+
+# CI/CD
+.github/
+
+# Scripts (not needed in container)
+scripts/
+
+# Tests (not needed in production)
+tests/
+
+# Service files (for systemd, not needed in container)
+*.service
+*.sh
+install-service.sh
+manage-bot.sh
+
+# TypeScript (not used in Python project)
+tsconfig.json
+node_modules/
+
+# Misc
+.DS_Store
+*.sqlite
+*.db
+mypy-output.txt

@@ -1,0 +1,77 @@
+name: Deploy to GCP Cloud Run
+
+on:
+  push:
+    branches:
+      - main  # Deploy on pushes to main branch
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  PROJECT_ID: ${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: hyperbot
+  IMAGE_NAME: gcr.io/${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID }}/hyperbot
+
+jobs:
+  deploy:
+    name: Build and Deploy to Cloud Run
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity Federation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID }}
+
+      - name: Configure Docker for GCR
+        run: |
+          gcloud auth configure-docker
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:latest -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Push Docker image to GCR
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --min-instances 1 \
+            --max-instances 1 \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout 300 \
+            --no-allow-unauthenticated \
+            --set-env-vars ENVIRONMENT=production \
+            --set-env-vars HYPERLIQUID_TESTNET=true \
+            --set-env-vars GCP_PROJECT=${{ secrets.LIGHTBRINGER_HYPERBOT_GCP_PROJECT_ID }} \
+            --set-secrets=TELEGRAM_BOT_TOKEN=lightbringer-hyperbot-telegram-bot-token:latest \
+            --set-secrets=TELEGRAM_AUTHORIZED_USERS=lightbringer-hyperbot-telegram-authorized-users:latest \
+            --set-secrets=HYPERLIQUID_SECRET_KEY=lightbringer-hyperbot-hyperliquid-secret-key:latest \
+            --set-secrets=HYPERLIQUID_WALLET_ADDRESS=lightbringer-hyperbot-hyperliquid-wallet-address:latest \
+            --set-secrets=API_KEY=lightbringer-hyperbot-api-key:latest
+
+      - name: Show deployment info
+        run: |
+          gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --format='value(status.url)'
