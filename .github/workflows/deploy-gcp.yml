@@ -42,6 +42,11 @@ jobs:
         run: |
           gcloud auth configure-docker
 
+      - name: Pull previous image for caching (if exists)
+        continue-on-error: true
+        run: |
+          docker pull ${{ env.IMAGE_NAME }}:latest || true
+
       - name: Build Docker image with caching
         run: |
           docker buildx build \
