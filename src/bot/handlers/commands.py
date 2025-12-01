@@ -34,7 +34,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         welcome_msg = (
             f"👋 Welcome to **{settings.PROJECT_NAME}**!\n\n"
             f"✅ You are authorized to use this bot.\n\n"
-            f"**Environment**: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'}\n"
+            f"**Environment**: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'} | **Version**: {settings.VERSION}\n"
             f"**Wallet**: `{settings.HYPERLIQUID_WALLET_ADDRESS[:8]}...{settings.HYPERLIQUID_WALLET_ADDRESS[-6:]}`\n\n"
             f"Select an action from the menu below:"
         )
