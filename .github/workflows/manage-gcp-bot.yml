@@ -10,7 +10,6 @@ on:
         options:
           - start
           - stop
-          - delete
           - status
         default: 'status'
 
@@ -64,9 +63,11 @@ jobs:
           if [ "${{ inputs.action }}" = "status" ]; then
             echo "Check the logs above for detailed status information." >> $GITHUB_STEP_SUMMARY
           elif [ "${{ inputs.action }}" = "start" ]; then
-            echo "✅ Bot should now be running and consuming resources." >> $GITHUB_STEP_SUMMARY
+            echo "✅ Bot deployed and running (min-instances=1)." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The bot is now actively polling Telegram for messages." >> $GITHUB_STEP_SUMMARY
           elif [ "${{ inputs.action }}" = "stop" ]; then
-            echo "✅ Bot has been scaled to zero (no resource consumption)." >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ inputs.action }}" = "delete" ]; then
-            echo "✅ Bot service has been deleted entirely." >> $GITHUB_STEP_SUMMARY
+            echo "✅ Bot has been stopped (service deleted, \$0 cost)." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use 'start' action to redeploy and resume the bot." >> $GITHUB_STEP_SUMMARY
           fi

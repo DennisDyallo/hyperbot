@@ -63,10 +63,6 @@ start_bot() {
     local status
     status=$(get_service_status)
 
-    if [ "$status" = "NOT_FOUND" ]; then
-        error "Service '$SERVICE_NAME' not found. Deploy it first using the deploy-gcp.yml workflow."
-    fi
-
     if [ "$status" = "True" ]; then
         success "Bot is already running"
         local url
@@ -75,36 +71,35 @@ start_bot() {
         return 0
     fi
 
-    # Update service to ensure it's running with min instances = 1
-    gcloud run services update "$SERVICE_NAME" \
+    # Check if image exists
+    info "Deploying bot from latest image..."
+
+    # Deploy service with latest image
+    gcloud run deploy "$SERVICE_NAME" \
+        --image "$IMAGE_NAME:latest" \
+        --platform managed \
         --region "$REGION" \
         --min-instances 1 \
         --max-instances 1 \
+        --memory 512Mi \
+        --cpu 1 \
+        --timeout 300 \
+        --no-cpu-throttling \
+        --no-allow-unauthenticated \
+        --set-env-vars ENVIRONMENT=production \
+        --set-env-vars HYPERLIQUID_TESTNET=false \
+        --set-env-vars GCP_PROJECT="$PROJECT_ID" \
+        --set-secrets=TELEGRAM_BOT_TOKEN=lb-hyperbot-telegram-bot-token:latest \
+        --set-secrets=TELEGRAM_AUTHORIZED_USERS=lb-hyperbot-telegram-authorized-users:latest \
+        --set-secrets=HYPERLIQUID_SECRET_KEY=lb-hyperbot-hyperliquid-secret-key:latest \
+        --set-secrets=HYPERLIQUID_WALLET_ADDRESS=lb-hyperbot-hyperliquid-wallet-address:latest \
         --quiet
 
-    success "Bot started successfully"
+    success "Bot deployed and started successfully"
 
-    # Wait for service to be ready
-    info "Waiting for service to be ready..."
-    local max_attempts=30
-    local attempt=0
-
-    while [ $attempt -lt $max_attempts ]; do
-        status=$(get_service_status)
-        if [ "$status" = "True" ]; then
-            success "Service is ready"
-            local url
-            url=$(get_service_url)
-            info "Service URL: $url"
-            return 0
-        fi
-
-        echo -n "."
-        sleep 2
-        ((attempt++))
-    done
-
-    error "Service did not become ready within 60 seconds"
+    local url
+    url=$(get_service_url)
+    info "Service URL: $url"
 }
 
 stop_bot() {
@@ -114,38 +109,23 @@ stop_bot() {
     status=$(get_service_status)
 
     if [ "$status" = "NOT_FOUND" ]; then
-        error "Service '$SERVICE_NAME' not found in region $REGION"
-    fi
-
-    # Update service to scale to zero
-    gcloud run services update "$SERVICE_NAME" \
-        --region "$REGION" \
-        --min-instances 0 \
-        --max-instances 1 \
-        --no-cpu-throttling \
-        --quiet
-
-    success "Bot stopped (scaled to zero)"
-    info "Service still exists but will not consume resources"
-    info "Use 'start' to scale back up, or delete the service entirely if no longer needed"
-}
-
-delete_bot() {
-    info "Deleting GCP Cloud Run service..."
-
-    local status
-    status=$(get_service_status)
-
-    if [ "$status" = "NOT_FOUND" ]; then
-        success "Service already deleted"
+        success "Bot is already stopped"
         return 0
     fi
 
+    # Delete the service to stop it completely
     gcloud run services delete "$SERVICE_NAME" \
         --region "$REGION" \
         --quiet
 
-    success "Service deleted successfully"
+    success "Bot stopped (service deleted)"
+    info "Service will not consume any resources"
+    info "Use 'start' to redeploy and restart the bot"
+}
+
+delete_bot() {
+    # Alias for stop_bot since they do the same thing now
+    stop_bot
 }
 
 show_status() {
@@ -193,18 +173,20 @@ main() {
     local command="${1:-}"
 
     if [ -z "$command" ]; then
-        echo "Usage: $0 [start|stop|delete|status]"
+        echo "Usage: $0 [start|stop|status]"
         echo ""
         echo "Commands:"
-        echo "  start   - Start the bot (scale to min 1 instance)"
-        echo "  stop    - Stop the bot (scale to 0 instances)"
-        echo "  delete  - Delete the service entirely"
+        echo "  start   - Deploy and start the bot from latest image"
+        echo "  stop    - Stop the bot (deletes service, no cost)"
         echo "  status  - Show current bot status and logs"
         echo ""
         echo "Environment variables (optional):"
         echo "  GCP_PROJECT_ID    - GCP project ID (default: hyperbot-479700)"
         echo "  GCP_REGION        - GCP region (default: us-central1)"
         echo "  GCP_SERVICE_NAME  - Service name (default: hyperbot)"
+        echo ""
+        echo "Note: 'start' requires that an image exists in Artifact Registry."
+        echo "      Use the deploy-gcp.yml workflow to build and push a new image."
         exit 1
     fi
 
@@ -225,7 +207,7 @@ main() {
             show_status
             ;;
         *)
-            error "Unknown command: $command. Use start, stop, delete, or status."
+            error "Unknown command: $command. Use start, stop, or status."
             ;;
     esac
 }

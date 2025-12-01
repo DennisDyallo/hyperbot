@@ -10,14 +10,11 @@
 # Check bot status
 ./scripts/manage-gcp-bot.sh status
 
-# Start the bot (scale to 1 instance)
+# Start the bot (redeploys from latest image)
 ./scripts/manage-gcp-bot.sh start
 
-# Stop the bot (scale to 0, no cost)
+# Stop the bot (deletes service, no cost)
 ./scripts/manage-gcp-bot.sh stop
-
-# Delete the service entirely
-./scripts/manage-gcp-bot.sh delete
 
 # Override project ID if needed
 export GCP_PROJECT_ID="different-project"
@@ -31,30 +28,22 @@ export GCP_PROJECT_ID="different-project"
 3. Click **"Run workflow"** button
 4. Select action from dropdown:
    - **status** - Check current bot status and recent logs
-   - **start** - Scale bot to 1 instance (will start consuming resources)
-   - **stop** - Scale bot to 0 instances (stops resource consumption but keeps service)
-   - **delete** - Delete the service entirely (requires redeployment to restore)
+   - **start** - Redeploy bot from latest image (will run with min-instances=1)
+   - **stop** - Delete the service (stops bot, $0 cost)
 
 ## Commands
 
 ### `start`
-- Scales the service to min=1, max=1 instances
-- Bot will start running and consuming resources
-- Waits for service to be ready (up to 60 seconds)
-- Shows service URL when ready
+- Redeploys the service from the latest image in Artifact Registry
+- Sets min-instances=1, max-instances=1
+- Bot will start running and actively polling Telegram
+- **Note**: Requires that an image exists (push to main or run deploy-gcp.yml first)
 
 ### `stop`
-- Scales the service to min=0, max=1 instances
+- **Deletes the Cloud Run service entirely**
 - Bot stops running immediately
 - **No cost incurred** while stopped
-- Service configuration is preserved
-- Use `start` to quickly resume
-
-### `delete`
-- **Permanently deletes** the Cloud Run service
-- All configuration is lost
-- Must redeploy using `deploy-gcp.yml` workflow to restore
-- Use this when you're done with the bot entirely
+- Use `start` to redeploy (takes ~30-60 seconds)
 
 ### `status`
 - Shows current running state (RUNNING/STOPPED/NOT DEPLOYED)
@@ -64,15 +53,19 @@ export GCP_PROJECT_ID="different-project"
 
 ## Cost Management
 
-**Key Insight**: Use `stop` instead of `delete` to save costs while preserving the service.
+**Key Insight**: Use `stop` to completely remove the service when not trading.
 
 | Action | Cost | Recovery Time | Use When |
 |--------|------|---------------|----------|
-| `stop` | $0/month | ~5 seconds | Taking a break, testing, overnight |
-| `delete` | $0/month | ~2-3 minutes | Done with bot permanently |
-| Keep running | ~$5-10/month* | N/A | Active trading |
+| `stop` | $0/month | ~30-60 seconds | Not trading, overnight, testing |
+| Keep running | ~$5-10/month* | N/A | Active trading hours |
 
-*Estimated cost with min-instances=1, 512Mi memory, 1 CPU, minimal traffic
+*Estimated cost with min-instances=1, 512Mi memory, 1 CPU
+
+**How it works:**
+- `stop` deletes the service → $0 cost
+- `start` redeploys from latest image → bot resumes in ~30-60 seconds
+- Telegram bot requires min-instances=1 (needs to actively poll for messages)
 
 ## Prerequisites
 
@@ -100,11 +93,22 @@ export GCP_PROJECT_ID="different-project"
 
 ### Daily Development Workflow
 ```bash
-# Morning: Start bot
+# Morning: Start bot (redeploys from latest image)
 ./scripts/manage-gcp-bot.sh start
 
-# Evening: Stop bot (save costs overnight)
+# Evening: Stop bot (delete service, save costs)
 ./scripts/manage-gcp-bot.sh stop
+```
+
+### After Code Changes
+```bash
+# 1. Push to main branch (triggers auto-deploy via GitHub Actions)
+git push origin main
+
+# 2. Wait for deployment (~2-3 minutes)
+
+# 3. Bot is now running with new code
+./scripts/manage-gcp-bot.sh status
 ```
 
 ### Check Logs Without Changing State
@@ -125,11 +129,12 @@ gcloud auth login
 ```
 
 ### "Service not found"
-Deploy the service first:
+The bot is currently stopped. Start it with:
 ```bash
-# Via GitHub Actions: Trigger "Deploy to GCP Cloud Run" workflow
-# Or push to main branch to auto-deploy
+./scripts/manage-gcp-bot.sh start
 ```
+
+This will redeploy from the latest image in Artifact Registry.
 
 ### Service won't start
 Check logs in the `status` output or use:
@@ -146,8 +151,8 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 
 ## Best Practices
 
-1. **Use `stop` for short breaks** - Preserves configuration, instant restart
+1. **Use `stop` when not trading** - Completely free, fast restart
 2. **Use `status` frequently** - Check health without side effects
-3. **Use `delete` sparingly** - Only when completely done with the bot
+3. **Push to main for code updates** - Auto-deploys via GitHub Actions
 4. **GitHub Actions for remote management** - Control from anywhere without local gcloud setup
-5. **Set min-instances=0 for development** - Only pay when actively using
+5. **Always keep min-instances=1 when running** - Bot needs to actively poll Telegram
