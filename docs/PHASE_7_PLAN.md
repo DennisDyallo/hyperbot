@@ -34,6 +34,214 @@ This plan has been enhanced with professional Telegram trading bot UX principles
 
 ---
 
+## 👨‍💻 Developer's Expert Assessment
+
+**Date**: 2025-12-01
+**Analysis**: Comprehensive review of existing wizard architecture
+
+### Current Implementation Analysis
+
+After deep-diving into `wizard_market_order.py` (390 lines) and comparing with other wizards in the codebase, here's the architectural reality:
+
+#### ✅ What's Working Well
+
+1. **State Machine Pattern**: ConversationHandler is optimal for Telegram bots
+   - Clear state transitions (COIN → SIDE → AMOUNT → CONFIRM)
+   - Proper entry points, state handlers, and fallbacks
+   - Each handler returns next state or END
+
+2. **Error Handling**: Consistent utility functions
+   - `send_success_and_end()`, `send_error_and_end()`, `send_cancel_and_end()`
+   - All exit paths return to main menu
+   - User data properly cleaned up
+
+3. **Dual Input Support**: Buttons + text input
+   - Quick preset buttons for common values
+   - "Custom" option for flexibility
+   - Proper validation and re-prompting
+
+#### ❌ Problems Identified
+
+1. **Code Duplication** (~73 lines total):
+   ```python
+   # Confirmation message appears 2x (in amount_selected and amount_text_input)
+   side_emoji = "🟢" if is_buy else "🔴"
+   text = (
+       f"{side_emoji} **Confirm Market Order**\n\n"
+       f"**Coin**: {coin}\n"
+       # ... 19 lines duplicated
+   )
+   # Saves: 38 lines
+
+   # Query extraction boilerplate appears 7x
+   query = update.callback_query
+   assert query is not None
+   await query.answer()
+   # Saves: 35 lines
+   ```
+
+2. **Menu Builder Coupling**:
+   - 4 external menu functions in `menus.py` (54 lines)
+   - Hard to customize per wizard
+   - Duplicate button patterns
+
+3. **No Risk Preview**:
+   - Missing liquidation price display
+   - No margin requirement calculation
+   - No buying power visibility
+   - No risk level assessment
+
+### Component Library Reality Check
+
+**Initial Approach (FAILED)**: `OrderFlowOrchestrator`
+- ❌ Tried to orchestrate entire flow (steps 1-6)
+- ❌ Conflicts with ConversationHandler (already does orchestration)
+- ❌ Methods are async and edit messages directly
+- ❌ Cannot return `(text, markup)` tuples for flexible use
+- ❌ Wrong abstraction level
+
+**Why It Failed**:
+```python
+# OrderFlowOrchestrator tries to do THIS:
+async def step_2_side_selection(self, update, context, coin):
+    # Builds text, builds buttons, edits message
+    await query.edit_message_text(...)
+    # But ConversationHandler already manages the flow!
+
+# What we ACTUALLY need:
+text = build_order_preview(coin, side, amount)  # Just returns text
+buttons = build_confirm_cancel("market")         # Just returns markup
+```
+
+**Correct Approach**: Building blocks, not orchestration
+
+### What Components Should Provide
+
+#### 1. Preview Message Builder ✅ HIGH VALUE
+```python
+preview_text = build_order_preview(
+    coin="BTC",
+    side="BUY",
+    usd_amount=100.0,
+    coin_size=0.05,
+    price=2000.0,
+    leverage=5,
+    margin_required=20.0,
+    liquidation_price=1600.0,
+    risk_level="MODERATE"
+)
+```
+**Saves**: 38 lines of duplication
+
+#### 2. Button Builder ✅ EXISTS (needs refinement)
+```python
+buttons = ButtonBuilder()
+buttons.add_row(("$10", "amount:10"), ("$25", "amount:25"))
+return buttons.build()
+```
+**Saves**: 60 lines (4 menu functions)
+
+#### 3. State Extractor Helper (NEW)
+```python
+@extract_callback_state
+async def handler(update, context, query, user_data):
+    # query and user_data already extracted and validated
+```
+**Saves**: 35 lines of boilerplate
+
+#### 4. Loading Context Manager (NEW)
+```python
+async with LoadingMessage(query, f"Fetching {coin} price..."):
+    coin_size, price = convert_usd_to_coin(usd_amount, coin)
+```
+**Benefit**: Cleaner async patterns
+
+### Realistic POC Metrics
+
+**Current Implementation**:
+- Lines: 390
+- Handlers: 8 async functions
+- States: 4
+- External dependencies: 4 menu builders
+- Duplication: ~73 lines
+
+**With Proper Components** (estimated):
+- Lines: ~280-310
+- Reduction: **20-28%**
+- Handlers: 8 (same - no change needed)
+- States: 4 (same - ConversationHandler is optimal)
+- External dependencies: 0 (inline ButtonBuilder)
+- Duplication: <10 lines
+
+### Key Learnings
+
+1. **ConversationHandler Pattern is Optimal**: Don't try to replace it
+2. **Components Should Be Builders**: Not orchestrators
+3. **Focus on Duplication**: Preview messages, button patterns
+4. **Keep State Management Simple**: user_data is good enough
+5. **Async is Unavoidable**: Embrace it with proper patterns
+
+### Recommended Implementation Strategy
+
+#### Phase 1: Extract Helpers (Low Risk)
+1. `build_order_preview()` → Returns formatted text with all metrics
+2. Replace `menus.py` functions with `ButtonBuilder` patterns
+3. Create `@extract_callback_state` decorator
+4. Add `LoadingMessage` context manager
+
+#### Phase 2: Enhance Wizard (Moderate Risk)
+1. Add leverage selection step (new state)
+2. Add buying power calculation
+3. Use preview builder for confirmation
+4. Add risk metrics display
+
+#### Phase 3: Test & Iterate
+- Refactor one handler at a time
+- Keep old version as fallback
+- A/B test with users
+
+### Time Estimate (Realistic)
+
+**To Build Market Order Wizard from Scratch**:
+- With current patterns: 4-6 hours (experienced dev)
+- With proper components: 2-3 hours (50% faster)
+- Testing + edge cases: +2-3 hours
+- **Total**: 6-9 hours for production-ready wizard
+
+**To Refactor Existing Wizard**:
+- Extract preview builder: 2 hours
+- Refactor to use components: 3-4 hours
+- Testing: 2 hours
+- **Total**: 7-8 hours
+
+### Critical Insights for Phase 7
+
+1. **Don't Rebuild Wizards**: Just enhance with new steps
+2. **Add Leverage Step**: Insert between AMOUNT and CONFIRM
+3. **Use Preview Builder**: Show capital impact + risk metrics
+4. **Keep Existing Patterns**: They work, just reduce duplication
+5. **Test Incrementally**: One wizard at a time
+
+### The Path Forward
+
+```
+PHASE 7 Implementation Reality:
+
+NOT: Rewrite all wizards with components
+BUT: Add leverage selection + preview enhancement
+
+Steps:
+1. Create preview builder with leverage metrics
+2. Add LEVERAGE state to market wizard
+3. Enhance CONFIRM step to show capital impact
+4. Test thoroughly
+5. Repeat for limit and scale wizards
+```
+
+**Conclusion**: The component library needs redesign to provide **building blocks** (preview builders, button helpers) not **orchestration** (flow management). The ConversationHandler pattern is already optimal - we just need better tools to build the pieces.
+
+---
+
 ## Problem Statement
 
 **Current Pain Points**:
