@@ -7,7 +7,7 @@ ordering, and accessibility.
 
 from typing import Final
 
-from telegram import InlineKeyboardButton
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Button layout constants
 MAX_BUTTONS_PER_ROW: Final[int] = 4
@@ -141,16 +141,15 @@ class ButtonBuilder:
         self._flush_row()
         return self
 
-    def build(self) -> list[list[InlineKeyboardButton]]:
-        """
-        Build the final button layout.
+    def build(self) -> InlineKeyboardMarkup:
+        """Build the final button layout.
 
         Returns:
-            List of button rows for InlineKeyboardMarkup.
+            InlineKeyboardMarkup ready for Telegram API
         """
         # Flush any remaining buttons
         self._flush_row()
-        return self._rows
+        return InlineKeyboardMarkup(self._rows)
 
     def _flush_row(self) -> None:
         """Flush current row to rows list if not empty."""
@@ -163,9 +162,8 @@ def build_single_action_button(
     label: str,
     callback_data: str,
     style: str = "primary",
-) -> list[list[InlineKeyboardButton]]:
-    """
-    Build a single full-width action button.
+) -> InlineKeyboardMarkup:
+    """Build a single full-width action button.
 
     Convenience function for simple single-button layouts.
 
@@ -175,11 +173,10 @@ def build_single_action_button(
         style: Button style (default: "primary").
 
     Returns:
-        Button layout for InlineKeyboardMarkup.
+        InlineKeyboardMarkup ready for Telegram API
 
     Example:
         >>> buttons = build_single_action_button("Buy $1,000 BTC", "confirm")
-        >>> # Returns: [[InlineKeyboardButton("✅ Buy $1,000 BTC", ...)]]
     """
     return ButtonBuilder().action(label, callback_data, style, full_width=True).build()
 
@@ -189,9 +186,8 @@ def build_confirm_cancel_buttons(
     confirm_callback: str,
     cancel_label: str = "Cancel",
     cancel_callback: str = "cancel",
-) -> list[list[InlineKeyboardButton]]:
-    """
-    Build standard confirm/cancel button pair.
+) -> InlineKeyboardMarkup:
+    """Build standard confirm/cancel button pair.
 
     Args:
         confirm_label: Confirm button text.
@@ -200,11 +196,10 @@ def build_confirm_cancel_buttons(
         cancel_callback: Cancel callback data (default: "cancel").
 
     Returns:
-        Button layout with two buttons side by side.
+        InlineKeyboardMarkup with confirm and cancel buttons
 
     Example:
         >>> buttons = build_confirm_cancel_buttons("Buy", "buy:BTC")
-        >>> # Returns confirm and cancel buttons in one row
     """
     builder = ButtonBuilder()
     builder.action(confirm_label, confirm_callback, style="primary")
