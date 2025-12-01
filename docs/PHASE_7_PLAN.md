@@ -1,9 +1,36 @@
 # Phase 7: Leverage-Aware Order Placement & Capital Transparency
 
-**Status**: 📋 Planned
+**Status**: 📋 Planned (Enhanced with UX Best Practices)
 **Priority**: HIGH - Critical UX improvement for safe trading
-**Duration**: 3-4 days
+**Duration**: 4.5-5 days
 **Target Completion**: TBD
+
+---
+
+## 🎯 Quick Reference: Key UX Improvements
+
+This plan has been enhanced with professional Telegram trading bot UX principles:
+
+### Core Design Philosophy
+1. **Progressive Disclosure**: Quick preview (default) + Full details (optional)
+2. **Mobile-First**: All previews fit on small screens without scrolling
+3. **Context-Aware**: Recommendations based on order size, not generic
+4. **Action-Oriented**: Buttons say "Buy $1,000 BTC" not "Confirm"
+5. **Safety Through Transparency**: Show consequences, don't just restrict
+
+### Major UX Enhancements
+- ✅ **Two-Tier Previews**: Quick (80% use case) vs. Full (power users)
+- ✅ **Smart Leverage Labels**: "Good for this size" vs. generic "Recommended"
+- ✅ **Risk-Sorted Positions**: Dangerous positions highlighted first
+- ✅ **Clearer Stop Loss Labels**: "SAFE/BALANCED/WIDE" vs. "2% risk"
+- ✅ **Loading States**: Every async operation shows progress
+- ✅ **30-Second Undo**: Order modification window
+- ✅ **Tutorial Mode**: First-time user onboarding
+- ✅ **"?" Helpers**: Optional explanations without patronizing
+- ✅ **Bulk Actions**: Set all stop losses with single flow
+
+### Implementation Strategy
+**Ship in phases**: 7C-Lite (basic flow) → Get feedback → 7C-Full (enhanced features)
 
 ---
 
@@ -282,24 +309,41 @@ class OrderService:
 
 **Step 2: Leverage Selection (NEW!)**
 ```
-⚡ Select Leverage
+⚡ Select Leverage for $1,000 BTC
 
-Your buying power at each level:
+Your order: $1,000
+Available: $5,200
 
-1x  → $5,200 available
-3x  → $15,600 available ✨ Recommended
-5x  → $26,000 available
-10x → $52,000 available ⚠️ High Risk
-20x → $104,000 available 🔥 EXTREME
+1x  → $5,200 max ⚪ Conservative
+3x  → $15,600 max ✨ Good for this size
+5x  → $26,000 max 🟡 Higher risk
+10x → $52,000 max 🔴 Risky
+20x → $104,000 max � Extreme risk
 
-Current selection: $1000
+💡 For $1,000 orders, 3-5x balances
+   opportunity and safety.
 
-[1x] [3x] [5x] [10x] [20x] [Custom]
+[1x] [3x ✨] [5x] [10x] [20x] [Custom]
 ```
 
-**Step 3: Order Preview (ENHANCED)**
+**Step 3: Order Preview (ENHANCED - Two-Tier System)**
+
+**Quick Preview (Default - Mobile Optimized)**
 ```
 📋 Order Preview
+
+💰 BTC BUY: $1,000 @ market
+⚡ Leverage: 5x
+📊 Margin: $200 / $5,200 available
+🎯 Liquidation: $78,800 (-20%)
+⚠️ Risk: MODERATE 🟡
+
+[✅ Buy $1,000 BTC] [📊 Full Details] [❌ Cancel]
+```
+
+**Full Preview (Optional - When User Clicks "📊 Full Details")**
+```
+📋 Complete Order Analysis
 
 Coin: BTC
 Side: BUY 🟢
@@ -319,7 +363,7 @@ Buying Power Used: 3.8%
 Entry Price: ~$98,500 (market)
 Est. Liquidation: $78,800
 Safety Distance: 20% drop
-Risk Level: MODERATE 🟡
+Risk Level: MODERATE 🟡 [?]
 
 Position Size: 0.01015 BTC
 Total Exposure: $1,000
@@ -327,7 +371,18 @@ Total Exposure: $1,000
 ✅ You have sufficient margin
 ✅ Leverage will be set to 5x
 
-[✅ Confirm] [⚙️ Change Leverage] [❌ Cancel]
+[✅ Buy $1,000 BTC] [⚙️ Change Leverage] [❌ Cancel]
+```
+
+**"[?]" Helper (When Clicked)**
+```
+💡 MODERATE Risk means:
+• Liquidation 15-25% away
+• Normal for 5x leverage
+• Consider stop loss protection
+• Typical for intermediate traders
+
+[Close]
 ```
 
 **Step 4: Execution & Confirmation**
@@ -344,9 +399,9 @@ Total Exposure: $1,000
    Margin Used: $200
    Liquidation: $78,800 (-20%)
 
-🎯 Track with /positions
-
-[🔙 Back to Menu]
+━━━━━━━━━━━━━━━━━
+What's next?
+[🛡️ Set Stop Loss] [📊 View Position] [🔙 Main Menu]
 ```
 
 ---
@@ -369,9 +424,24 @@ Enter your limit price:
 [Custom Price]
 ```
 
-**Step 4: Enhanced Preview (NEW)**
+**Step 4: Enhanced Preview (NEW - Two-Tier System)**
+
+**Quick Preview (Default)**
 ```
 📋 Limit Order Preview
+
+💰 BTC BUY: $1,000 @ $96,530
+⚡ Leverage: 5x
+📊 Margin Reserved: $200 🔒
+🎯 If filled, liq: $77,224 (-20%)
+⚠️ Risk: MODERATE 🟡
+
+[✅ Place Limit Order] [📊 Full Details] [❌ Cancel]
+```
+
+**Full Preview (Optional)**
+```
+📋 Complete Limit Order Analysis
 
 Coin: BTC
 Side: BUY 🟢 Limit
@@ -401,7 +471,7 @@ If Filled @ $96,530:
 ⚠️ Note: Liquidation calculated from
    FILL price, not current price
 
-[✅ Confirm] [⚙️ Adjust] [❌ Cancel]
+[✅ Place Limit Order] [⚙️ Adjust] [❌ Cancel]
 ```
 
 ---
@@ -430,9 +500,27 @@ Recommended: 3x-5x for scale orders
 [3x ✨] [5x] [10x] [Back]
 ```
 
-**Scale Order Preview (ENHANCED)**
+**Scale Order Preview (ENHANCED - Simplified with Expansion)**
+
+**Quick Preview (Default)**
 ```
 📊 Scale Order Preview
+
+5 BUY orders: $96k-$100k @ 5x ⚡
+Total: $5,000 | Margin: $1,000
+
+━━━━━━━━━━━━━━━━━
+If All Filled:
+Entry: ~$98,000
+Liquidation: $78,400 (-20%)
+Risk: MODERATE 🟡
+
+[📋 View All Orders] [✅ Place 5 Orders] [❌ Cancel]
+```
+
+**Expanded View (When "📋 View All Orders" Clicked)**
+```
+📊 Complete Scale Order Analysis
 
 5 BTC BUY orders: $96k - $100k
 Total: $5,000 | Leverage: 5x ⚡
@@ -499,6 +587,9 @@ Current Position:
 
 Continue with 3x leverage?
 
+💡 Tip: This is a Hyperliquid platform
+   limitation, not a bot restriction.
+
 [✅ Yes, Continue] [📊 View Position] [❌ Cancel]
 ```
 
@@ -522,13 +613,51 @@ Traders can't quickly assess:
 
 ### Enhanced Position View
 
-**Level 1: Positions List (Enhanced)**
+**Level 1: Positions List (Enhanced - Risk-Sorted)**
 ```
 📊 Open Positions (3)
 
 Total Value: $12,450
 Total PnL: +$523 (4.2%) 🟢
 Margin Used: 62%
+
+Sort: [⚠️ Risk] [💰 Size] [📈 PnL] [🔤 Name]
+
+━━━━━━━━━━━━━━━━━
+⚠️ NEEDS ATTENTION (1)
+━━━━━━━━━━━━━━━━━
+🔴 ETH SHORT • -$87 (8.7%)
+   Liq: 8% away ⚠️ | No SL ❌
+   [🛡️ Set SL] [📊 Details] [❌ Close]
+
+━━━━━━━━━━━━━━━━━
+✅ PROTECTED (2)
+━━━━━━━━━━━━━━━━━
+🟢 BTC LONG • +$175 (17.5%)
+   Liq: 22.7% away | SL ✅
+   [📊 Details]
+
+🟢 SOL LONG • +$365 (50.3%)
+   Liq: 36.5% away | SL ✅
+   [📊 Details]
+
+━━━━━━━━━━━━━━━━━
+⚠️ Risk Summary:
+• 1 position without stop loss
+• 1 position with HIGH risk
+
+[🛡️ Set All SL] [📊 Risk Analysis] [🔙 Back]
+```
+
+**Alternative: Traditional View (When Sorted by Name/Size/PnL)**
+```
+📊 Open Positions (3)
+
+Total Value: $12,450
+Total PnL: +$523 (4.2%) 🟢
+Margin Used: 62%
+
+Sort: [⚠️ Risk] [💰 Size] [📈 PnL] [🔤 Name]
 
 ━━━━━━━━━━━━━━━━━
 1. 🟢 BTC LONG
@@ -666,34 +795,28 @@ Current: $101,500
 Size: 0.05 BTC (5x leverage)
 
 ━━━━━━━━━━━━━━━━━
-Recommended Stop Loss Levels:
+Suggested Stop Loss Levels:
 ━━━━━━━━━━━━━━━━━
 
-Tight (2% risk):
-$99,470 (-2.0% from current)
-Loss if hit: -$102 (-10% ROI)
-[Set SL]
+🟢 SAFE (protects most gains)
+$99,470 • 2% below current
+   If hit: Keep +$70 profit
+   [Set SL]
 
-Conservative (5% risk):
-$96,425 (-5.0% from current)
-Loss if hit: -$254 (-25% ROI)
-[Set SL]
+🟡 BALANCED (normal volatility buffer)
+$96,425 • 5% below current
+   If hit: -$254 loss
+   [Set SL]
 
-Moderate (10% risk):
-$91,350 (-10.0% from current)
-Loss if hit: -$508 (-50% ROI)
-[Set SL]
+🟠 WIDE (for volatile markets)
+$91,350 • 10% below current
+   If hit: -$508 loss
+   [Set SL]
 
-Wide (15% risk):
-$86,275 (-15.0% from current)
-Loss if hit: -$762 (-75% ROI)
-[Set SL]
+💀 Liquidation: $78,400 (-22.7%)
 
-━━━━━━━━━━━━━━━━━
-⚠️ Warning Zone:
-Liquidation: $78,400 (-22.7%)
-
-💡 Recommended: 5-10% for 5x leverage
+💡 Tip: For 5x leverage, 5-10% SL
+   is common practice.
 
 [Custom Price] [Remove SL] [Cancel]
 ```
@@ -736,7 +859,9 @@ at $95,000 to close your position.
 ✅ Protects from larger losses
 ⚠️ May trigger on temporary dips
 
-[✅ Confirm] [❌ Cancel]
+💡 You can modify this later if needed
+
+[✅ Set Stop Loss @ $95k] [❌ Cancel]
 ```
 
 ### Stop Loss Success Message
@@ -912,6 +1037,122 @@ Consider:
 [📊 View Positions] [💰 Deposit] [🔕 Snooze]
 ```
 
+### 5. Loading States (NEW - Critical for UX)
+```
+When calculating preview:
+⏳ Calculating buying power...
+
+When fetching price:
+⏳ Fetching current BTC price...
+
+When placing order:
+⏳ Placing order...
+
+When setting leverage:
+⏳ Setting leverage to 5x...
+```
+
+### 6. Bulk Stop Loss Confirmation (NEW)
+```
+🛡️ Set Stop Loss for 3 Positions
+
+You're about to set stop loss for:
+
+• BTC @ $95,000 (5% below current)
+  Max loss: -$325
+
+• ETH @ $3,700 (5% below current)
+  Max loss: -$487
+
+• SOL @ $140.00 (8% below current)
+  Max loss: -$250
+
+Total potential loss: -$1,062
+
+[✅ Set All] [⚙️ Customize Each] [❌ Cancel]
+```
+
+### 7. Tutorial Mode / First Time Experience (NEW)
+```
+🎓 Welcome to Leverage Trading!
+
+This is your first time placing
+a leveraged order. Let's learn:
+
+What is Leverage?
+Leverage lets you control a larger
+position with less capital.
+
+Example:
+• Without leverage: $1,000 = $1,000 BTC
+• With 5x leverage: $1,000 = $5,000 BTC
+
+⚠️ But remember:
+• Profits are multiplied by 5x
+• Losses are also multiplied by 5x
+• Risk of liquidation exists
+
+[📚 Learn More] [✅ I Understand] [Skip Tutorial]
+```
+
+### 8. Order Modification Window (NEW)
+```
+✅ Limit Order Placed!
+
+Order ID: #12345678
+BTC BUY @ $96,530
+Size: $1,000
+
+Your order is now active.
+
+⏪ Changed your mind?
+   [Cancel Order] (30 sec remaining)
+
+After 30 seconds, use /orders to
+manage this order.
+
+[📊 View Orders] [🔙 Main Menu]
+```
+
+### 9. Leverage Lock Warning - First Position (NEW)
+```
+⚠️ Important: Leverage Lock
+
+Once you open this 5x position,
+you CANNOT change leverage until
+you close the position completely.
+
+Future BTC orders will automatically
+use 5x leverage.
+
+This is how Hyperliquid works,
+not a bot limitation.
+
+☑️ I understand leverage is locked
+   after opening position
+
+[✅ Continue] [📚 Learn More] [❌ Cancel]
+```
+
+### 10. Cross Margin Warning (NEW - If Applicable)
+```
+⚠️ Cross Margin Mode Active
+
+ALL your account balance backs
+this position.
+
+Impact:
+• Shared margin across all positions
+• One liquidation can affect others
+• Better capital efficiency
+• Higher systemic risk
+
+Alternative: Use isolated margin
+to limit risk per position.
+
+[📚 Learn More] [✅ I Understand, Continue] [❌ Cancel]
+```
+
 ---
 
 ## API Changes
@@ -992,43 +1233,65 @@ Body: {
 
 ### Phase 7A: Backend Foundation (1.5 days)
 - [ ] Create `CalculateBuyingPowerUseCase`
-- [ ] Create `PreviewOrderUseCase`
+- [ ] Create `PreviewOrderUseCase` (supports both quick & full preview modes)
 - [ ] Add leverage parameter to all order models
 - [ ] Implement auto-leverage setting in `OrderService`
 - [ ] Add buying power calculations to `AccountService`
 - [ ] **NEW**: Create `ManageStopLossUseCase` (set/remove/get)
 - [ ] **NEW**: Enhance `PositionService` to calculate liquidation for all positions
 - [ ] **NEW**: Add stop loss detection in position queries
+- [ ] **NEW**: Add risk sorting logic for positions
 - [ ] Unit tests (target: 90% coverage)
 
 ### Phase 7B: API Integration (0.5 days)
 - [ ] Add `/api/account/buying-power` endpoint
-- [ ] Add `/api/orders/preview` endpoint
+- [ ] Add `/api/orders/preview` endpoint (with `detail_level` param: "quick"/"full")
 - [ ] Update all order endpoints to accept leverage
 - [ ] **NEW**: Add `/api/positions/{coin}/stop-loss` endpoints (GET/POST/DELETE)
 - [ ] **NEW**: Enhance `/api/positions` response with liquidation & SL data
+- [ ] **NEW**: Add sort parameter to `/api/positions` (risk/size/pnl/name)
 - [ ] Update OpenAPI/Swagger docs
 - [ ] Integration tests
 
-### Phase 7C: Telegram Bot UX - Orders (1 day)
-- [ ] Add leverage selection step to market order wizard
-- [ ] Add leverage selection to limit order wizard
-- [ ] Add leverage selection to scale order wizard
-- [ ] Enhance all order previews with capital/risk metrics
-- [ ] Add `/buyingpower` command
-- [ ] Add `/riskcalc` command (optional)
-- [ ] Update settings menu for leverage preferences
+### Phase 7C-Lite: Simple Order Flow FIRST (1 day) ⭐ PRIORITY
+**Goal**: Ship basic leverage-aware ordering quickly, get user feedback
 
-### Phase 7D: Telegram Bot UX - Positions (1 day)
+- [ ] Add context-aware leverage selection to market order wizard
+- [ ] Add leverage selection to limit order wizard
+- [ ] Implement QUICK preview for all order types (mobile-optimized)
+- [ ] Add action-oriented confirmation buttons
+- [ ] Implement loading states for all async operations
+- [ ] Add leverage lock warning for first-time position opening
+- [ ] Basic error messages with helpful guidance
+- [ ] Manual testing on testnet
+
+**Ship to beta users, collect feedback before Phase 7C-Full**
+
+### Phase 7D: Position Enhancements (1 day)
 - [ ] **NEW**: Enhance `/positions` command with liquidation prices
 - [ ] **NEW**: Add stop loss display to position list
 - [ ] **NEW**: Add risk distance indicators (% to liquidation)
+- [ ] **NEW**: Implement risk-based sorting with grouping (Needs Attention / Protected)
+- [ ] **NEW**: Add sort controls (Risk/Size/PnL/Name)
 - [ ] **NEW**: Create detailed position view with full metrics
-- [ ] **NEW**: Implement stop loss wizard (set/edit/remove)
+- [ ] **NEW**: Implement stop loss wizard with improved labeling (SAFE/BALANCED/WIDE)
 - [ ] **NEW**: Add recommended SL levels calculator
-- [ ] **NEW**: Create `/risksum` or integrate into /positions for risk summary
-- [ ] **NEW**: Add "Set All SL" bulk action
+- [ ] **NEW**: Create risk summary view
+- [ ] **NEW**: Add "Set All SL" bulk action with confirmation
 - [ ] Update position formatters
+
+### Phase 7C-Full: Enhanced Order Flows (0.5 days)
+**Goal**: Add power-user features based on Phase 7C-Lite feedback
+
+- [ ] Add "Full Details" expansion to all previews
+- [ ] Implement "?" helper tooltips for risk levels
+- [ ] Add leverage selection to scale order wizard
+- [ ] Add enhanced scale order preview with expansion
+- [ ] Add `/buyingpower` command
+- [ ] Add `/riskcalc` command (optional)
+- [ ] Update settings menu for leverage preferences
+- [ ] Add tutorial mode for first-time users
+- [ ] Add 30-second order modification window
 
 ### Phase 7E: Polish & Safety (0.5 days)
 - [ ] Add confirmation dialogs for high leverage (>10x)
@@ -1036,16 +1299,35 @@ Body: {
 - [ ] Implement "existing position" leverage conflict handling
 - [ ] **NEW**: Add warnings for positions without stop loss
 - [ ] **NEW**: Add liquidation proximity alerts (< 10% away)
-- [ ] Add helpful error messages
+- [ ] **NEW**: Add cross margin warning (if applicable)
+- [ ] Add bulk stop loss confirmation
+- [ ] Improve all error messages with actionable guidance
+- [ ] Add loading state polish (progress indicators)
 - [ ] End-to-end testing on testnet
 
-### Phase 7F: Documentation (0.5 days)
+### Phase 7F: Documentation & Launch (0.5 days)
 - [ ] Update user documentation
 - [ ] Add leverage examples to README
 - [ ] **NEW**: Add stop loss best practices guide
 - [ ] **NEW**: Document liquidation calculation methods
+- [ ] **NEW**: Create UX decision log (why we chose two-tier previews, etc.)
 - [ ] Update API documentation
 - [ ] Create trading safety guide
+- [ ] Set up metrics tracking (error rates, preview abandonment, etc.)
+- [ ] Create user survey for feedback collection
+- [ ] Launch announcement with tutorial
+
+---
+
+**Implementation Priority Rationale**:
+
+1. **7A-7B (Backend/API)**: Foundation must be solid
+2. **7C-Lite (Simple Flow)**: Ship fast, validate UX with real users
+3. **7D (Positions)**: High-value safety feature
+4. **7C-Full (Enhanced)**: Add depth based on feedback
+5. **7E-7F (Polish/Launch)**: Final touches and documentation
+
+**Key Change**: Split Phase 7C into 7C-Lite and 7C-Full to enable faster iteration and user feedback
 
 ---
 
@@ -1159,9 +1441,156 @@ Body: {
 
 ---
 
+## UX Design Principles Applied
+
+### 1. Progressive Disclosure
+**Problem**: Information overload on mobile screens
+**Solution**: Two-tier preview system
+- Quick preview (80% use case): Essential info only
+- Full details (20% use case): Comprehensive analysis
+- Users choose their depth of information
+
+### 2. Mobile-First Design
+**Considerations**:
+- Telegram primarily used on mobile devices
+- Limited screen real estate
+- Quick decision-making context
+- Thumb-friendly button placement
+
+**Implementation**:
+- Quick previews fit in one screen
+- Most important info at the top
+- Action buttons use clear, specific language
+- Loading states prevent perceived lag
+
+### 3. Context-Aware Intelligence
+**Examples**:
+- Leverage recommendations based on ORDER SIZE, not just generic
+- Risk sorting shows dangerous positions first
+- Warnings appear only when relevant
+- Bulk actions when multiple items need attention
+
+### 4. Scannability
+**Techniques**:
+- Color coding (🟢🟡🔴) for instant risk assessment
+- Grouping (Protected vs. Needs Attention)
+- Visual hierarchy with emojis and separators
+- Consistent formatting patterns
+
+### 5. Action-Oriented Language
+**Instead of**: "Confirm" → **Use**: "Buy $1,000 BTC"
+**Instead of**: "Set SL" → **Use**: "Set Stop Loss @ $95k"
+**Instead of**: "Continue" → **Use**: "I Understand, Continue"
+
+**Why**: Specific actions reduce cognitive load and prevent errors
+
+### 6. Educational Without Patronizing
+**Balance**:
+- Tips and helpers available but not forced
+- "?" buttons for optional learning
+- Tutorial mode for first-timers
+- Expert users can skip explanations
+
+### 7. Safety Through Transparency
+**Not**: "Don't use high leverage"
+**Instead**: Show exact consequences (liquidation price, distance, potential loss)
+
+**Philosophy**: Informed traders make better decisions than restricted ones
+
+### 8. Fail-Safe Defaults
+- Default leverage: Conservative (3x)
+- Default sort: Risk (most dangerous first)
+- Default view: Quick preview (less overwhelming)
+- Confirmations required for high-risk actions
+
+### 9. Consistent Mental Models
+**Order Flow Pattern** (all order types):
+1. Select coin & direction
+2. Enter size
+3. Choose leverage (same UI every time)
+4. See preview (same format every time)
+5. Confirm (action-specific button)
+
+**Why**: Muscle memory reduces errors
+
+### 10. Forgiveness
+- 30-second undo window for orders
+- Edit capabilities for stop losses
+- Clear "Back" options at every step
+- No dead ends in the UI
+
+---
+
+## UX Testing Checklist
+
+### Usability Tests
+- [ ] New user can place first order in <2 minutes
+- [ ] Experienced user can place order in <30 seconds
+- [ ] Users understand leverage impact before confirmation
+- [ ] Users can identify highest-risk position in <5 seconds
+- [ ] Users can set stop loss without confusion
+- [ ] No "I don't know what to do" moments
+
+### Mobile Testing
+- [ ] All previews readable on iPhone SE (smallest screen)
+- [ ] Buttons thumb-reachable on 6.7" phones
+- [ ] No horizontal scrolling required
+- [ ] Text size readable without zooming
+- [ ] Loading states visible on slow connections
+
+### Error Prevention
+- [ ] Cannot place order with insufficient margin
+- [ ] Cannot set invalid stop loss (too close/beyond liquidation)
+- [ ] High leverage requires explicit confirmation
+- [ ] Warnings appear before dangerous actions
+- [ ] Validation messages are helpful, not just "Error"
+
+### Performance
+- [ ] Quick preview appears in <1 second
+- [ ] Full preview loads in <2 seconds
+- [ ] Leverage selection feels instant
+- [ ] No "hanging" states without feedback
+- [ ] Graceful degradation on network issues
+
+### Accessibility
+- [ ] Clear visual hierarchy without color dependence
+- [ ] Emojis supplement text, don't replace it
+- [ ] All critical info text-based (not emoji-only)
+- [ ] Consistent terminology throughout
+
+---
+
+## Metrics to Track Post-Launch
+
+### Success Metrics
+- **Order Error Rate**: Target <1% (orders placed with wrong leverage/size)
+- **Preview Abandonment**: Target <10% (users who see preview but cancel)
+- **Stop Loss Coverage**: Target >80% of positions have SL within 24h
+- **Time to Place Order**: Target <60 seconds for market orders
+- **User Confidence Score**: Survey rating >4.5/5
+
+### Risk Metrics
+- **Unexpected Liquidations**: Target 0 (all liquidations had proper warning)
+- **Support Tickets**: "I didn't know..." complaints → 0
+- **Incorrect Leverage Usage**: Target <5% of orders
+
+### Engagement Metrics
+- **Full Preview Usage**: Measure % who expand details
+- **Risk Calculator Usage**: Track adoption
+- **Tutorial Completion**: % of new users who complete
+- **Settings Customization**: % who change default leverage
+
+### Feature Adoption
+- **Leverage Selection**: % using inline selection vs. /leverage command
+- **Stop Loss Usage**: Before/after comparison
+- **Quick Actions**: % using buttons vs. typing commands
+- **Buying Power Checks**: /buyingpower command usage
+
+---
+
 **Last Updated**: 2025-12-01
-**Author**: Hyperbot Development Team
-**Status**: 📋 Ready for Implementation
+**Author**: Hyperbot Development Team + UX Review
+**Status**: 📋 Enhanced with UX Best Practices
 **Duration Estimate**: 4.5-5 days (extended to include position enhancements)
 
 ---
