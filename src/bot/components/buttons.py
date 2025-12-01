@@ -157,6 +157,206 @@ class ButtonBuilder:
             self._rows.append(self._current_row)
             self._current_row = []
 
+    # Pattern methods for common wizard flows
+
+    def coin_selection(
+        self,
+        coins: list[str] | None = None,
+        callback_prefix: str = "select_coin",
+        per_row: int = 3,
+        add_custom: bool = True,
+    ) -> "ButtonBuilder":
+        """
+        Add coin selection buttons in rows.
+
+        Args:
+            coins: List of coin symbols (default: common coins).
+            callback_prefix: Prefix for callback data (default: "select_coin").
+            per_row: Number of coins per row (default: 3).
+            add_custom: If True, add custom input option (default: True).
+
+        Returns:
+            Self for method chaining.
+        """
+        if coins is None:
+            coins = ["BTC", "ETH", "SOL", "ARB", "AVAX", "MATIC"]
+
+        self._flush_row()
+
+        # Create rows of coins
+        for i in range(0, len(coins), per_row):
+            row_coins = coins[i : i + per_row]
+            for coin in row_coins:
+                button = InlineKeyboardButton(
+                    text=coin,
+                    callback_data=f"{callback_prefix}:{coin}",
+                )
+                self._current_row.append(button)
+            self._flush_row()
+
+        # Add custom input option if requested
+        if add_custom:
+            self._flush_row()
+            custom_button = InlineKeyboardButton(
+                text="✏️ Enter Custom",
+                callback_data="custom_coin",
+            )
+            self._rows.append([custom_button])
+
+        return self
+
+    def buy_sell(
+        self,
+        coin: str,
+        callback_prefix: str = "side",
+    ) -> "ButtonBuilder":
+        """
+        Add buy/sell toggle buttons for a coin.
+
+        Args:
+            coin: Coin symbol.
+            callback_prefix: Prefix for callback data (default: "side").
+
+        Returns:
+            Self for method chaining.
+        """
+        self._flush_row()
+
+        buy_button = InlineKeyboardButton(
+            text=f"🟢 Buy {coin}",
+            callback_data=f"{callback_prefix}_buy:{coin}",
+        )
+        sell_button = InlineKeyboardButton(
+            text=f"🔴 Sell {coin}",
+            callback_data=f"{callback_prefix}_sell:{coin}",
+        )
+
+        self._rows.append([buy_button, sell_button])
+
+        return self
+
+    def amount_presets(
+        self,
+        amounts: list[int] | None = None,
+        callback_prefix: str = "amount",
+        per_row: int = 3,
+        add_custom: bool = True,
+    ) -> "ButtonBuilder":
+        """
+        Add preset amount buttons in rows.
+
+        Args:
+            amounts: List of USD amounts (default: [10, 25, 50, 100, 250, 500]).
+            callback_prefix: Prefix for callback data (default: "amount").
+            per_row: Number of amounts per row (default: 3).
+            add_custom: If True, add custom input option (default: True).
+
+        Returns:
+            Self for method chaining.
+        """
+        if amounts is None:
+            amounts = [10, 25, 50, 100, 250, 500]
+
+        self._flush_row()
+
+        # Create rows of amount buttons
+        for i in range(0, len(amounts), per_row):
+            row_amounts = amounts[i : i + per_row]
+            for amount in row_amounts:
+                button = InlineKeyboardButton(
+                    text=f"${amount}",
+                    callback_data=f"{callback_prefix}:{amount}",
+                )
+                self._current_row.append(button)
+            self._flush_row()
+
+        # Add custom input option if requested
+        if add_custom:
+            self._flush_row()
+            custom_button = InlineKeyboardButton(
+                text="✏️ Enter Custom",
+                callback_data="custom_amount",
+            )
+            self._rows.append([custom_button])
+
+        return self
+
+    def leverage_levels(
+        self,
+        levels: list[int] | None = None,
+        callback_prefix: str = "leverage",
+        per_row: int = 4,
+        highlight_level: int | None = None,
+    ) -> "ButtonBuilder":
+        """
+        Add leverage level selection buttons.
+
+        Args:
+            levels: List of leverage levels (default: [1, 3, 5, 10, 20]).
+            callback_prefix: Prefix for callback data (default: "leverage").
+            per_row: Number of levels per row (default: 4).
+            highlight_level: Level to highlight with ✨ (default: None).
+
+        Returns:
+            Self for method chaining.
+        """
+        if levels is None:
+            levels = [1, 3, 5, 10, 20]
+
+        self._flush_row()
+
+        # Create rows of leverage buttons
+        for i in range(0, len(levels), per_row):
+            row_levels = levels[i : i + per_row]
+            for level in row_levels:
+                # Add highlight emoji if this is the recommended level
+                text = f"{level}x"
+                if highlight_level and level == highlight_level:
+                    text = f"✨ {level}x"
+
+                button = InlineKeyboardButton(
+                    text=text,
+                    callback_data=f"{callback_prefix}:{level}",
+                )
+                self._current_row.append(button)
+            self._flush_row()
+
+        return self
+
+    def confirm_cancel(
+        self,
+        confirm_label: str,
+        confirm_callback: str,
+        cancel_label: str = "Cancel",
+        cancel_callback: str = "cancel",
+    ) -> "ButtonBuilder":
+        """
+        Add confirm and cancel buttons in a row.
+
+        Args:
+            confirm_label: Confirm button text.
+            confirm_callback: Confirm callback data.
+            cancel_label: Cancel button text (default: "Cancel").
+            cancel_callback: Cancel callback data (default: "cancel").
+
+        Returns:
+            Self for method chaining.
+        """
+        self._flush_row()
+
+        confirm_button = InlineKeyboardButton(
+            text=f"{BUTTON_STYLES['primary']} {confirm_label}",
+            callback_data=confirm_callback,
+        )
+        cancel_button = InlineKeyboardButton(
+            text=f"{BUTTON_STYLES['danger']} {cancel_label}",
+            callback_data=cancel_callback,
+        )
+
+        self._rows.append([confirm_button, cancel_button])
+
+        return self
+
 
 def build_single_action_button(
     label: str,
