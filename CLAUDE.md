@@ -404,6 +404,412 @@ async def command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error: {str(e)}")
 ```
 
+## Code Quality Standards & Linting
+
+**📚 MUST READ**: [docs/linting.md](docs/linting.md) - Complete guide to linting tools and configuration
+
+**⚠️ CRITICAL**: All code MUST pass these checks before committing:
+- ✅ **Ruff** - Fast Python linter (replaces Flake8, isort, Black)
+- ✅ **Mypy** - Static type checker (strict mode enabled)
+- ✅ **Pre-commit hooks** - Automatic checks on commit
+
+### Quick Linting Commands
+
+```bash
+# Auto-fix most issues (run this first!)
+./scripts/lint-fix.sh
+
+# Check for remaining issues
+./scripts/lint.sh
+
+# Run specific checks
+ruff check --fix src/ tests/
+mypy src/
+```
+
+### Common Mypy Pitfalls (AVOID THESE!)
+
+#### 1. ❌ Using `typing.Callable` instead of `collections.abc.Callable`
+
+**Wrong:**
+```python
+from typing import Callable  # ❌ Deprecated in Python 3.11+
+
+def decorator(func: Callable) -> Callable:
+    pass
+```
+
+**Correct:**
+```python
+from collections.abc import Callable  # ✅ Modern Python 3.11+
+
+def decorator(func: Callable) -> Callable:
+    pass
+```
+
+**Mypy error**: `Import from collections.abc instead: Callable`
+
+---
+
+#### 2. ❌ Missing `Awaitable` type hint for async functions
+
+**Wrong:**
+```python
+from collections.abc import Callable
+
+def decorator(func: Callable[..., int]) -> Callable[..., int]:  # ❌ Missing Awaitable
+    async def wrapper(*args, **kwargs):
+        return await func(*args, **kwargs)
+    return wrapper
+```
+
+**Correct:**
+```python
+from collections.abc import Awaitable, Callable
+
+def decorator(func: Callable[..., Awaitable[int]]) -> Callable[..., Awaitable[int]]:  # ✅
+    async def wrapper(*args, **kwargs):
+        return await func(*args, **kwargs)
+    return wrapper
+```
+
+**Mypy errors**:
+- `Incompatible types in "await"`
+- `Returning Any from function declared to return X`
+
+---
+
+#### 3. ❌ Unused `# type: ignore` comments
+
+**Wrong:**
+```python
+async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> RT:  # type: ignore
+    # If mypy doesn't complain, don't add type: ignore!
+```
+
+**Correct:**
+```python
+async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> RT:
+    # Only add type: ignore if mypy actually complains AND you can't fix it properly
+```
+
+**Mypy error**: `Unused "type: ignore" comment`
+
+---
+
+#### 4. ❌ Not storing `await` result before returning
+
+**Wrong:**
+```python
+async def wrapper() -> RT:
+    return await func()  # ❌ Mypy may complain about return type
+```
+
+**Correct:**
+```python
+async def wrapper() -> RT:
+    result = await func()  # ✅ Store result first
+    return result
+```
+
+**Mypy errors**:
+- `Returning Any from function declared to return RT`
+- `Incompatible return value type`
+
+---
+
+### Common Ruff Pitfalls (AVOID THESE!)
+
+#### 1. ❌ Wrong import order
+
+**Wrong:**
+```python
+from typing import Dict
+import os
+from src.config import logger  # ❌ Wrong order
+```
+
+**Correct:**
+```python
+import os  # ✅ Standard library first
+from typing import Dict  # ✅ Third-party second
+
+from src.config import logger  # ✅ Local imports last (with blank line)
+```
+
+**Ruff error**: `I001 - Import block is un-sorted or un-formatted`
+
+**Fix**: `ruff check --fix` handles this automatically!
+
+---
+
+#### 2. ❌ Old-style type hints
+
+**Wrong:**
+```python
+from typing import Dict, List, Optional, Union  # ❌ Old style
+
+def func(data: Dict[str, List[int]], opt: Optional[str]) -> Union[int, None]:
+    pass
+```
+
+**Correct:**
+```python
+# ✅ Modern Python 3.11+ style (no typing imports needed!)
+def func(data: dict[str, list[int]], opt: str | None) -> int | None:
+    pass
+```
+
+**Ruff errors**:
+- `UP006 - Use dict instead of Dict`
+- `UP007 - Use list instead of List`
+- `UP007 - Use X | Y instead of Union[X, Y]`
+- `UP007 - Use X | None instead of Optional[X]`
+
+---
+
+#### 3. ❌ Unused imports
+
+**Wrong:**
+```python
+from typing import Dict, List, Optional  # ❌ List and Optional unused
+from src.config import logger  # ❌ logger unused
+
+def func(data: dict[str, int]) -> None:
+    pass
+```
+
+**Correct:**
+```python
+# ✅ Only import what you use
+def func(data: dict[str, int]) -> None:
+    pass
+```
+
+**Ruff error**: `F401 - imported but unused`
+
+**Fix**: `ruff check --fix` removes unused imports automatically!
+
+---
+
+#### 4. ❌ Raising without `from` (loses exception context)
+
+**Wrong:**
+```python
+try:
+    result = api_call()
+except Exception:
+    raise ValueError("API call failed")  # ❌ Lost original exception!
+```
+
+**Correct:**
+```python
+try:
+    result = api_call()
+except Exception as e:
+    raise ValueError("API call failed") from e  # ✅ Preserves exception chain
+```
+
+**Ruff error**: `B904 - Within an except clause, raise exceptions with raise ... from err`
+
+---
+
+#### 5. ❌ Mutable default arguments
+
+**Wrong:**
+```python
+def process_items(items: list[str] = []):  # ❌ Mutable default!
+    items.append("new")
+    return items
+```
+
+**Correct:**
+```python
+def process_items(items: list[str] | None = None) -> list[str]:  # ✅
+    if items is None:
+        items = []
+    items.append("new")
+    return items
+```
+
+**Ruff error**: `B006 - Do not use mutable data structures for argument defaults`
+
+---
+
+#### 6. ❌ Unnecessary list comprehension
+
+**Wrong:**
+```python
+# ❌ Wasteful - creates intermediate list
+sum([x * 2 for x in range(1000000)])
+```
+
+**Correct:**
+```python
+# ✅ Generator expression - memory efficient
+sum(x * 2 for x in range(1000000))
+```
+
+**Ruff error**: `C419 - Unnecessary list comprehension`
+
+---
+
+### Pre-Commit Hook Workflow
+
+**Pre-commit hooks run automatically on `git commit`:**
+
+```bash
+# When you commit, hooks run:
+git commit -m "Add feature"
+
+# If hooks find issues:
+[WARNING] Stashing unstaged files
+ruff (legacy alias)...................................................Passed
+ruff format........................................................Failed  # ❌
+  - hook id: ruff-format
+  - files were modified by this hook
+
+# Fix: Add the formatted files and recommit
+git add -u
+git commit -m "Add feature"
+
+# Now hooks pass:
+ruff (legacy alias)...................................................Passed
+ruff format...........................................................Passed
+mypy......................................................................Passed
+[feature-branch abc1234] Add feature
+```
+
+**Common pre-commit failures:**
+
+1. **`ruff format` fails** - Files were auto-formatted
+   - Fix: `git add -u && git commit -m "your message"`
+
+2. **`mypy` fails** - Type errors found
+   - Fix: Read error message, fix type issues, commit again
+
+3. **`trailing-whitespace` fails** - Extra spaces at line ends
+   - Fix: Let hook remove them, commit again
+
+**Skip hooks (use sparingly!):**
+```bash
+git commit --no-verify -m "WIP: debugging"  # ⚠️ Only for WIP commits!
+```
+
+---
+
+### Type Hints Best Practices
+
+**✅ DO:**
+```python
+# Modern Python 3.11+ style
+from collections.abc import Awaitable, Callable
+
+def process(data: dict[str, list[int]]) -> int | None:
+    """Process data and return result."""
+    pass
+
+async def async_process(callback: Callable[[int], Awaitable[str]]) -> str:
+    """Async function with proper type hints."""
+    result = await callback(42)
+    return result
+```
+
+**❌ DON'T:**
+```python
+# Old style (pre-Python 3.11)
+from typing import Callable, Dict, List, Optional
+
+def process(data: Dict[str, List[int]]) -> Optional[int]:  # ❌
+    pass
+
+def decorator(func: Callable) -> Callable:  # ❌ Missing Awaitable for async
+    pass
+```
+
+---
+
+### Import Best Practices
+
+**✅ DO:**
+```python
+# Correct import order (3 groups with blank lines)
+import os  # 1. Standard library
+import sys
+
+from telegram import Update  # 2. Third-party
+
+from src.config import logger  # 3. Local (with blank line before)
+from src.services.account_service import AccountService
+```
+
+**❌ DON'T:**
+```python
+# Wrong - mixed order, no grouping
+from src.config import logger
+import os
+from telegram import Update  # ❌
+```
+
+---
+
+### Error Handling Best Practices
+
+**✅ DO:**
+```python
+try:
+    result = dangerous_operation()
+except ValueError as e:
+    logger.error(f"Operation failed: {e}")
+    raise RuntimeError("Failed to process") from e  # ✅ Preserve chain
+```
+
+**❌ DON'T:**
+```python
+try:
+    result = dangerous_operation()
+except:  # ❌ Bare except
+    raise Exception("Failed")  # ❌ Lost original error
+```
+
+---
+
+### Writing Linter-Friendly Code from the Start
+
+**Before writing any code:**
+
+1. ✅ **Use modern type hints** - `dict`, `list`, `X | None` (not `Dict`, `List`, `Optional`)
+2. ✅ **Import from `collections.abc`** - For `Callable`, `Awaitable`, etc.
+3. ✅ **Group imports properly** - stdlib, third-party, local (with blank lines)
+4. ✅ **Add type hints to all functions** - Parameters and return types
+5. ✅ **Use `raise ... from e`** - Preserve exception chains
+6. ✅ **Avoid mutable defaults** - Use `None` and initialize inside function
+7. ✅ **Don't add `# type: ignore`** unless absolutely necessary
+
+**After writing code:**
+
+```bash
+# Step 1: Auto-fix what can be fixed
+./scripts/lint-fix.sh
+
+# Step 2: Check what remains
+./scripts/lint.sh
+
+# Step 3: Fix remaining issues manually
+
+# Step 4: Commit (pre-commit hooks will catch anything missed)
+git commit -m "Your message"
+```
+
+---
+
+### Resources
+
+- 📚 **[docs/linting.md](docs/linting.md)** - Complete linting guide
+- 🔧 **[Ruff Documentation](https://docs.astral.sh/ruff/)** - Rule reference
+- 📝 **[Mypy Documentation](https://mypy.readthedocs.io/)** - Type checking guide
+- 🎨 **[PEP 8](https://peps.python.org/pep-0008/)** - Python style guide
+
 ### 3. Testing
 
 Before marking any feature as complete:
