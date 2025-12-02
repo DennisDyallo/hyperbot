@@ -323,3 +323,69 @@ class TestBuildOrderPreview:
 
         with pytest.raises(ValueError, match="Invalid tier"):
             build_order_preview(data, tier="invalid")
+
+
+class TestPreviewBuilderFluent:
+    """Tests for the fluent PreviewBuilder API."""
+
+    def _base_builder(self) -> PreviewBuilder:
+        return (
+            PreviewBuilder()
+            .set_order_details(
+                "BTC",
+                "BUY",
+                1_000.0,
+                leverage=5,
+                entry_price=98_500.0,
+                size_coin=0.01015,
+            )
+            .set_capital_impact(
+                margin_required=200.0,
+                margin_available=5_200.0,
+                buying_power_used_pct=3.8,
+            )
+            .set_risk_assessment(
+                liquidation_price=78_800.0,
+                liquidation_distance_pct=20.0,
+                has_stop_loss=False,
+            )
+        )
+
+    def test_build_quick_from_fluent_builder(self) -> None:
+        """Fluent builder produces quick preview with <=10 lines."""
+        preview_text = self._base_builder().build_quick()
+
+        lines = [line for line in preview_text.splitlines() if line.strip() or line == ""]
+        assert "Order Preview" in preview_text
+        assert len(lines) <= 10
+
+    def test_build_full_from_fluent_builder(self) -> None:
+        """Fluent builder produces full preview including warnings."""
+        builder = self._base_builder().add_warning("Using 60% of buying power")
+        preview_text = builder.build_full()
+
+        assert "Complete Order Analysis" in preview_text
+        assert "Using 60% of buying power" in preview_text
+
+    def test_missing_fields_raise_error(self) -> None:
+        """Builder raises descriptive error when data missing."""
+        builder = PreviewBuilder()
+
+        with pytest.raises(ValueError, match="Missing preview values"):
+            builder.build_quick()
+
+    def test_set_warnings_overwrites_previous(self) -> None:
+        """set_warnings replaces existing warning list."""
+        builder = self._base_builder().add_warning("Old warning")
+        builder.set_warnings(["New warning"])
+        preview_text = builder.build_full()
+
+        assert "New warning" in preview_text
+        assert "Old warning" not in preview_text
+
+    def test_clear_warnings(self) -> None:
+        """clear_warnings removes all warning messages."""
+        builder = self._base_builder().add_warning("Old warning").clear_warnings()
+        preview_text = builder.build_full()
+
+        assert "Warnings" not in preview_text

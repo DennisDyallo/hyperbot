@@ -17,6 +17,7 @@ Design Documentation:
 
 from .buttons import (
     ButtonBuilder,
+    build_action_button,
     build_confirm_cancel_buttons,
     build_navigation_row,
     build_single_action_button,
@@ -65,6 +66,7 @@ __all__ = [
     "get_risk_emoji",
     # Level 1: Buttons
     "ButtonBuilder",
+    "build_action_button",
     "build_single_action_button",
     "build_confirm_cancel_buttons",
     "build_navigation_row",

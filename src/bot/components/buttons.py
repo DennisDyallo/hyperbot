@@ -13,10 +13,12 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 MAX_BUTTONS_PER_ROW: Final[int] = 4
 BUTTON_STYLES: Final[dict[str, str]] = {
     "primary": "✅",  # Confirm, submit, buy/sell
+    "success": "✅",  # Alias for primary style
     "secondary": "📊",  # View details, info
-    "danger": "❌",  # Cancel, close, delete
-    "back": "🔙",  # Navigation back
     "info": "ℹ️",  # Help, info
+    "danger": "❌",  # Cancel, close, delete
+    "warning": "⚠️",  # Attention / caution
+    "back": "🔙",  # Navigation back
     "settings": "⚙️",  # Change settings
 }
 
@@ -356,6 +358,18 @@ class ButtonBuilder:
         self._rows.append([confirm_button, cancel_button])
 
         return self
+
+
+def build_action_button(
+    label: str,
+    callback_data: str,
+    style: str = "primary",
+) -> InlineKeyboardButton:
+    """Build a single inline keyboard button with consistent styling."""
+
+    emoji = BUTTON_STYLES.get(style, "")
+    text = f"{emoji} {label}" if emoji and not label.startswith(emoji) else label
+    return InlineKeyboardButton(text=text, callback_data=callback_data)
 
 
 def build_single_action_button(

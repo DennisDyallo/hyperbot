@@ -7,7 +7,7 @@ pattern: quick preview for mobile-first scannability, full preview for comprehen
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Final
+from typing import Any, Final
 
 from .cards import build_capital_impact_card, build_risk_assessment_card
 from .formatters import format_coin_size, format_currency
@@ -65,12 +65,150 @@ class PreviewData:
 class PreviewBuilder:
     """Build two-tier previews (quick + full).
 
-    Quick preview: Mobile-optimized, fits on one screen, essential info only
-    Full preview: Comprehensive analysis with cards, scenarios, and warnings
+    Supports both static helpers and a fluent builder API:
+
+    ```python
+    preview = (
+        PreviewBuilder()
+        .set_order_details("BTC", "BUY", 1_000.0, leverage=5, entry_price=98_500.0)
+        .set_capital_impact(margin_required=200.0, margin_available=5_200.0, buying_power_used_pct=3.8)
+        .set_risk_assessment(liquidation_price=78_800.0, liquidation_distance_pct=20.0)
+        .add_warning("🟠 High leverage – consider stop loss")
+        .build_quick()
+    )
+    ```
     """
 
     # Visual constants
     HEADER_EMOJI: Final[dict[str, str]] = {"BUY": "🟢", "SELL": "🔴"}
+
+    def __init__(self) -> None:
+        self._values: dict[str, Any] = {"warnings": []}
+
+    def set_order_details(
+        self,
+        coin: str,
+        side: str,
+        amount_usd: float,
+        *,
+        leverage: int,
+        entry_price: float,
+        size_coin: float | None = None,
+    ) -> PreviewBuilder:
+        """Set order details and leverage context."""
+
+        self._values.update(
+            {
+                "coin": coin,
+                "side": side,
+                "amount_usd": amount_usd,
+                "leverage": leverage,
+                "entry_price": entry_price,
+                "size_coin": size_coin,
+            }
+        )
+        return self
+
+    def set_capital_impact(
+        self,
+        *,
+        margin_required: float,
+        margin_available: float,
+        buying_power_used_pct: float,
+    ) -> PreviewBuilder:
+        """Set capital impact metrics for the preview."""
+
+        self._values.update(
+            {
+                "margin_required": margin_required,
+                "margin_available": margin_available,
+                "buying_power_used_pct": buying_power_used_pct,
+            }
+        )
+        return self
+
+    def set_risk_assessment(
+        self,
+        *,
+        liquidation_price: float,
+        liquidation_distance_pct: float,
+        has_stop_loss: bool = False,
+    ) -> PreviewBuilder:
+        """Set liquidation and risk metrics."""
+
+        self._values.update(
+            {
+                "liquidation_price": liquidation_price,
+                "liquidation_distance_pct": liquidation_distance_pct,
+                "has_stop_loss": has_stop_loss,
+            }
+        )
+        return self
+
+    def add_warning(self, warning: str) -> PreviewBuilder:
+        """Append a warning message to the preview."""
+
+        warnings = self._values.setdefault("warnings", [])
+        warnings.append(warning)
+        return self
+
+    def set_warnings(self, warnings: list[str]) -> PreviewBuilder:
+        """Replace existing warnings with the provided list."""
+
+        self._values["warnings"] = list(warnings)
+        return self
+
+    def clear_warnings(self) -> PreviewBuilder:
+        """Remove all existing warnings."""
+
+        self._values["warnings"] = []
+        return self
+
+    def build_quick(self) -> str:
+        """Build quick preview from configured values."""
+
+        return self.build_quick_preview(self._build_preview_data())
+
+    def build_full(self) -> str:
+        """Build full preview from configured values."""
+
+        return self.build_full_preview(self._build_preview_data())
+
+    def _build_preview_data(self) -> PreviewData:
+        """Construct PreviewData from accumulated values."""
+
+        required_keys = [
+            "coin",
+            "side",
+            "amount_usd",
+            "leverage",
+            "entry_price",
+            "margin_required",
+            "margin_available",
+            "buying_power_used_pct",
+            "liquidation_price",
+            "liquidation_distance_pct",
+        ]
+
+        missing = [key for key in required_keys if key not in self._values]
+        if missing:
+            raise ValueError(f"Missing preview values: {', '.join(missing)}")
+
+        return PreviewData(
+            coin=self._values["coin"],
+            side=self._values["side"],
+            amount_usd=self._values["amount_usd"],
+            leverage=self._values["leverage"],
+            entry_price=self._values["entry_price"],
+            margin_required=self._values["margin_required"],
+            margin_available=self._values["margin_available"],
+            buying_power_used_pct=self._values["buying_power_used_pct"],
+            liquidation_price=self._values["liquidation_price"],
+            liquidation_distance_pct=self._values["liquidation_distance_pct"],
+            size_coin=self._values.get("size_coin"),
+            has_stop_loss=bool(self._values.get("has_stop_loss", False)),
+            warnings=list(self._values.get("warnings", [])),
+        )
 
     @staticmethod
     def build_quick_preview(data: PreviewData) -> str:

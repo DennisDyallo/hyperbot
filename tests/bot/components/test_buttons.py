@@ -1,11 +1,20 @@
 """Tests for button building utilities."""
 
+from telegram import InlineKeyboardMarkup
+
 from src.bot.components.buttons import (
     ButtonBuilder,
+    build_action_button,
     build_confirm_cancel_buttons,
     build_navigation_row,
     build_single_action_button,
 )
+
+
+def _rows(markup: InlineKeyboardMarkup) -> list[list]:
+    """Helper to extract rows from InlineKeyboardMarkup for assertions."""
+
+    return markup.inline_keyboard
 
 
 class TestButtonBuilder:
@@ -15,7 +24,7 @@ class TestButtonBuilder:
         """Test building a single action button."""
         builder = ButtonBuilder()
         builder.action("Buy BTC", "buy_btc")
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert len(buttons) == 1
         assert len(buttons[0]) == 1
@@ -27,7 +36,7 @@ class TestButtonBuilder:
         builder = ButtonBuilder()
         builder.action("Yes", "yes")
         builder.action("No", "no")
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert len(buttons) == 1
         assert len(buttons[0]) == 2
@@ -38,7 +47,7 @@ class TestButtonBuilder:
         """Test full-width action button."""
         builder = ButtonBuilder()
         builder.action("Buy $1,000 BTC", "buy", full_width=True)
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert len(buttons) == 1
         assert len(buttons[0]) == 1
@@ -48,7 +57,7 @@ class TestButtonBuilder:
         builder = ButtonBuilder()
         builder.action("Confirm", "confirm")
         builder.cancel()
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert len(buttons) == 2
         assert buttons[1][0].text == "❌ Cancel"
@@ -58,7 +67,7 @@ class TestButtonBuilder:
         """Test back navigation button."""
         builder = ButtonBuilder()
         builder.back()
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert len(buttons) == 1
         assert buttons[0][0].text == "🔙 Back"
@@ -68,7 +77,7 @@ class TestButtonBuilder:
         """Test back button with cancel."""
         builder = ButtonBuilder()
         builder.back(with_cancel=True)
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert len(buttons) == 1
         assert len(buttons[0]) == 2
@@ -81,7 +90,7 @@ class TestButtonBuilder:
         builder.action("One", "one")
         builder.row_break()
         builder.action("Two", "two")
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert len(buttons) == 2
         assert len(buttons[0]) == 1
@@ -95,7 +104,7 @@ class TestButtonBuilder:
         builder.action("3", "3")
         builder.action("4", "4")
         builder.action("5", "5")  # Should wrap to new row
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert len(buttons) == 2
         assert len(buttons[0]) == 4  # Max per row
@@ -107,7 +116,7 @@ class TestButtonBuilder:
         builder.action("Primary", "pri", style="primary")
         builder.action("Secondary", "sec", style="secondary")
         builder.action("Danger", "dan", style="danger")
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert "✅" in buttons[0][0].text
         assert "📊" in buttons[0][1].text
@@ -117,7 +126,7 @@ class TestButtonBuilder:
         """Test custom labels for cancel and back."""
         builder = ButtonBuilder()
         builder.cancel(label="Abort", callback_data="abort")
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         assert buttons[0][0].text == "❌ Abort"
         assert buttons[0][0].callback_data == "abort"
@@ -126,7 +135,7 @@ class TestButtonBuilder:
         """Test emoji is not duplicated if already in label."""
         builder = ButtonBuilder()
         builder.action("✅ Already has emoji", "test", style="primary")
-        buttons = builder.build()
+        buttons = _rows(builder.build())
 
         # Should not have double emoji
         assert buttons[0][0].text == "✅ Already has emoji"
@@ -141,17 +150,33 @@ class TestButtonBuilder:
             .build()
         )
 
-        assert len(buttons) == 2  # One row of actions, one row of nav
-        assert len(buttons[0]) == 2  # Confirm + Details
-        assert len(buttons[1]) == 2  # Back + Cancel
+        rows = _rows(buttons)
+
+        assert len(rows) == 2  # One row of actions, one row of nav
+        assert len(rows[0]) == 2  # Confirm + Details
+        assert len(rows[1]) == 2  # Back + Cancel
 
 
 class TestBuildSingleActionButton:
     """Test convenience function for single action button."""
 
+    def test_build_action_button_helper(self) -> None:
+        """Test standalone action button helper returns styled button."""
+        button = build_action_button("Confirm", "confirm:123")
+
+        assert button.text.startswith("✅ Confirm")
+        assert button.callback_data == "confirm:123"
+
+    def test_build_action_button_custom_style(self) -> None:
+        """Test helper respects alternate styles."""
+        button = build_action_button("Warn", "warn", style="warning")
+
+        assert button.text.startswith("⚠️ Warn")
+        assert button.callback_data == "warn"
+
     def test_creates_single_button(self) -> None:
         """Test creates a single full-width button."""
-        buttons = build_single_action_button("Buy BTC", "buy_btc")
+        buttons = _rows(build_single_action_button("Buy BTC", "buy_btc"))
 
         assert len(buttons) == 1
         assert len(buttons[0]) == 1
@@ -159,7 +184,7 @@ class TestBuildSingleActionButton:
 
     def test_respects_style(self) -> None:
         """Test style parameter is respected."""
-        buttons = build_single_action_button("Cancel", "cancel", style="danger")
+        buttons = _rows(build_single_action_button("Cancel", "cancel", style="danger"))
 
         assert "❌" in buttons[0][0].text
 
@@ -169,15 +194,17 @@ class TestBuildConfirmCancelButtons:
 
     def test_creates_two_buttons(self) -> None:
         """Test creates confirm and cancel buttons."""
-        buttons = build_confirm_cancel_buttons("Confirm", "confirm")
+        buttons = _rows(build_confirm_cancel_buttons("Confirm", "confirm"))
 
         assert len(buttons) == 1
         assert len(buttons[0]) == 2
 
     def test_custom_labels(self) -> None:
         """Test custom labels are used."""
-        buttons = build_confirm_cancel_buttons(
-            "Buy", "buy:BTC", cancel_label="Abort", cancel_callback="abort"
+        buttons = _rows(
+            build_confirm_cancel_buttons(
+                "Buy", "buy:BTC", cancel_label="Abort", cancel_callback="abort"
+            )
         )
 
         assert "Buy" in buttons[0][0].text
