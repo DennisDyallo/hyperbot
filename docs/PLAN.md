@@ -688,7 +688,8 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 11. ✅ Phase 6: Outstanding Orders Management
 
 **Future Enhancements**:
-- 📋 Phase 7: Additional features (order modification, analytics, filter by coin completion)
+- 📋 Phase 7: Leverage-Aware Order Placement & Capital Transparency (NEXT)
+- 📋 Phase 8: Additional features (order modification, analytics, filter by coin completion)
 
 **Not Planned**:
 - ⛔ Phase 1B: Web Dashboard (abandoned - Telegram bot is primary interface)

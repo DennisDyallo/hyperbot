@@ -17,6 +17,11 @@ from telegram.ext import (
     filters,
 )
 
+from src.bot.components.buttons import ButtonBuilder
+from src.bot.components.preview_builder import (
+    build_leverage_selection_message,
+    build_order_preview,
+)
 from src.bot.menus import (
     build_buy_sell_menu,
     build_coin_selection_menu,
@@ -33,7 +38,7 @@ from src.bot.utils import (
     send_error_and_end,
     send_success_and_end,
 )
-from src.config import logger, settings
+from src.config import logger
 from src.use_cases.trading import (
     PlaceOrderRequest,
     PlaceOrderUseCase,
@@ -43,7 +48,7 @@ from src.use_cases.trading import (
 place_order_use_case = PlaceOrderUseCase()
 
 # Conversation states
-MARKET_COIN, MARKET_SIDE, MARKET_AMOUNT, MARKET_CONFIRM = range(4)
+MARKET_COIN, MARKET_SIDE, MARKET_AMOUNT, MARKET_LEVERAGE, MARKET_CONFIRM = range(5)
 
 
 # ============================================================================
@@ -60,8 +65,7 @@ async def market_wizard_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     assert user_data is not None
     assert query.data is not None
 
-    query = update.callback_query
-    await query.answer()  # type: ignore
+    await query.answer()
 
     text = (
         "💰 **Market Order**\n\n"
@@ -69,7 +73,7 @@ async def market_wizard_start(update: Update, context: ContextTypes.DEFAULT_TYPE
         "Choose from popular coins or enter custom symbol:"
     )
 
-    await query.edit_message_text(  # type: ignore
+    await query.edit_message_text(
         text, parse_mode="Markdown", reply_markup=build_coin_selection_menu()
     )
 
@@ -84,16 +88,15 @@ async def market_coin_selected(update: Update, context: ContextTypes.DEFAULT_TYP
     assert user_data is not None
     assert query.data is not None
 
-    query = update.callback_query
-    await query.answer()  # type: ignore
+    await query.answer()
 
     # Extract coin from callback data
-    coin = query.data.split(":")[1]  # type: ignore
+    coin = query.data.split(":")[1]
     user_data["market_coin"] = coin
 
     text = f"💰 **Market Order: {coin}**\n\nStep 2/3: Buy or Sell?\n\nSelect order side:"
 
-    await query.edit_message_text(  # type: ignore
+    await query.edit_message_text(
         text, parse_mode="Markdown", reply_markup=build_buy_sell_menu(coin)
     )
 
@@ -108,11 +111,10 @@ async def market_side_selected(update: Update, context: ContextTypes.DEFAULT_TYP
     assert user_data is not None
     assert query.data is not None
 
-    query = update.callback_query
-    await query.answer()  # type: ignore
+    await query.answer()
 
     # Extract side and coin from callback data (format: "side_buy:ETH")
-    parts = query.data.split(":")  # type: ignore
+    parts = query.data.split(":")
     side_str = parts[0].split("_")[1]  # "side_buy" -> "buy"
     coin = parts[1]
     is_buy = side_str == "buy"
@@ -128,7 +130,7 @@ async def market_side_selected(update: Update, context: ContextTypes.DEFAULT_TYP
         f"Choose a preset amount or enter custom:"
     )
 
-    await query.edit_message_text(  # type: ignore
+    await query.edit_message_text(
         text, parse_mode="Markdown", reply_markup=build_quick_amounts_menu()
     )
 
@@ -136,18 +138,17 @@ async def market_side_selected(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle amount selection - show confirmation."""
+    """Handle amount selection - show leverage selection."""
     query = update.callback_query
     assert query is not None
     user_data = context.user_data
     assert user_data is not None
     assert query.data is not None
 
-    query = update.callback_query
-    await query.answer()  # type: ignore
+    await query.answer()
 
     # Extract amount from callback data
-    amount_str = query.data.split(":")[1]  # type: ignore
+    amount_str = query.data.split(":")[1]
 
     try:
         usd_amount = parse_usd_amount(amount_str)
@@ -158,11 +159,10 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
         )
 
     coin = user_data["market_coin"]
-    is_buy = user_data["market_is_buy"]
     side_str = user_data["market_side_str"]
 
     # Show loading
-    await query.edit_message_text(f"⏳ Fetching {coin} price...")  # type: ignore
+    await query.edit_message_text(f"⏳ Fetching {coin} price...")
 
     # Convert USD to coin size
     try:
@@ -171,26 +171,65 @@ async def market_amount_selected(update: Update, context: ContextTypes.DEFAULT_T
         # Use utility function - automatically shows main menu!
         return await send_error_and_end(update, f"❌ {str(e)}\n\nReturning to main menu.")
 
-    # Store for confirmation
+    # Store for leverage selection
     user_data["market_usd"] = usd_amount
     user_data["market_coin_size"] = coin_size
     user_data["market_price"] = current_price
 
-    # Show confirmation
-    side_emoji = "🟢" if is_buy else "🔴"
-    text = (
-        f"{side_emoji} **Confirm Market Order**\n\n"
-        f"**Coin**: {coin}\n"
-        f"**Side**: {side_str}\n"
-        f"**USD Amount**: {format_usd_amount(usd_amount)}\n"
-        f"**Coin Size**: {format_coin_amount(coin_size, coin)}\n"
-        f"**Current Price**: ${current_price:,.2f}\n\n"
-        f"⚠️ Market order will execute at best available price.\n"
-        f"Slippage may occur.\n\n"
-        f"_Environment: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'}_"
+    # Show leverage selection with buying power preview
+    text = build_leverage_selection_message(
+        coin=coin,
+        side=side_str,
+        usd_amount=usd_amount,
+        available_margin=10000.0,  # TODO: Fetch real margin from account service
     )
 
-    await query.edit_message_text(  # type: ignore
+    leverage_markup = ButtonBuilder().leverage_levels().build()
+
+    await query.edit_message_text(
+        text,
+        parse_mode="Markdown",
+        reply_markup=leverage_markup,
+    )
+
+    return MARKET_LEVERAGE
+
+
+async def market_leverage_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle leverage selection - show confirmation with risk metrics."""
+    query = update.callback_query
+    assert query is not None
+    user_data = context.user_data
+    assert user_data is not None
+    assert query.data is not None
+
+    await query.answer()
+
+    # Extract leverage from callback data (format: "leverage:5")
+    leverage = int(query.data.split(":")[1])
+    user_data["market_leverage"] = leverage
+
+    # Get stored values
+    coin = user_data["market_coin"]
+    side_str = user_data["market_side_str"]
+    usd_amount = user_data["market_usd"]
+    coin_size = user_data["market_coin_size"]
+    current_price = user_data["market_price"]
+
+    # Build confirmation with risk metrics
+    margin_required = usd_amount / leverage if leverage else None
+
+    text = build_order_preview(
+        coin=coin,
+        side=side_str,
+        usd_amount=usd_amount,
+        coin_size=coin_size,
+        price=current_price,
+        leverage=leverage,
+        margin_required=margin_required,
+    )
+
+    await query.edit_message_text(
         text, parse_mode="Markdown", reply_markup=build_confirm_cancel("market", "")
     )
 
@@ -227,10 +266,13 @@ async def market_amount_text_input(update: Update, context: ContextTypes.DEFAULT
     user_data = context.user_data
     assert user_data is not None
 
-    amount_str = update.message.text
+    amount_text = update.message.text
+    if amount_text is None:
+        await update.message.reply_text("❌ Please send an amount or /cancel")
+        return MARKET_AMOUNT
 
     try:
-        usd_amount = parse_usd_amount(amount_str)  # type: ignore
+        usd_amount = parse_usd_amount(amount_text)
     except ValueError as e:
         await update.message.reply_text(
             f"❌ Invalid amount: {str(e)}\n\nPlease try again or /cancel"
@@ -238,7 +280,6 @@ async def market_amount_text_input(update: Update, context: ContextTypes.DEFAULT
         return MARKET_AMOUNT
 
     coin = user_data["market_coin"]
-    is_buy = user_data["market_is_buy"]
     side_str = user_data["market_side_str"]
 
     # Show loading
@@ -251,30 +292,24 @@ async def market_amount_text_input(update: Update, context: ContextTypes.DEFAULT
         # Use utility function - automatically shows main menu!
         return await send_error_and_end(update, f"❌ {str(e)}\n\nReturning to main menu.")
 
-    # Store for confirmation
+    # Store for leverage selection
     user_data["market_usd"] = usd_amount
     user_data["market_coin_size"] = coin_size
     user_data["market_price"] = current_price
 
-    # Show confirmation
-    side_emoji = "🟢" if is_buy else "🔴"
-    text = (
-        f"{side_emoji} **Confirm Market Order**\n\n"
-        f"**Coin**: {coin}\n"
-        f"**Side**: {side_str}\n"
-        f"**USD Amount**: {format_usd_amount(usd_amount)}\n"
-        f"**Coin Size**: {format_coin_amount(coin_size, coin)}\n"
-        f"**Current Price**: ${current_price:,.2f}\n\n"
-        f"⚠️ Market order will execute at best available price.\n"
-        f"Slippage may occur.\n\n"
-        f"_Environment: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'}_"
+    # Show leverage selection with buying power preview
+    text = build_leverage_selection_message(
+        coin=coin,
+        side=side_str,
+        usd_amount=usd_amount,
+        available_margin=10000.0,  # TODO: Fetch real margin from account service
     )
 
-    await msg.edit_text(
-        text, parse_mode="Markdown", reply_markup=build_confirm_cancel("market", "")
-    )
+    leverage_markup = ButtonBuilder().leverage_levels().build()
 
-    return MARKET_CONFIRM
+    await msg.edit_text(text, parse_mode="Markdown", reply_markup=leverage_markup)
+
+    return MARKET_LEVERAGE
 
 
 async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -284,8 +319,7 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = context.user_data
     assert user_data is not None
 
-    query = update.callback_query
-    await query.answer()  # type: ignore
+    await query.answer()
 
     coin = user_data["market_coin"]
     is_buy = user_data["market_is_buy"]
@@ -294,7 +328,7 @@ async def market_execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Show processing
-        await query.edit_message_text(f"⏳ Placing {side_str} order for {coin}...")  # type: ignore
+        await query.edit_message_text(f"⏳ Placing {side_str} order for {coin}...")
 
         # Create use case request
         request = PlaceOrderRequest(  # type: ignore
@@ -375,6 +409,10 @@ def get_market_wizard_handler():
                 CallbackQueryHandler(market_amount_selected, pattern="^amount:"),
                 CallbackQueryHandler(market_custom_amount, pattern="^custom_amount$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, market_amount_text_input),
+                CallbackQueryHandler(wizard_cancel, pattern="^menu_main$"),
+            ],
+            MARKET_LEVERAGE: [
+                CallbackQueryHandler(market_leverage_selected, pattern="^leverage:"),
                 CallbackQueryHandler(wizard_cancel, pattern="^menu_main$"),
             ],
             MARKET_CONFIRM: [

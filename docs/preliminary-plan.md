@@ -2165,38 +2165,6 @@ class Settings(BaseSettings):
 
 ## Future Enhancements
 
-### Phase 7+: Advanced Features
-
-1. **Custom Strategy Upload**
-   - Allow users to upload Python files defining strategies
-   - Sandbox execution for safety
-   - Hot-reload strategies without restart
-
-2. **Backtesting Framework**
-   - Test strategies against historical data
-   - Compare strategy performance
-   - Optimize strategy parameters
-
-3. **Strategy Marketplace**
-   - Community-contributed strategies
-   - Rating/review system
-   - One-click installation
-
-4. **Advanced Technical Indicators**
-   - RSI, MACD, Bollinger Bands
-   - Custom indicator composition
-   - Machine learning-based signals
-
-5. **Strategy Composition**
-   - Combine multiple strategies into pipelines
-   - Majority voting on signals
-   - Confidence scoring
-
-6. **Dashboard UI**
-   - Visual strategy builder (drag-and-drop)
-   - Real-time strategy execution monitoring
-   - Performance charts and analytics
-
 ---
 
 ## Conclusion

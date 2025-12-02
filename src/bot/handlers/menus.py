@@ -28,7 +28,7 @@ async def menu_main_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     text = (
         "🏠 **Main Menu**\n\n"
-        f"**Environment**: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'}\n\n"
+        f"**Environment**: {'🧪 Testnet' if settings.HYPERLIQUID_TESTNET else '🚀 Mainnet'} | **Version**: {settings.VERSION}\n\n"
         "Select an action:"
     )
 

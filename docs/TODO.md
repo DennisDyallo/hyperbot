@@ -83,17 +83,47 @@
 
 ## 📋 Planned Features
 
-### Phase 7: Future Enhancements
-**Status**: 📋 Planning
-**Priority**: LOW
+### Phase 7: Telegram UX Component Library (In Progress)
+**Status**: 🚧 Active Implementation (feature/ux-component-library)
+**Priority**: HIGH (per UX team request)
 
-**Potential Features**:
-- Order modification (edit price/size)
-- Order templates/presets
-- Advanced filters (time range, partially filled)
-- Order analytics (fill rate, avg execution time)
-- Export order history
-- Telegram: Filter by coin implementation (complete the feature)
+#### Level 1 – Atomic Components
+- [x] Formatters implemented and tested (`src/bot/components/formatters.py`)
+- [x] Buttons module: add documented helpers (`build_action_button`) and extend style aliases for UX parity
+- [ ] Buttons module: add navigation presets and remaining spec alignment helpers
+- [x] Loading states implemented (needs integration rollout across handlers)
+- [ ] Risk indicators: expand API to match design doc (tooltips, richer descriptors)
+
+#### Level 2 – Molecular Components
+- [x] Info cards implemented (missing `add_separator` helper from spec)
+- [x] Preview builder (two-tier) implemented; verify 10-line quick preview requirement
+- [x] Sortable list scaffolded (needs grouping helpers + action rows per SPEC-004)
+- [x] PreviewBuilder fluent setters (`set_order_details`, etc.) covered by new unit tests
+
+#### Level 3 – Organism Flows
+- [x] OrderFlowOrchestrator prototype in `src/bot/components/flows/order_flow.py`
+- [x] PositionDisplay prototype in `src/bot/components/flows/position_display.py`
+- [ ] Flesh out orchestrator API (`start`, `handle_*`) so handlers can adopt it without glue code
+- [ ] Scenario coverage: add integration tests for complete wizard/position flows using new components
+
+#### Phase 4 Migration & Adoption
+- [ ] Refactor `wizard_market_order.py` to use component library (leverage selection + previews wired, account data + success states pending)
+- [ ] Update remaining wizards (scale, rebalance, close position) to new flows
+- [ ] Retrofit `/positions`, `/orders`, `/account` to component outputs (risk grouping, quick actions)
+- [ ] Replace legacy menu builders with `ButtonBuilder` patterns across handlers
+- [ ] Ensure loading states + success templates are applied consistently
+
+#### Testing & Docs
+- [ ] Re-run full `uv run pytest` once integrations complete; maintain ≥90% coverage on component modules
+- [ ] Add end-to-end bot tests covering quick/full preview toggle and success follow-ups
+- [ ] Update README + docs with component usage examples and migration notes
+
+#### Known Issues / Follow-up
+- ButtonBuilder currently reused as singleton in handlers → instantiate per reply before rollout
+- Preview helpers accept different kwargs than callers expect (`account_value`, `is_testnet` mismatch)
+- Sortable list output lacks risk grouping and action buttons from UX spec
+- PositionDisplay quick view exceeds 10-line mobile guideline; tighten formatting
+- Success messages missing "What's next?" buttons in existing handlers
 
 ---
 

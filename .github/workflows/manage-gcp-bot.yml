@@ -1,0 +1,73 @@
+name: Manage GCP Bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - start
+          - stop
+          - status
+        default: 'status'
+
+env:
+  PROJECT_ID: ${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: hyperbot
+
+jobs:
+  manage-bot:
+    name: ${{ inputs.action }} GCP Bot
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.LB_HYPERBOT_GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}
+
+      - name: Execute ${{ inputs.action }} command
+        env:
+          GCP_PROJECT_ID: ${{ secrets.LB_HYPERBOT_GCP_PROJECT_ID }}
+          GCP_REGION: ${{ env.REGION }}
+          GCP_SERVICE_NAME: ${{ env.SERVICE_NAME }}
+        run: |
+          chmod +x scripts/manage-gcp-bot.sh
+          ./scripts/manage-gcp-bot.sh ${{ inputs.action }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Bot Management Action: ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ env.REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project**: ${{ env.PROJECT_ID }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.action }}" = "status" ]; then
+            echo "Check the logs above for detailed status information." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ inputs.action }}" = "start" ]; then
+            echo "✅ Bot deployed and running (min-instances=1)." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The bot is now actively polling Telegram for messages." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ inputs.action }}" = "stop" ]; then
+            echo "✅ Bot has been stopped (service deleted, \$0 cost)." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use 'start' action to redeploy and resume the bot." >> $GITHUB_STEP_SUMMARY
+          fi
