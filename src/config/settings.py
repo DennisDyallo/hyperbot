@@ -50,7 +50,7 @@ class Settings:
 
     # Project
     PROJECT_NAME: str = "Hyperbot"
-    VERSION: str = "0.1.0+88c1fd3"
+    VERSION: str = "0.1.0+ee7c8fb"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
     # API Server

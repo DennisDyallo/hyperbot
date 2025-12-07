@@ -1384,7 +1384,7 @@ async def test_order_flow_complete():
 ## 📚 Additional Resources
 
 ### Related Documents
-- [PHASE_7_PLAN.md](./PHASE_7_PLAN.md) - Feature specifications
+- [PLAN.md](./PLAN.md) - Phase 7 roadmap and specifications
 - [UX_IMPROVEMENT_OPPORTUNITIES.md](./UX_IMPROVEMENT_OPPORTUNITIES.md) - Analysis of all flows
 - [NAMING_CONVENTION.md](./NAMING_CONVENTION.md) - Code style guide
 
