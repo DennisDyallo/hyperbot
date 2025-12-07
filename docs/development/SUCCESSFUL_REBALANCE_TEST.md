@@ -190,7 +190,7 @@ The Phase 2A implementation successfully handles:
 
 ## 📝 Next Steps
 
-1. ✅ Update TODO.md with test completion
+1. ✅ Update PLAN.md with test completion notes
 2. ✅ Commit all changes
 3. 🔜 Add dashboard improvements (Spot vs Perp balance clarity)
 4. 🔜 Choose next phase (2B, 2C, or 3)
@@ -202,7 +202,7 @@ The Phase 2A implementation successfully handles:
 - [Test Script](scripts/test_leverage_rebalance.py)
 - [Previous Test Results](REBALANCING_TEST_RESULTS.md) - Failed test with bugs
 - [Setup Guide](SETUP_TEST_POSITIONS.md)
-- [TODO List](docs/TODO.md)
+- [Implementation Plan](docs/PLAN.md)
 - [Implementation Plan](docs/PLAN.md)
 
 ---

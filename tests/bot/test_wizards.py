@@ -252,12 +252,12 @@ class TestCustomAmountFlow:
         with patch("src.bot.handlers.wizard_market_order.convert_usd_to_coin") as mock_convert:
             mock_convert.return_value = (0.013, 3850.50)  # ETH price
 
-            from src.bot.handlers.wizard_market_order import MARKET_CONFIRM
+            from src.bot.handlers.wizard_market_order import MARKET_LEVERAGE
 
             result = await wizard_market_order.market_amount_text_input(update, context)
 
             # Should show confirmation
-            assert result == MARKET_CONFIRM
+            assert result == MARKET_LEVERAGE
             update.message.reply_text.assert_called_once()
             mock_msg.edit_text.assert_called_once()
 

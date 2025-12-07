@@ -156,8 +156,8 @@ uv run pytest tests/ -v
 ## 📚 Documentation
 
 For more details, see:
-- **Architecture**: `docs/PLAN.md`
-- **Task Tracking**: `docs/TODO.md`
+- **Roadmap**: `docs/PLAN.md`
+- **Architecture Overview**: `docs/ARCHITECTURE.md`
 - **Development Guide**: `CLAUDE.md`
 - **Hyperliquid API**: `docs/hyperliquid/api-reference.md`
 

@@ -32,6 +32,14 @@ repos:
 
   - repo: local
     hooks:
+      - id: update-version
+        name: Update version with commit hash
+        entry: ./scripts/update-version.sh
+        language: system
+        stages: [commit]
+        pass_filenames: false
+        always_run: true
+
       - id: vulture
         name: vulture (dead code detection)
         entry: uv run vulture

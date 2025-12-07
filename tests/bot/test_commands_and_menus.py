@@ -269,6 +269,47 @@ class TestStatusCommand:
         assert "Online" in call_text or "✅" in call_text
 
 
+class TestBalanceCommand:
+    """Test /balance command handler."""
+
+    @pytest.mark.asyncio
+    async def test_balance_command_success(self):
+        update = TelegramMockFactory.create_command_update("/balance")
+        context = TelegramMockFactory.create_context()
+
+        with patch(
+            "src.bot.handlers.commands.account_service.get_balance_details",
+            return_value={
+                "total_value": 10000.0,
+                "available": 4200.0,
+                "in_positions": 5800.0,
+                "margin_used": 3000.0,
+                "withdrawable": 2500.0,
+            },
+        ):
+            await basic.balance_command(update, context)
+
+        update.message.reply_text.assert_called_once()
+        message = update.message.reply_text.call_args[0][0]
+        assert "Balance Overview" in message
+        assert "$10,000.00" in message or "10,000" in message
+
+    @pytest.mark.asyncio
+    async def test_balance_command_error(self):
+        update = TelegramMockFactory.create_command_update("/balance")
+        context = TelegramMockFactory.create_context()
+
+        with patch(
+            "src.bot.handlers.commands.account_service.get_balance_details",
+            side_effect=Exception("failed"),
+        ):
+            await basic.balance_command(update, context)
+
+        update.message.reply_text.assert_called()
+        message = update.message.reply_text.call_args_list[-1][0][0]
+        assert "Failed to fetch balance" in message
+
+
 class TestMenuMainCallback:
     """Test menu_main_callback handler."""
 

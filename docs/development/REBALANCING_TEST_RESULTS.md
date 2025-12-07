@@ -1,41 +1,21 @@
 # Rebalancing Test Results & Fixes
-
-## Executive Summary
-
-Tested rebalancing with leverage change (10x → 2x, any ratio → 50/50). **Found and fixed 3 critical bugs** that were causing:
-- Mixed leverage states (some coins 2x, some still 10x)
-- Tiny position sizes (14% instead of 50%)
-- Portfolio value loss (18% drop)
-
-**All bugs are now fixed and committed.** Ready for retest with clean slate.
-
+```
+A  scripts/test_leverage_rebalance.py     # New: Comprehensive test
+M  src/api/routes/positions.py            # Fix: Format error
+M  src/api/routes/rebalance.py            # Update: Default 3x
+M  src/api/routes/web.py                  # Add: /rebalance route
+M  src/api/templates/base.html            # Add: Rebalance link
+A  src/api/templates/rebalance.html       # New: Rebalance UI (519 lines)
+M  src/config/settings.py                 # Add: DEFAULT_LEVERAGE setting
+M  src/services/rebalance_service.py      # Fix: Critical logic bugs
+```
 ---
-
-## Test Scenario
-
-**Initial State:**
-- SOL: $941 (29.6%) at **10x leverage**
-- BTC: $2,238 (70.4%) at **10x leverage**
-- Total: $3,180
-- Account margin: $416
-
-**Target:**
-- SOL: 50% at **2x leverage**
-- BTC: 50% at **2x leverage**
-
----
-
-## Bugs Found
-
-### 🐛 Bug #1: Code Continued After CLOSE Failed
 
 **What Happened:**
-```
 ERROR: Failed to close position for BTC: Connection aborted
 WARNING: Cannot set leverage for BTC - position already exists with 10x leverage
 ```
 
-- BTC close trade failed (network issue)
 - Code continued anyway and tried to OPEN BTC
 - Since old BTC position still existed, couldn't set 2x leverage
 - Ended up with mixed state: SOL 2x, BTC still 10x ❌
@@ -45,6 +25,14 @@ WARNING: Cannot set leverage for BTC - position already exists with 10x leverage
 # Check if any CLOSE trades failed - must abort if so
 failed_closes = [t for t in close_trades if t.action == TradeAction.CLOSE and not t.success]
 if failed_closes:
+    scripts/test_leverage_rebalance.py     # New: Comprehensive test
+    src/api/routes/positions.py            # Fix: Format error
+    src/api/routes/rebalance.py            # Update: Default 3x
+    src/api/routes/web.py                  # Add: /rebalance route
+    src/api/templates/base.html            # Add: Rebalance link
+    src/api/templates/rebalance.html       # New: Rebalance UI (519 lines)
+    src/config/settings.py                 # Add: DEFAULT_LEVERAGE setting
+    src/services/rebalance_service.py      # Fix: Critical logic bugs
     logger.error(f"CRITICAL: Failed to close positions. Cannot continue.")
     # Mark remaining trades as skipped and return error
     return RebalanceResult(success=False, ...)
@@ -267,7 +255,6 @@ BTC: $400 (50.0%) at 2x ✅
 ## Files Changed
 
 ```
-M  docs/TODO.md
 A  scripts/test_leverage_rebalance.py     # New: Comprehensive test
 M  src/api/routes/positions.py            # Fix: Format error
 M  src/api/routes/rebalance.py            # Update: Default 3x

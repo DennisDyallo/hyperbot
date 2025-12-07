@@ -4,21 +4,8 @@ This document provides comprehensive guidance for developing and maintaining the
 
 ## 📋 Implementation Plan & Progress
 
-**IMPORTANT**: Before working on any feature, always check:
-- **Strategy & Architecture**: [docs/PLAN.md](docs/PLAN.md) - EPIC-level goals, decisions, ADRs (PM view)
-- **Tasks & Progress**: [docs/TODO.md](docs/TODO.md) - Detailed checklists, status, issues (Developer view)
-
-**Current Status** (see TODO.md for details):
-- **Current Phase**: ✅ Phase 4 Complete - Code Consolidation & Use Case Layer
-- **Next Decision**: Choose between Phase 1B.2 (Dashboard), Phase 2C (Spot Trading), Phase 3 (Telegram Bot), or Phase 1A.7 (Testing)
-
-## Project Overview
-
-Hyperbot is a Python-based trading bot that integrates:
-- **Hyperliquid**: Decentralized exchange for crypto trading
-- **Web Dashboard**: Primary UI for monitoring and trading (Phase 1B)
-- **Telegram**: Mobile interface for alerts and quick actions (Phase 3)
-- **TradingView**: Webhook-based trading signals
+- **Roadmap & task tracking**: [docs/PLAN.md](docs/PLAN.md) — canonical source for phases, checklists, and status.
+- **Learning log**: Notable learnings are captured in this guide (see “Notable Learnings” below).
 
 ## Documentation Structure
 
@@ -26,124 +13,119 @@ All documentation is stored locally in the `/docs` directory:
 
 ```
 docs/
-├── PLAN.md                    # ⭐ EPIC-level: Architecture, decisions, strategy (PM view)
-├── TODO.md                    # ⭐ Task-level: Checklists, progress, issues (Developer view)
+├── ARCHITECTURE.md             # System architecture overview
+├── PLAN.md                     # ⭐ Roadmap, task breakdowns, status
+├── GCP_NAMING_CONVENTION.md    # Cloud resource naming standards
+├── telegram-ux-system-guide.md # Canonical Telegram UX design system (Phase 7)
+├── telegram-ux-implementation-playbook.md # Engineering playbook for the UX rollout
 ├── hyperliquid/
-│   ├── python-sdk.md          # Official SDK documentation
-│   └── api-reference.md       # Complete API reference with examples
+│   ├── python-sdk.md           # Official SDK documentation
+│   └── api-reference.md        # Complete API reference with examples
 └── telegram/
-    ├── bot-api-reference.md   # Complete Telegram Bot API reference
-    ├── best-practices.md      # Security, performance, patterns
-    ├── features.md            # All Telegram bot features
-    └── faq.md                 # Comprehensive FAQ and troubleshooting
+    ├── bot-api-reference.md    # Complete Telegram Bot API reference
+    ├── best-practices.md       # Security, performance, patterns
+    ├── features.md             # All Telegram bot features
+    └── faq.md                  # Comprehensive FAQ and troubleshooting
 ```
 
-### PLAN.md vs TODO.md - Clear Separation
+### Working With the Roadmap
 
-> **Important**: These files have **zero duplication** - each piece of information lives in exactly one place.
-
-#### PLAN.md (PM/EPIC View)
-**When to read**: Understanding project strategy, architecture, or design decisions
-
-**Contains**:
-- ✅ Architecture diagrams
-- ✅ Phase goals and deliverables
-- ✅ Tech stack decisions with rationale (FastAPI, HTMX, Tailwind)
-- ✅ Decision Log (ADRs - why we chose X over Y)
-- ✅ Testing strategy (high-level philosophy)
-
-**Does NOT contain**:
-- ❌ Task checklists with file paths
-- ❌ Implementation code snippets
-- ❌ Current progress tracking (see TODO.md)
-- ❌ Granular subtasks
-
-**Use this when**:
-- Starting a new phase (understand the goal and architecture)
-- Making architectural decisions (check existing ADRs)
-- Explaining project structure to others
-- You need to understand "why" something was done
+1. Review `docs/PLAN.md` → “Current Focus” for active tasks and sequencing.
+2. Update progress directly in `PLAN.md` as work lands.
+3. Capture new lessons in the “Notable Learnings” section of this guide.
+4. Use the domain-specific docs under `docs/hyperliquid/` and `docs/telegram/` while implementing features.
 
 ---
 
-#### TODO.md (Developer/Task View)
-**When to read**: Implementing features, tracking progress, debugging issues
+## Notable Learnings
 
-**Contains**:
-- ✅ Detailed task checklists with file paths (e.g., `src/use_cases/trading/place_order.py`)
-- ✅ Progress tracking (✅ Completed / 🔄 In Progress / 🚫 Blocked)
-- ✅ Implementation code snippets and examples
-- ✅ Testing lessons learned (mocking patterns, known issues)
-- ✅ Known issues and workarounds
-- ✅ Session summaries
+### Testing Lessons & Known Issues
 
-**Does NOT contain**:
-- ❌ Architecture diagrams (see PLAN.md)
-- ❌ Tech stack rationale (see PLAN.md)
-- ❌ High-level phase goals (see PLAN.md)
+**Last Updated**: 2025-11-29
 
-**Use this when**:
-- Working on a specific task (find your next checkbox)
-- Checking progress status
-- Debugging (known issues section)
-- Writing tests (testing lessons section)
-- Completing a task (update checkboxes here only)
+#### 1. Service Singleton Mocking Pattern
+**Problem**: Services created at module import time retain references to real service instances, causing "not initialized" errors in tests.
+
+**Solution**: Use fixture-based patching with explicit attribute assignment:
+```python
+@pytest.fixture
+def service(self, mock_hyperliquid_service, mock_position_service):
+        with patch('src.services.leverage_service.hyperliquid_service', mock_hyperliquid_service):
+                with patch('src.services.leverage_service.position_service', mock_position_service):
+                        svc = LeverageService()
+                        # CRITICAL: Explicitly assign mocked dependencies
+                        svc.hyperliquid = mock_hyperliquid_service
+                        svc.position_service = mock_position_service
+                        return svc
+```
+
+#### 2. Mock Data Structure Must Match API Response Exactly
+**Problem**: Tests failed with `KeyError` when mock data did not mirror the real nested structure.
+
+**Example**: Position data has nested `"position"` wrappers:
+```python
+# ❌ WRONG - Flat structure
+{"coin": "BTC", "size": 1.26, "leverage_value": 3}
+
+# ✅ CORRECT - Nested structure matching API
+{
+        "position": {
+                "coin": "BTC",
+                "size": 1.26,
+                "leverage_value": 3,
+                "leverage": {"value": 3, "type": "cross"}
+        }
+}
+```
+
+#### 3. Mock Return Values Must Be Python Types, Not Mock Objects
+**Problem**: `TypeError: 'Mock' object is not iterable` when code iterates over mock return values.
+
+**Solution**: Always return actual Python types:
+```python
+# ❌ WRONG - Returns Mock object
+mock_info.spot_user_state.return_value = Mock()
+
+# ✅ CORRECT - Returns actual dict
+mock_info.spot_user_state.return_value = {"balances": []}
+```
+
+#### 4. Function Return Types Must Match Implementation
+**Problem**: Tests expected a single value but the function returns a tuple.
+
+**Example**: `get_leverage_for_order()` returns `(leverage, needs_setting)`:
+```python
+# ❌ WRONG - Expects single value
+leverage = service.get_leverage_for_order("BTC")
+assert leverage == 3
+
+# ✅ CORRECT - Unpacks tuple
+leverage, needs_setting = service.get_leverage_for_order("BTC")
+assert leverage == 3
+assert needs_setting is True
+```
+
+#### Wizard Tests Need Synchronization
+⚠️ **Note**: When modifying bot handlers or service imports, ensure wizard tests are adjusted. Some wizard tests are temporarily skipped; re-enable once flows stabilize.
+
+**2025-12-07 Update**: The market order wizard now routes both preset and text-based amounts through the leverage selection state (`MARKET_LEVERAGE`) before confirmation. Update wizard tests to expect the leverage state rather than `MARKET_CONFIRM` immediately after amount entry.
+
+#### Test Coverage Snapshot
+- **Total Tests**: 682 passing
+- **Coverage**: 65%
+- **Services ≥90% coverage**: Config/Logger, HyperliquidService, MarketDataService, PositionService, ScaleOrderService, RiskCalculator, LeverageService
+- **Target**: Raise overall coverage to 70%+.
+
+### Phase 7 UX Insights
+
+- ConversationHandler remains the orchestration layer; component modules should supply builders (text, keyboards, loading contexts) rather than controlling flow.
+- Eliminate duplication first: centralize preview text, button layouts, and callback extraction helpers before adding new abstractions.
+- Inline leverage selection must pair with previews that highlight margin required, available buying power, liquidation estimates, and risk scoring for every order type.
+- Instantiate `ButtonBuilder` per reply and ship navigation presets plus richer risk indicators to meet the current UX specification.
+- Add integration tests that exercise full market and position journeys with the new components before migrating additional wizards.
+- Canonical specifications live in `docs/telegram-ux-system-guide.md`; coordinate implementation work through `docs/telegram-ux-implementation-playbook.md`.
 
 ---
-
-#### Quick Reference Table
-
-| Information Type | PLAN.md | TODO.md |
-|------------------|---------|---------|
-| Architecture diagrams | ✅ | ❌ Reference PLAN.md |
-| "Why" decisions (ADRs) | ✅ | ❌ Reference PLAN.md |
-| Phase goals | ✅ | ❌ Reference PLAN.md |
-| Task checkboxes | ❌ Reference TODO.md | ✅ |
-| File paths & code | ❌ Reference TODO.md | ✅ |
-| Progress status | ❌ Reference TODO.md | ✅ |
-| Testing lessons | ❌ Reference TODO.md | ✅ |
-| Known issues | ❌ Reference TODO.md | ✅ |
-
----
-
-#### Workflow Examples
-
-**Example 1: Starting Phase 3 (Telegram Bot)**
-```
-Step 1: Read PLAN.md → Phase 3 section
-  - Understand goal: "Mobile interface for trading and alerts"
-  - See tech stack decision: python-telegram-bot library
-  - Review ADR: "Why Web Dashboard before Telegram Bot"
-
-Step 2: Read TODO.md → Find Phase 3 tasks
-  - [ ] Telegram bot setup
-  - [ ] Create src/bot/handlers/
-  - [ ] Implement /start command
-  - ...
-
-Step 3: Work from TODO.md, checking off tasks as you complete them
-```
-
-**Example 2: Understanding Rebalancing Logic**
-```
-Step 1: Read PLAN.md → Phase 2A section
-  - Goal: "Portfolio rebalancing with integrated risk assessment"
-  - Key decision: Use Case Layer architecture
-
-Step 2: Read TODO.md → Phase 2A completed tasks
-  - [x] Created src/services/rebalance_service.py
-  - [x] Implemented preview_rebalance()
-  - See testing lessons for risk calculation formulas
-```
-
-**Example 3: Completing a Task**
-```
-✅ DO: Update TODO.md
-  - [x] Create src/use_cases/trading/place_order.py
-
-❌ DON'T: Update PLAN.md
-  - No duplicate tracking needed!
-```
 
 ## Environment Management
 
@@ -403,6 +385,412 @@ async def command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.exception("Handler error")
         await update.message.reply_text(f"❌ Error: {str(e)}")
 ```
+
+## Code Quality Standards & Linting
+
+**📚 MUST READ**: [docs/linting.md](docs/linting.md) - Complete guide to linting tools and configuration
+
+**⚠️ CRITICAL**: All code MUST pass these checks before committing:
+- ✅ **Ruff** - Fast Python linter (replaces Flake8, isort, Black)
+- ✅ **Mypy** - Static type checker (strict mode enabled)
+- ✅ **Pre-commit hooks** - Automatic checks on commit
+
+### Quick Linting Commands
+
+```bash
+# Auto-fix most issues (run this first!)
+./scripts/lint-fix.sh
+
+# Check for remaining issues
+./scripts/lint.sh
+
+# Run specific checks
+ruff check --fix src/ tests/
+mypy src/
+```
+
+### Common Mypy Pitfalls (AVOID THESE!)
+
+#### 1. ❌ Using `typing.Callable` instead of `collections.abc.Callable`
+
+**Wrong:**
+```python
+from typing import Callable  # ❌ Deprecated in Python 3.11+
+
+def decorator(func: Callable) -> Callable:
+    pass
+```
+
+**Correct:**
+```python
+from collections.abc import Callable  # ✅ Modern Python 3.11+
+
+def decorator(func: Callable) -> Callable:
+    pass
+```
+
+**Mypy error**: `Import from collections.abc instead: Callable`
+
+---
+
+#### 2. ❌ Missing `Awaitable` type hint for async functions
+
+**Wrong:**
+```python
+from collections.abc import Callable
+
+def decorator(func: Callable[..., int]) -> Callable[..., int]:  # ❌ Missing Awaitable
+    async def wrapper(*args, **kwargs):
+        return await func(*args, **kwargs)
+    return wrapper
+```
+
+**Correct:**
+```python
+from collections.abc import Awaitable, Callable
+
+def decorator(func: Callable[..., Awaitable[int]]) -> Callable[..., Awaitable[int]]:  # ✅
+    async def wrapper(*args, **kwargs):
+        return await func(*args, **kwargs)
+    return wrapper
+```
+
+**Mypy errors**:
+- `Incompatible types in "await"`
+- `Returning Any from function declared to return X`
+
+---
+
+#### 3. ❌ Unused `# type: ignore` comments
+
+**Wrong:**
+```python
+async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> RT:  # type: ignore
+    # If mypy doesn't complain, don't add type: ignore!
+```
+
+**Correct:**
+```python
+async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> RT:
+    # Only add type: ignore if mypy actually complains AND you can't fix it properly
+```
+
+**Mypy error**: `Unused "type: ignore" comment`
+
+---
+
+#### 4. ❌ Not storing `await` result before returning
+
+**Wrong:**
+```python
+async def wrapper() -> RT:
+    return await func()  # ❌ Mypy may complain about return type
+```
+
+**Correct:**
+```python
+async def wrapper() -> RT:
+    result = await func()  # ✅ Store result first
+    return result
+```
+
+**Mypy errors**:
+- `Returning Any from function declared to return RT`
+- `Incompatible return value type`
+
+---
+
+### Common Ruff Pitfalls (AVOID THESE!)
+
+#### 1. ❌ Wrong import order
+
+**Wrong:**
+```python
+from typing import Dict
+import os
+from src.config import logger  # ❌ Wrong order
+```
+
+**Correct:**
+```python
+import os  # ✅ Standard library first
+from typing import Dict  # ✅ Third-party second
+
+from src.config import logger  # ✅ Local imports last (with blank line)
+```
+
+**Ruff error**: `I001 - Import block is un-sorted or un-formatted`
+
+**Fix**: `ruff check --fix` handles this automatically!
+
+---
+
+#### 2. ❌ Old-style type hints
+
+**Wrong:**
+```python
+from typing import Dict, List, Optional, Union  # ❌ Old style
+
+def func(data: Dict[str, List[int]], opt: Optional[str]) -> Union[int, None]:
+    pass
+```
+
+**Correct:**
+```python
+# ✅ Modern Python 3.11+ style (no typing imports needed!)
+def func(data: dict[str, list[int]], opt: str | None) -> int | None:
+    pass
+```
+
+**Ruff errors**:
+- `UP006 - Use dict instead of Dict`
+- `UP007 - Use list instead of List`
+- `UP007 - Use X | Y instead of Union[X, Y]`
+- `UP007 - Use X | None instead of Optional[X]`
+
+---
+
+#### 3. ❌ Unused imports
+
+**Wrong:**
+```python
+from typing import Dict, List, Optional  # ❌ List and Optional unused
+from src.config import logger  # ❌ logger unused
+
+def func(data: dict[str, int]) -> None:
+    pass
+```
+
+**Correct:**
+```python
+# ✅ Only import what you use
+def func(data: dict[str, int]) -> None:
+    pass
+```
+
+**Ruff error**: `F401 - imported but unused`
+
+**Fix**: `ruff check --fix` removes unused imports automatically!
+
+---
+
+#### 4. ❌ Raising without `from` (loses exception context)
+
+**Wrong:**
+```python
+try:
+    result = api_call()
+except Exception:
+    raise ValueError("API call failed")  # ❌ Lost original exception!
+```
+
+**Correct:**
+```python
+try:
+    result = api_call()
+except Exception as e:
+    raise ValueError("API call failed") from e  # ✅ Preserves exception chain
+```
+
+**Ruff error**: `B904 - Within an except clause, raise exceptions with raise ... from err`
+
+---
+
+#### 5. ❌ Mutable default arguments
+
+**Wrong:**
+```python
+def process_items(items: list[str] = []):  # ❌ Mutable default!
+    items.append("new")
+    return items
+```
+
+**Correct:**
+```python
+def process_items(items: list[str] | None = None) -> list[str]:  # ✅
+    if items is None:
+        items = []
+    items.append("new")
+    return items
+```
+
+**Ruff error**: `B006 - Do not use mutable data structures for argument defaults`
+
+---
+
+#### 6. ❌ Unnecessary list comprehension
+
+**Wrong:**
+```python
+# ❌ Wasteful - creates intermediate list
+sum([x * 2 for x in range(1000000)])
+```
+
+**Correct:**
+```python
+# ✅ Generator expression - memory efficient
+sum(x * 2 for x in range(1000000))
+```
+
+**Ruff error**: `C419 - Unnecessary list comprehension`
+
+---
+
+### Pre-Commit Hook Workflow
+
+**Pre-commit hooks run automatically on `git commit`:**
+
+```bash
+# When you commit, hooks run:
+git commit -m "Add feature"
+
+# If hooks find issues:
+[WARNING] Stashing unstaged files
+ruff (legacy alias)...................................................Passed
+ruff format........................................................Failed  # ❌
+  - hook id: ruff-format
+  - files were modified by this hook
+
+# Fix: Add the formatted files and recommit
+git add -u
+git commit -m "Add feature"
+
+# Now hooks pass:
+ruff (legacy alias)...................................................Passed
+ruff format...........................................................Passed
+mypy......................................................................Passed
+[feature-branch abc1234] Add feature
+```
+
+**Common pre-commit failures:**
+
+1. **`ruff format` fails** - Files were auto-formatted
+   - Fix: `git add -u && git commit -m "your message"`
+
+2. **`mypy` fails** - Type errors found
+   - Fix: Read error message, fix type issues, commit again
+
+3. **`trailing-whitespace` fails** - Extra spaces at line ends
+   - Fix: Let hook remove them, commit again
+
+**Skip hooks (use sparingly!):**
+```bash
+git commit --no-verify -m "WIP: debugging"  # ⚠️ Only for WIP commits!
+```
+
+---
+
+### Type Hints Best Practices
+
+**✅ DO:**
+```python
+# Modern Python 3.11+ style
+from collections.abc import Awaitable, Callable
+
+def process(data: dict[str, list[int]]) -> int | None:
+    """Process data and return result."""
+    pass
+
+async def async_process(callback: Callable[[int], Awaitable[str]]) -> str:
+    """Async function with proper type hints."""
+    result = await callback(42)
+    return result
+```
+
+**❌ DON'T:**
+```python
+# Old style (pre-Python 3.11)
+from typing import Callable, Dict, List, Optional
+
+def process(data: Dict[str, List[int]]) -> Optional[int]:  # ❌
+    pass
+
+def decorator(func: Callable) -> Callable:  # ❌ Missing Awaitable for async
+    pass
+```
+
+---
+
+### Import Best Practices
+
+**✅ DO:**
+```python
+# Correct import order (3 groups with blank lines)
+import os  # 1. Standard library
+import sys
+
+from telegram import Update  # 2. Third-party
+
+from src.config import logger  # 3. Local (with blank line before)
+from src.services.account_service import AccountService
+```
+
+**❌ DON'T:**
+```python
+# Wrong - mixed order, no grouping
+from src.config import logger
+import os
+from telegram import Update  # ❌
+```
+
+---
+
+### Error Handling Best Practices
+
+**✅ DO:**
+```python
+try:
+    result = dangerous_operation()
+except ValueError as e:
+    logger.error(f"Operation failed: {e}")
+    raise RuntimeError("Failed to process") from e  # ✅ Preserve chain
+```
+
+**❌ DON'T:**
+```python
+try:
+    result = dangerous_operation()
+except:  # ❌ Bare except
+    raise Exception("Failed")  # ❌ Lost original error
+```
+
+---
+
+### Writing Linter-Friendly Code from the Start
+
+**Before writing any code:**
+
+1. ✅ **Use modern type hints** - `dict`, `list`, `X | None` (not `Dict`, `List`, `Optional`)
+2. ✅ **Import from `collections.abc`** - For `Callable`, `Awaitable`, etc.
+3. ✅ **Group imports properly** - stdlib, third-party, local (with blank lines)
+4. ✅ **Add type hints to all functions** - Parameters and return types
+5. ✅ **Use `raise ... from e`** - Preserve exception chains
+6. ✅ **Avoid mutable defaults** - Use `None` and initialize inside function
+7. ✅ **Don't add `# type: ignore`** unless absolutely necessary
+
+**After writing code:**
+
+```bash
+# Step 1: Auto-fix what can be fixed
+./scripts/lint-fix.sh
+
+# Step 2: Check what remains
+./scripts/lint.sh
+
+# Step 3: Fix remaining issues manually
+
+# Step 4: Commit (pre-commit hooks will catch anything missed)
+git commit -m "Your message"
+```
+
+---
+
+### Resources
+
+- 📚 **[docs/linting.md](docs/linting.md)** - Complete linting guide
+- 🔧 **[Ruff Documentation](https://docs.astral.sh/ruff/)** - Rule reference
+- 📝 **[Mypy Documentation](https://mypy.readthedocs.io/)** - Type checking guide
+- 🎨 **[PEP 8](https://peps.python.org/pep-0008/)** - Python style guide
 
 ### 3. Testing
 
@@ -924,8 +1312,8 @@ src/bot/utils.py:250: unused function 'format_price_alert' (72% confidence)
 $ grep -r "format_price_alert" src/
 # Found in commented-out code in src/bot/handlers/alerts.py
 
-# Check TODO.md
-# Phase 5 mentions price alerts feature
+# Check PLAN.md
+# Phase 5 backlog notes price alerts feature
 ```
 
 **Action:** Keep it (planned feature) and add to whitelist:
@@ -1468,7 +1856,7 @@ For more troubleshooting help:
 ## Quick Reference Links
 
 **Within Project:**
-- **Implementation**: `docs/PLAN.md`, `docs/TODO.md`
+- **Implementation**: `docs/PLAN.md` (roadmap, status, tasks)
 - **Hyperliquid**: `docs/hyperliquid/python-sdk.md`, `docs/hyperliquid/api-reference.md`
 - **Telegram**:
   - `docs/telegram/bot-api-reference.md` - Complete API reference
