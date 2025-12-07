@@ -4,21 +4,8 @@ This document provides comprehensive guidance for developing and maintaining the
 
 ## 📋 Implementation Plan & Progress
 
-**IMPORTANT**: Before working on any feature, always check:
-- **Strategy & Architecture**: [docs/PLAN.md](docs/PLAN.md) - EPIC-level goals, decisions, ADRs (PM view)
-- **Tasks & Progress**: [docs/TODO.md](docs/TODO.md) - Detailed checklists, status, issues (Developer view)
-
-**Current Status** (see TODO.md for details):
-- **Current Phase**: ✅ Phase 4 Complete - Code Consolidation & Use Case Layer
-- **Next Decision**: Choose between Phase 1B.2 (Dashboard), Phase 2C (Spot Trading), Phase 3 (Telegram Bot), or Phase 1A.7 (Testing)
-
-## Project Overview
-
-Hyperbot is a Python-based trading bot that integrates:
-- **Hyperliquid**: Decentralized exchange for crypto trading
-- **Web Dashboard**: Primary UI for monitoring and trading (Phase 1B)
-- **Telegram**: Mobile interface for alerts and quick actions (Phase 3)
-- **TradingView**: Webhook-based trading signals
+- **Roadmap & task tracking**: [docs/PLAN.md](docs/PLAN.md) — canonical source for phases, checklists, and status.
+- **Learning log**: Notable learnings are captured in this guide (see “Notable Learnings” below).
 
 ## Documentation Structure
 
@@ -26,124 +13,114 @@ All documentation is stored locally in the `/docs` directory:
 
 ```
 docs/
-├── PLAN.md                    # ⭐ EPIC-level: Architecture, decisions, strategy (PM view)
-├── TODO.md                    # ⭐ Task-level: Checklists, progress, issues (Developer view)
+├── ARCHITECTURE.md         # System architecture overview
+├── PLAN.md                    # ⭐ Roadmap, task breakdowns, status
+├── TODO.md                    # Archive stub → PLAN.md
 ├── hyperliquid/
 │   ├── python-sdk.md          # Official SDK documentation
 │   └── api-reference.md       # Complete API reference with examples
 └── telegram/
-    ├── bot-api-reference.md   # Complete Telegram Bot API reference
-    ├── best-practices.md      # Security, performance, patterns
-    ├── features.md            # All Telegram bot features
-    └── faq.md                 # Comprehensive FAQ and troubleshooting
+        ├── bot-api-reference.md   # Complete Telegram Bot API reference
+        ├── best-practices.md      # Security, performance, patterns
+        ├── features.md            # All Telegram bot features
+        └── faq.md                 # Comprehensive FAQ and troubleshooting
 ```
 
-### PLAN.md vs TODO.md - Clear Separation
+### Working With the Roadmap
 
-> **Important**: These files have **zero duplication** - each piece of information lives in exactly one place.
-
-#### PLAN.md (PM/EPIC View)
-**When to read**: Understanding project strategy, architecture, or design decisions
-
-**Contains**:
-- ✅ Architecture diagrams
-- ✅ Phase goals and deliverables
-- ✅ Tech stack decisions with rationale (FastAPI, HTMX, Tailwind)
-- ✅ Decision Log (ADRs - why we chose X over Y)
-- ✅ Testing strategy (high-level philosophy)
-
-**Does NOT contain**:
-- ❌ Task checklists with file paths
-- ❌ Implementation code snippets
-- ❌ Current progress tracking (see TODO.md)
-- ❌ Granular subtasks
-
-**Use this when**:
-- Starting a new phase (understand the goal and architecture)
-- Making architectural decisions (check existing ADRs)
-- Explaining project structure to others
-- You need to understand "why" something was done
+1. Review `docs/PLAN.md` → “Current Focus” for active tasks and sequencing.
+2. Update progress directly in `PLAN.md` as work lands.
+3. Capture new lessons in the “Notable Learnings” section of this guide.
+4. Use the domain-specific docs under `docs/hyperliquid/` and `docs/telegram/` while implementing features.
 
 ---
 
-#### TODO.md (Developer/Task View)
-**When to read**: Implementing features, tracking progress, debugging issues
+## Notable Learnings
 
-**Contains**:
-- ✅ Detailed task checklists with file paths (e.g., `src/use_cases/trading/place_order.py`)
-- ✅ Progress tracking (✅ Completed / 🔄 In Progress / 🚫 Blocked)
-- ✅ Implementation code snippets and examples
-- ✅ Testing lessons learned (mocking patterns, known issues)
-- ✅ Known issues and workarounds
-- ✅ Session summaries
+### Testing Lessons & Known Issues
 
-**Does NOT contain**:
-- ❌ Architecture diagrams (see PLAN.md)
-- ❌ Tech stack rationale (see PLAN.md)
-- ❌ High-level phase goals (see PLAN.md)
+**Last Updated**: 2025-11-29
 
-**Use this when**:
-- Working on a specific task (find your next checkbox)
-- Checking progress status
-- Debugging (known issues section)
-- Writing tests (testing lessons section)
-- Completing a task (update checkboxes here only)
+#### 1. Service Singleton Mocking Pattern
+**Problem**: Services created at module import time retain references to real service instances, causing "not initialized" errors in tests.
+
+**Solution**: Use fixture-based patching with explicit attribute assignment:
+```python
+@pytest.fixture
+def service(self, mock_hyperliquid_service, mock_position_service):
+        with patch('src.services.leverage_service.hyperliquid_service', mock_hyperliquid_service):
+                with patch('src.services.leverage_service.position_service', mock_position_service):
+                        svc = LeverageService()
+                        # CRITICAL: Explicitly assign mocked dependencies
+                        svc.hyperliquid = mock_hyperliquid_service
+                        svc.position_service = mock_position_service
+                        return svc
+```
+
+#### 2. Mock Data Structure Must Match API Response Exactly
+**Problem**: Tests failed with `KeyError` when mock data did not mirror the real nested structure.
+
+**Example**: Position data has nested `"position"` wrappers:
+```python
+# ❌ WRONG - Flat structure
+{"coin": "BTC", "size": 1.26, "leverage_value": 3}
+
+# ✅ CORRECT - Nested structure matching API
+{
+        "position": {
+                "coin": "BTC",
+                "size": 1.26,
+                "leverage_value": 3,
+                "leverage": {"value": 3, "type": "cross"}
+        }
+}
+```
+
+#### 3. Mock Return Values Must Be Python Types, Not Mock Objects
+**Problem**: `TypeError: 'Mock' object is not iterable` when code iterates over mock return values.
+
+**Solution**: Always return actual Python types:
+```python
+# ❌ WRONG - Returns Mock object
+mock_info.spot_user_state.return_value = Mock()
+
+# ✅ CORRECT - Returns actual dict
+mock_info.spot_user_state.return_value = {"balances": []}
+```
+
+#### 4. Function Return Types Must Match Implementation
+**Problem**: Tests expected a single value but the function returns a tuple.
+
+**Example**: `get_leverage_for_order()` returns `(leverage, needs_setting)`:
+```python
+# ❌ WRONG - Expects single value
+leverage = service.get_leverage_for_order("BTC")
+assert leverage == 3
+
+# ✅ CORRECT - Unpacks tuple
+leverage, needs_setting = service.get_leverage_for_order("BTC")
+assert leverage == 3
+assert needs_setting is True
+```
+
+#### Wizard Tests Need Synchronization
+⚠️ **Note**: When modifying bot handlers or service imports, ensure wizard tests are adjusted. Some wizard tests are temporarily skipped; re-enable once flows stabilize.
+
+#### Test Coverage Snapshot
+- **Total Tests**: 682 passing
+- **Coverage**: 65%
+- **Services ≥90% coverage**: Config/Logger, HyperliquidService, MarketDataService, PositionService, ScaleOrderService, RiskCalculator, LeverageService
+- **Target**: Raise overall coverage to 70%+.
+
+### Phase 7 UX Insights
+
+- ConversationHandler remains the orchestration layer; component modules should supply builders (text, keyboards, loading contexts) rather than controlling flow.
+- Eliminate duplication first: centralize preview text, button layouts, and callback extraction helpers before adding new abstractions.
+- Inline leverage selection must pair with previews that highlight margin required, available buying power, liquidation estimates, and risk scoring for every order type.
+- Instantiate `ButtonBuilder` per reply and ship navigation presets plus richer risk indicators to meet the current UX specification.
+- Add integration tests that exercise full market and position journeys with the new components before migrating additional wizards.
 
 ---
-
-#### Quick Reference Table
-
-| Information Type | PLAN.md | TODO.md |
-|------------------|---------|---------|
-| Architecture diagrams | ✅ | ❌ Reference PLAN.md |
-| "Why" decisions (ADRs) | ✅ | ❌ Reference PLAN.md |
-| Phase goals | ✅ | ❌ Reference PLAN.md |
-| Task checkboxes | ❌ Reference TODO.md | ✅ |
-| File paths & code | ❌ Reference TODO.md | ✅ |
-| Progress status | ❌ Reference TODO.md | ✅ |
-| Testing lessons | ❌ Reference TODO.md | ✅ |
-| Known issues | ❌ Reference TODO.md | ✅ |
-
----
-
-#### Workflow Examples
-
-**Example 1: Starting Phase 3 (Telegram Bot)**
-```
-Step 1: Read PLAN.md → Phase 3 section
-  - Understand goal: "Mobile interface for trading and alerts"
-  - See tech stack decision: python-telegram-bot library
-  - Review ADR: "Why Web Dashboard before Telegram Bot"
-
-Step 2: Read TODO.md → Find Phase 3 tasks
-  - [ ] Telegram bot setup
-  - [ ] Create src/bot/handlers/
-  - [ ] Implement /start command
-  - ...
-
-Step 3: Work from TODO.md, checking off tasks as you complete them
-```
-
-**Example 2: Understanding Rebalancing Logic**
-```
-Step 1: Read PLAN.md → Phase 2A section
-  - Goal: "Portfolio rebalancing with integrated risk assessment"
-  - Key decision: Use Case Layer architecture
-
-Step 2: Read TODO.md → Phase 2A completed tasks
-  - [x] Created src/services/rebalance_service.py
-  - [x] Implemented preview_rebalance()
-  - See testing lessons for risk calculation formulas
-```
-
-**Example 3: Completing a Task**
-```
-✅ DO: Update TODO.md
-  - [x] Create src/use_cases/trading/place_order.py
-
-❌ DON'T: Update PLAN.md
-  - No duplicate tracking needed!
-```
 
 ## Environment Management
 
@@ -1330,8 +1307,8 @@ src/bot/utils.py:250: unused function 'format_price_alert' (72% confidence)
 $ grep -r "format_price_alert" src/
 # Found in commented-out code in src/bot/handlers/alerts.py
 
-# Check TODO.md
-# Phase 5 mentions price alerts feature
+# Check PLAN.md
+# Phase 5 backlog notes price alerts feature
 ```
 
 **Action:** Keep it (planned feature) and add to whitelist:
@@ -1874,7 +1851,7 @@ For more troubleshooting help:
 ## Quick Reference Links
 
 **Within Project:**
-- **Implementation**: `docs/PLAN.md`, `docs/TODO.md`
+- **Implementation**: `docs/PLAN.md` (roadmap, status, tasks)
 - **Hyperliquid**: `docs/hyperliquid/python-sdk.md`, `docs/hyperliquid/api-reference.md`
 - **Telegram**:
   - `docs/telegram/bot-api-reference.md` - Complete API reference

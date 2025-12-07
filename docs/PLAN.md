@@ -1,8 +1,9 @@
 # Hyperbot Implementation Plan
 
-**Last Updated**: 2025-11-29
-**Current Phase**: ✅ All Phases Complete - Production Ready
-**Progress Tracking**: See [TODO.md](TODO.md) for detailed task checklists and current progress
+**Last Updated**: 2025-12-06
+**Current Focus**: 🚧 Phase 7 – Telegram UX Component Library
+**Progress Source**: This document now consolidates roadmap, status, and task tracking.
+**Reference Notes**: See [../CLAUDE.md](../CLAUDE.md) for notable learnings and testing insights.
 
 ---
 
@@ -12,121 +13,23 @@ Building a Python-based trading bot for Hyperliquid with multiple interfaces (We
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────┐
-│        Core Services Layer              │
-│        (Business Logic - UI Agnostic)   │
-│                                          │
-│  • AccountService                       │
-│  • PositionService                      │
-│  • OrderService                         │
-│  • RebalanceService                     │
-│  • ScaleOrderService                    │
-│  • MarketDataService                    │
-└──────────────┬──────────────────────────┘
-               │
-┌──────────────┴──────────────────────────┐
-│        FastAPI REST API Layer           │
-│        (Exposes all functionality)      │
-└──────────────┬──────────────────────────┘
-               │
-    ┌──────────┼──────────────┬───────┐
-    ▼          ▼              ▼       ▼
-┌────────┐  ┌──────────┐  ┌────────┐  ┌───┐
-│Web UI  │  │ Telegram │  │Swagger │  │CLI│
-│(Phase2)│  │(Phase 3) │  │  UI    │  │...│
-└────────┘  └──────────┘  └────────┘  └───┘
-```
+See [docs/ARCHITECTURE.md](ARCHITECTURE.md) for the detailed layer diagram, background
+worker topology, and cross-cutting concerns.
 
 ---
 
 ## Implementation Phases
 
-> **Note**: See [TODO.md](TODO.md) for detailed task checklists, implementation specifics, and progress tracking.
+> **Note**: Detailed task breakdowns live in the "Current Focus" and "Open Follow-ups" sections below.
 
-### ✅ Phase 0: Foundation
-**Goal**: FastAPI project setup with modern Python tooling
-**Duration**: 1 day
-**Status**: ✅ Complete
-**Deliverable**: Running FastAPI app with Swagger UI
-**Key Decisions**:
-- FastAPI over Flask (better async, auto-docs)
-- `uv` package manager (10-100x faster than pip)
-
----
-
-### ✅ Phase 1A: Core Services + API
-**Goal**: Working REST API with all bot functionality testable via Swagger UI
-**Duration**: 3-4 days
-**Status**: ✅ Complete
-**Deliverable**: Full-featured API for account, positions, orders, market data
-**Key Decision**: Service layer pattern for UI-agnostic business logic
-**Note**: Implements PERPS trading only. Spot support deferred to Phase 2C.
-
-**Sub-phases**:
-- **1A.1**: Configuration & Setup (settings, logger, env variables)
-- **1A.2**: Hyperliquid Service Integration (SDK initialization, health checks)
-- **1A.3**: Account Service (info, summary, balance - Perps + Spot)
-- **1A.4**: Position Service (list, get, close, summary)
-- **1A.5**: Order Service (market, limit, cancel - with critical error handling fix)
-- **1A.6**: Market Data Service (1547 pairs, order books, metadata)
-- **1A.7**: Testing Infrastructure (deferred - manual testing on testnet sufficient for now)
-
----
-
-### ⛔ Phase 1B: Web Dashboard MVP
-**Goal**: Functional web UI for account monitoring and position management
-**Duration**: 5-6 hours
-**Status**: ⛔ Not Planned - Telegram bot provides sufficient UI
-**Decision**: Focus on mobile-first Telegram interface instead of web dashboard
-
----
-
-### ✅ Phase 2A: Rebalancing Engine with Risk Management
-**Goal**: Portfolio rebalancing with integrated risk assessment
-**Duration**: 1 week
-**Status**: ✅ Complete
-**Deliverable**: Preview and execute rebalancing with risk warnings
-**Key Achievement**: Dashboard matches Hyperliquid GUI metrics (Cross Margin Ratio: 3.63%)
-
-**Features Delivered**:
-- Risk Calculator Service (liquidation price, distance, health scores)
-- Rebalancing Service (preview/execute modes, leverage management)
-- Rebalance API endpoints (preview, execute, risk summary)
-- Risk Visualization UI (Cross Margin Ratio, position-level risk badges)
-- Comprehensive testing with live positions (99.96% portfolio value preservation)
-
----
-
-### ✅ Phase 2B: Scale Orders & Advanced Trading
-**Goal**: Place coordinated ladder orders at multiple price levels
-**Duration**: 1 day
-**Status**: ✅ Complete
-**Deliverable**: Scale order API with preview, placement, tracking, cancellation
-
-**Features Delivered**:
-- Linear and geometric size distribution (configurable ratio 1.0-3.0)
-- Preview before placement
-- Group tracking with unique `scale_order_id`
-- Fill percentage monitoring
-- Atomic cancellation of order groups
-- Price/size rounding for tick size compliance
-
-**Example Usage**:
-```bash
-# Place 5 BTC buy orders from $108k to $106k with geometric distribution
-curl -X POST '/api/scale-orders/place' -d '{
-  "coin":"BTC", "is_buy":true, "total_size":0.01,
-  "num_orders":5, "start_price":108000, "end_price":106000,
-  "distribution_type":"geometric", "geometric_ratio":2.0
-}'
-```
-
----
-
-### ✅ Phase 2D: Leverage Management Service
-**Goal**: Centralized leverage management with validation and risk assessment
-**Duration**: 1 day
+### ✅ Phase 6: Outstanding Orders Management
+**Status**: ✅ Complete (2025-11-29)
+**Highlights**:
+- Added `ListOrdersUseCase`, `CancelOrderUseCase`, and bulk cancellation support with comprehensive unit coverage.
+- Exposed REST endpoints (`GET /api/orders/`, `DELETE /api/orders/{coin}/{order_id}`, `POST /api/orders/cancel-bulk`).
+- Delivered Telegram `/orders` command with pagination, per-order cancellation, and bulk cancel actions.
+**Follow-ups**:
+- Implement coin-filter callback in `src/bot/handlers/orders.py` to enable the existing “Filter by coin” button (low priority).
 **Status**: ✅ Complete
 **Deliverable**: Leverage API with validation, estimation, soft limits
 
@@ -276,9 +179,66 @@ Time: 2025-11-12 14:23:45 UTC
 
 ---
 
+## Current Focus: Phase 7 – Telegram UX Component Library
+
+**Goal**: Deliver leverage-aware order flows and a reusable Telegram UX component set that improves capital transparency and reduces handler duplication.
+**Status**: 🚧 In progress (`feature/ux-component-library`)
+**Priority**: HIGH – UX team blocker for safer trading flows
+
+### UX Pillars
+- Progressive disclosure: quick previews by default with full detail on demand
+- Mobile-first: enforce the 10-line quick preview constraint for small screens
+- Context-aware guidance: leverage labels, action-forward button copy
+- Safety through transparency: surface margin usage, buying power, liquidation range
+
+### Active Workstreams
+- **Atomic components**: add navigation presets plus remaining spec-alignment helpers for `ButtonBuilder`; expand risk indicator API with tooltips and descriptive levels.
+- **Organism flows**: finish orchestration API (`start`, `handle_*`) so handlers can adopt flows without glue code; add integration tests that exercise complete market and position journeys with the new components.
+- **Migration & adoption**: refactor `wizard_market_order.py`; migrate scale, rebalance, and close-position wizards; retrofit `/positions`, `/orders`, and `/account`; replace legacy menu builders with `ButtonBuilder`; enforce consistent loading and success templates.
+- **Testing & docs**: rerun `uv run pytest` after integrations to keep ≥90% coverage in component modules; add end-to-end bot tests for quick/full preview toggles and success follow-ups; document usage patterns and migration notes in README and internal docs.
+- **Design references**: Implement UX exactly as specified in `docs/UX_DESIGN_SPECIFICATIONS.md` (component formatting, spacing, button patterns) and prioritize the overhaul sequence documented in `docs/UX_IMPROVEMENT_OPPORTUNITIES.md`.
+- **Margin mode selection**: Extend leverage-aware flows so traders choose cross vs isolated margin during order entry, with previews updating capital usage and liquidation math per mode.
+
+### Known Gaps & Follow-ups
+- Instantiate `ButtonBuilder` per reply to prevent shared state leakage.
+- Align preview helper keyword arguments (`account_value`, `is_testnet`) with call sites.
+- Add risk grouping plus action buttons to sortable lists per SPEC-004.
+- Trim `PositionDisplay` quick view output to the 10-line mobile guideline.
+- Extend success messages with "What's next?" action buttons for continuity.
+
+### Implementation Notes
+- Components must expose builders (text, keyboards, loading states) while ConversationHandler continues orchestrating flow control.
+- Inline leverage selection should feed preview builders that show margin required, available buying power, liquidation estimates, and risk scoring before confirmation.
+- Reuse service-layer calculations to validate buying power in real time as leverage and order size change.
+- Margin mode selection must integrate with leverage steps—defaulting to cross, allowing isolated where supported, and updating previews with per-mode margin consumption and liquidation ranges.
+
+### Success Metrics
+- Inline leverage selection available for market, limit, and scale order wizards.
+- Each preview surfaces margin required, buying power remaining, liquidation range, chosen margin mode, and risk level.
+- Position views display liquidation distance and stop-loss status for every open position.
+- Component modules maintain ≥90% unit-test coverage after refactors.
+
+### Immediate Next Steps
+1. Ship navigation preset helpers and the expanded risk indicator API.
+2. Finalize the order-flow orchestrator surface and wire it into the market order wizard.
+3. Introduce leverage-aware previews in the market flow, then propagate to remaining wizards.
+4. Run the full test suite and publish migration guidance in README and Claude notes.
+
+### Open Follow-ups (User Feedback – Dec 2025)
+Source: [docs/user-feedback.md](../docs/user-feedback.md)
+
+- **P0 · Restore critical commands**: `/close <coin>`, `/balance`, `/notifystatus`, and `/notifyhistory` currently return "Unknown command." Re-register handlers and update `/help` so published commands work.
+- **P0 · Fill price gaps for unlisted spot tokens**: Resolve account valuation warnings when Hyperliquid omits tokens like JEFF/POINTS/OMNIX/UBTC/LICKO to keep mainnet balance totals accurate.
+- **P0 · Reduce bot latency**: Audit RPC usage, caching, and batching to address slow command responses highlighted by traders.
+- **P1 · Close-position UX upgrades**: Add quick buttons to close 100%/50%/25% of all positions, allow per-position selection, and surface a "Close Positions" shortcut from the main positions menu.
+- **P1 · Partial stop-loss tooling**: Support percentage-based, reduce-only stop market orders so users can protect positions without full exits.
+- **P2 · Order history pagination**: Provide a paginated history view with "load more" controls for older fills.
+- **P2 · Open orders pagination enhancement**: Extend `/orders` to paginate beyond the first page so large books remain navigable.
+---
+
 ## Future Phases (Planned)
 
-> **Note**: See [TODO.md](TODO.md) for detailed planning of future phases.
+> **Note**: Additional roadmap items are summarized here; expand details inline as they are scheduled.
 
 ### 📋 Phase 6: Outstanding Orders Management
 **Goal**: List, filter, and manage all outstanding (open/unfilled) orders
@@ -387,82 +347,6 @@ Cancel this order?
 ```
 Main Menu updates:
 📊 Account
-💼 Positions
-📋 Orders          ← New button
-💰 Trade
-⚙️ Settings
-```
-
-**Special Cases**:
-
-1. **No orders**:
-```
-📭 No outstanding orders
-
-You have no open orders at the moment.
-
-[🔙 Back to Menu]
-```
-
-2. **Partially filled orders** (highlight):
-```
-📋 Partially Filled Orders (2)
-
-1. 🟢 BUY Limit - BTC
-   ├─ Price: $107,000
-   ├─ Size: 0.05 BTC
-   ├─ ⚡ Filled: 60% (0.03/0.05)  ← Highlighted
-   └─ Remaining: 0.02 BTC
-   [❌ Cancel Remaining]
-```
-
-3. **Bulk cancel confirmation**:
-```
-⚠️ Cancel All BTC Orders?
-
-You are about to cancel 3 orders:
-• 2 BUY limit orders
-• 1 SELL limit order
-
-Total value: $5,500
-
-This action cannot be undone.
-
-[✅ Yes, Cancel All] [❌ Keep Orders]
-```
-
-4. **Scale order grouping** (future enhancement):
-```
-📋 Scale Orders (2 groups)
-
-🎯 Scale Group #abc123 - BTC BUY
-   ├─ Orders: 5 (3 filled, 2 open)
-   ├─ Progress: 60%
-   └─ Range: $106k - $108k
-   [📊 Details] [❌ Cancel All]
-```
-
-**Accessibility Considerations**:
-- **Max 8 coin filter buttons** per row (Telegram limitation)
-- **"More..." button** for additional coins (opens full list)
-- **Order ID truncation** if displayed (show last 8 chars: `#...xyz123`)
-- **Timestamp formatting**: Human-readable ("2h ago" vs ISO string)
-- **Amount rounding**: Match Hyperliquid tick size rules
-
-**Performance Optimization**:
-- **Cache order data** for 30s (reduce API calls on filter changes)
-- **Pagination** if >10 orders (show 10 at a time with Next/Prev)
-- **Lazy load details**: Only fetch full order details when requested
-
-**Technical Implementation Notes**:
-- Use `info.openOrders()` from Hyperliquid SDK
-- Reuse existing `OrderService` with new methods
-- Add `ListOutstandingOrdersUseCase` in use case layer
-- Reuse cancel logic from existing order cancellation
-- Store `last_orders_filter` in `context.user_data` for back navigation
-
----
-
 ### ⛔ Phase 1B.2: Post-MVP Dashboard Features
 **Goal**: Enhanced dashboard with orders, market data, charts
 **Status**: ⛔ Not Planned - Web dashboard abandoned in favor of Telegram
@@ -520,7 +404,7 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 
 **Current Status**: 532 tests passing (55% coverage, target >80%)
 
-> **Note**: See [TODO.md](TODO.md) for testing lessons learned, known issues, and coverage by service.
+> **Note**: Testing lessons, coverage history, and known issues are tracked in [../CLAUDE.md](../CLAUDE.md) under "Notable Learnings".
 
 ---
 
@@ -666,13 +550,15 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 - [Hyperliquid SDK](../docs/hyperliquid/python-sdk.md)
 - [Hyperliquid API Reference](../docs/hyperliquid/api-reference.md)
 - [Testing Strategy](../docs/TESTING.md) (to be created)
-- [TODO.md](TODO.md) - Detailed task tracking and progress
+- [../CLAUDE.md](../CLAUDE.md) - Notable learnings, testing patterns, and coverage notes
+- [docs/UX_DESIGN_SPECIFICATIONS.md](../docs/UX_DESIGN_SPECIFICATIONS.md) - Pixel-perfect Telegram message and component specs
+- [docs/UX_IMPROVEMENT_OPPORTUNITIES.md](../docs/UX_IMPROVEMENT_OPPORTUNITIES.md) - Flow-by-flow UX upgrade roadmap
 
 ---
 
 ## Next Steps
 
-> **Strategic Direction**: See [TODO.md](TODO.md) for detailed next steps and task planning.
+> **Strategic Direction**: Active planning lives in the "Current Focus" and "Future Enhancements" sections above.
 
 **Completed Phases**:
 1. ✅ Phase 0: FastAPI setup
