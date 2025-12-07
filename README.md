@@ -14,6 +14,11 @@ A Python-based trading bot for Hyperliquid that manages positions and responds t
 - **FastAPI REST API**: Interactive API with Swagger UI
 - **Modern Python**: Uses `uv` for fast, reliable dependency management
 
+## Documentation
+
+- `docs/telegram-ux-system-guide.md` — canonical Telegram UX design system reference
+- `docs/telegram-ux-implementation-playbook.md` — implementation roadmap for adopting the UX system
+
 ## Prerequisites
 
 - Python 3.11 or higher

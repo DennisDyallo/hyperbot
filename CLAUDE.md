@@ -13,17 +13,19 @@ All documentation is stored locally in the `/docs` directory:
 
 ```
 docs/
-├── ARCHITECTURE.md         # System architecture overview
-├── PLAN.md                    # ⭐ Roadmap, task breakdowns, status
-├── TODO.md                    # Archive stub → PLAN.md
+├── ARCHITECTURE.md             # System architecture overview
+├── PLAN.md                     # ⭐ Roadmap, task breakdowns, status
+├── GCP_NAMING_CONVENTION.md    # Cloud resource naming standards
+├── telegram-ux-system-guide.md # Canonical Telegram UX design system (Phase 7)
+├── telegram-ux-implementation-playbook.md # Engineering playbook for the UX rollout
 ├── hyperliquid/
-│   ├── python-sdk.md          # Official SDK documentation
-│   └── api-reference.md       # Complete API reference with examples
+│   ├── python-sdk.md           # Official SDK documentation
+│   └── api-reference.md        # Complete API reference with examples
 └── telegram/
-        ├── bot-api-reference.md   # Complete Telegram Bot API reference
-        ├── best-practices.md      # Security, performance, patterns
-        ├── features.md            # All Telegram bot features
-        └── faq.md                 # Comprehensive FAQ and troubleshooting
+    ├── bot-api-reference.md    # Complete Telegram Bot API reference
+    ├── best-practices.md       # Security, performance, patterns
+    ├── features.md             # All Telegram bot features
+    └── faq.md                  # Comprehensive FAQ and troubleshooting
 ```
 
 ### Working With the Roadmap
@@ -119,6 +121,7 @@ assert needs_setting is True
 - Inline leverage selection must pair with previews that highlight margin required, available buying power, liquidation estimates, and risk scoring for every order type.
 - Instantiate `ButtonBuilder` per reply and ship navigation presets plus richer risk indicators to meet the current UX specification.
 - Add integration tests that exercise full market and position journeys with the new components before migrating additional wizards.
+- Canonical specifications live in `docs/telegram-ux-system-guide.md`; coordinate implementation work through `docs/telegram-ux-implementation-playbook.md`.
 
 ---
 
