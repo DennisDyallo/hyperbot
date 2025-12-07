@@ -108,6 +108,8 @@ assert needs_setting is True
 #### Wizard Tests Need Synchronization
 ⚠️ **Note**: When modifying bot handlers or service imports, ensure wizard tests are adjusted. Some wizard tests are temporarily skipped; re-enable once flows stabilize.
 
+**2025-12-07 Update**: The market order wizard now routes both preset and text-based amounts through the leverage selection state (`MARKET_LEVERAGE`) before confirmation. Update wizard tests to expect the leverage state rather than `MARKET_CONFIRM` immediately after amount entry.
+
 #### Test Coverage Snapshot
 - **Total Tests**: 682 passing
 - **Coverage**: 65%

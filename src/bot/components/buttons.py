@@ -19,6 +19,8 @@ BUTTON_STYLES: Final[dict[str, str]] = {
     "danger": "❌",  # Cancel, close, delete
     "warning": "⚠️",  # Attention / caution
     "back": "🔙",  # Navigation back
+    "home": "🏠",  # Return to main menu
+    "next": "➡️",  # Follow-up actions
     "settings": "⚙️",  # Change settings
 }
 
@@ -130,6 +132,75 @@ class ButtonBuilder:
             self._rows.append([back_button, cancel_button])
         else:
             self._rows.append([back_button])
+
+        return self
+
+    def navigation_back_cancel(
+        self,
+        *,
+        back_label: str = "Back",
+        back_callback: str = "back",
+        cancel_label: str = "Cancel",
+        cancel_callback: str = "cancel",
+    ) -> "ButtonBuilder":
+        """Add standardized back/cancel navigation row."""
+
+        self._flush_row()
+        self._rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{BUTTON_STYLES['back']} {back_label}",
+                    callback_data=back_callback,
+                ),
+                InlineKeyboardButton(
+                    text=f"{BUTTON_STYLES['danger']} {cancel_label}",
+                    callback_data=cancel_callback,
+                ),
+            ]
+        )
+        return self
+
+    def navigation_main(
+        self,
+        label: str = "Main Menu",
+        callback_data: str = "menu_main",
+    ) -> "ButtonBuilder":
+        """Add a preset button that returns users to the main menu."""
+
+        self._flush_row()
+        button = InlineKeyboardButton(
+            text=f"{BUTTON_STYLES['home']} {label}",
+            callback_data=callback_data,
+        )
+        self._rows.append([button])
+        return self
+
+    def next_actions(
+        self,
+        actions: list[tuple[str, str]],
+        *,
+        style: str = "secondary",
+        per_row: int = 2,
+    ) -> "ButtonBuilder":
+        """Add follow-up action buttons using preset styling."""
+
+        if not actions:
+            return self
+
+        self._flush_row()
+
+        row: list[InlineKeyboardButton] = []
+        for label, callback_data in actions:
+            emoji = BUTTON_STYLES.get(style, "")
+            text = f"{emoji} {label}" if emoji and not label.startswith(emoji) else label
+            row.append(InlineKeyboardButton(text=text, callback_data=callback_data))
+
+            if len(row) >= per_row:
+                self._rows.append(row)
+                row = []
+
+        if row:
+            self._rows.append(row)
 
         return self
 

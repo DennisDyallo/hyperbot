@@ -29,9 +29,9 @@
 | Task | Details | Status | Notes |
 | --- | --- | --- | --- |
 | Formatters module parity | Implement `format_currency`, `format_percentage`, `format_coin_size`, `format_pnl`, `format_timestamp` with edge-case tests | ☐ | Snapshot fixtures must mirror real API payloads |
-| ButtonBuilder | Fluent builder with `.action`, `.cancel`, `.back`, `.build` plus preset navigation rows | ☐ | Ensure callback IDs remain stable for existing handlers |
+| ButtonBuilder | Fluent builder with `.action`, `.cancel`, `.back`, `.navigation_back_cancel`, `.navigation_main`, `.next_actions`, `.build` presets | ☐ | Ensure callback IDs remain stable for existing handlers |
 | Loading states | `LoadingMessage.show/hide` helpers and preset messages (order, leverage, pricing) | ☐ | Pair with async context manager once handlers refactor |
-| Risk indicators | `RiskLevel`, `RiskIndicator`, and `get_risk_indicator` thresholds | ☐ | Centralize thresholds; add regression tests |
+| Risk indicators | `RiskLevel` + `RiskDescriptor` metadata, `calculate_risk_level`, `format_risk_indicator`, `build_risk_summary`, `build_risk_tooltip` | ☐ | Centralize thresholds; add regression tests |
 | Test coverage | ≥90% coverage across atomic modules | ☐ | Integrate into CI gate |
 
 ## 4. Molecular Components

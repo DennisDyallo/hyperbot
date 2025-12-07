@@ -1,19 +1,4 @@
-"""
-Telegram Bot UX Component Library.
-
-This package provides reusable, tested components for building consistent
-Telegram bot interactions following the Atomic Design methodology.
-
-Levels:
-    - Level 1 (Atomic): formatters, buttons, loading, risk
-    - Level 2 (Molecular): cards, preview, lists
-    - Level 3 (Organism): flows (complete user journeys)
-
-Design Documentation:
-    - docs/TELEGRAM_UX_COMPONENT_LIBRARY.md
-    - docs/COMPONENT_IMPLEMENTATION_GUIDE.md
-    - docs/UX_DESIGN_SPECIFICATIONS.md
-"""
+"""Telegram Bot UX Component Library public exports."""
 
 from .buttons import (
     ButtonBuilder,
@@ -46,9 +31,13 @@ from .lists import (
 from .loading import LoadingMessage
 from .preview import PreviewBuilder, PreviewData, build_order_preview
 from .risk import (
+    RiskDescriptor,
     RiskLevel,
+    build_risk_summary,
+    build_risk_tooltip,
     calculate_risk_level,
     format_risk_indicator,
+    get_risk_descriptor,
     get_risk_emoji,
 )
 
@@ -60,9 +49,13 @@ __all__ = [
     "format_pnl",
     "format_timestamp",
     # Level 1: Risk
+    "RiskDescriptor",
     "RiskLevel",
+    "build_risk_summary",
+    "build_risk_tooltip",
     "calculate_risk_level",
     "format_risk_indicator",
+    "get_risk_descriptor",
     "get_risk_emoji",
     # Level 1: Buttons
     "ButtonBuilder",

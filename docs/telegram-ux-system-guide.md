@@ -118,9 +118,9 @@ Atomic pieces must be implemented and tested first; higher-level components comp
 
 ### 5.2 Button Patterns (`src/bot/components/buttons.py`)
 
-- `ButtonBuilder` constructs inline keyboards with expressive helpers: `.action`, `.back`, `.cancel`, `.build`.
+- `ButtonBuilder` constructs inline keyboards with expressive helpers: `.action`, `.back`, `.cancel`, `.navigation_back_cancel`, `.navigation_main`, `.next_actions`, `.build`.
 - Action buttons include verb + amount (e.g., `✅ Buy $1,000 BTC`).
-- Provide preset navigation rows for common flows (Back/Cancel/Help).
+- Provide preset navigation rows for common flows (Back/Cancel/Home) and grouped follow-up actions.
 - Ensure callback data remains stable for integration tests.
 
 ### 5.3 Loading States (`src/bot/components/loading.py`)
@@ -132,9 +132,9 @@ Atomic pieces must be implemented and tested first; higher-level components comp
 
 ### 5.4 Risk Indicators (`src/bot/components/risk.py`)
 
-- `RiskLevel` enum: LOW, MODERATE, HIGH, CRITICAL.
-- `get_risk_indicator` converts liquidation distance into emoji, color, and description.
-- Surface risk inline with previews and in dedicated cards.
+- `RiskLevel` enum (SAFE→EXTREME) maps to frozen `RiskDescriptor` records for emoji, severity, summary, tooltip.
+- `calculate_risk_level` converts liquidation distance into standardized risk tiers.
+- `format_risk_indicator`, `build_risk_summary`, `build_risk_tooltip` keep messaging consistent across cards and previews.
 - Keep threshold values centralized to avoid divergence across flows.
 
 ## 6. Level 2 — Molecular Components

@@ -1,6 +1,6 @@
 # Hyperbot Implementation Plan
 
-**Last Updated**: 2025-12-06
+**Last Updated**: 2025-12-07
 **Current Focus**: 🚧 Phase 7 – Telegram UX Component Library
 **Progress Source**: This document now consolidates roadmap, status, and task tracking.
 **Reference Notes**: See [../CLAUDE.md](../CLAUDE.md) for notable learnings and testing insights.
@@ -192,7 +192,7 @@ Time: 2025-11-12 14:23:45 UTC
 - Safety through transparency: surface margin usage, buying power, liquidation range
 
 ### Active Workstreams
-- **Atomic components**: add navigation presets plus remaining spec-alignment helpers for `ButtonBuilder`; expand risk indicator API with tooltips and descriptive levels.
+- **Atomic components**: ✅ Added navigation presets (`navigation_back_cancel`, `navigation_main`, `next_actions`) and richer `RiskDescriptor` metadata/tooltips. ⏭️ Wire presets into remaining handlers and expand tests for loading presets.
 - **Organism flows**: finish orchestration API (`start`, `handle_*`) so handlers can adopt flows without glue code; add integration tests that exercise complete market and position journeys with the new components.
 - **Migration & adoption**: refactor `wizard_market_order.py`; migrate scale, rebalance, and close-position wizards; retrofit `/positions`, `/orders`, and `/account`; replace legacy menu builders with `ButtonBuilder`; enforce consistent loading and success templates.
 - **Testing & docs**: rerun `uv run pytest` after integrations to keep ≥90% coverage in component modules; add end-to-end bot tests for quick/full preview toggles and success follow-ups; document usage patterns and migration notes in README and internal docs.

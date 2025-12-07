@@ -1,21 +1,12 @@
-"""
-Risk assessment utilities for position and order evaluation.
+"""Risk assessment utilities for consistent risk messaging."""
 
-Provides standardized risk levels, emojis, and calculation logic to ensure
-consistent risk communication across all bot interactions.
-"""
-
+from dataclasses import dataclass
 from enum import Enum
 from typing import Final
 
 
 class RiskLevel(str, Enum):
-    """
-    Standardized risk levels for positions and orders.
-
-    Used throughout the bot to communicate risk in a consistent way.
-    Each level has an associated emoji and color scheme.
-    """
+    """Standardized risk levels for positions and orders."""
 
     SAFE = "SAFE"
     LOW = "LOW"
@@ -23,6 +14,18 @@ class RiskLevel(str, Enum):
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
     EXTREME = "EXTREME"
+
+
+@dataclass(frozen=True)
+class RiskDescriptor:
+    """Descriptor metadata for a risk level."""
+
+    level: RiskLevel
+    name: str
+    emoji: str
+    severity: int  # 1 (safest) to 6 (extreme)
+    summary: str
+    tooltip: str
 
 
 # Risk level thresholds (liquidation distance in percentage)
@@ -44,15 +47,67 @@ LEVERAGE_RISK_MULTIPLIERS: Final[dict[int, float]] = {
     20: 3.0,
 }
 
+RISK_DESCRIPTORS: Final[dict[RiskLevel, RiskDescriptor]] = {
+    RiskLevel.SAFE: RiskDescriptor(
+        level=RiskLevel.SAFE,
+        name="Safe",
+        emoji="🟢",
+        severity=1,
+        summary="Large buffer – minimal liquidation risk.",
+        tooltip="Liquidation more than 40% away. Comfortable margin headroom.",
+    ),
+    RiskLevel.LOW: RiskDescriptor(
+        level=RiskLevel.LOW,
+        name="Low",
+        emoji="🟢",
+        severity=2,
+        summary="Healthy distance with room for volatility.",
+        tooltip="Liquidation 25-40% away. Typical for conservative leverage.",
+    ),
+    RiskLevel.MODERATE: RiskDescriptor(
+        level=RiskLevel.MODERATE,
+        name="Moderate",
+        emoji="🟡",
+        severity=3,
+        summary="Balanced risk – monitor if volatility rises.",
+        tooltip="Liquidation 15-25% away. Normal for 3-5x leverage; consider stop-loss protection.",
+    ),
+    RiskLevel.HIGH: RiskDescriptor(
+        level=RiskLevel.HIGH,
+        name="High",
+        emoji="🟠",
+        severity=4,
+        summary="Tight buffer – size or leverage may be aggressive.",
+        tooltip="Liquidation 10-15% away. Elevated risk; reduce position or add margin.",
+    ),
+    RiskLevel.CRITICAL: RiskDescriptor(
+        level=RiskLevel.CRITICAL,
+        name="Critical",
+        emoji="🔴",
+        severity=5,
+        summary="Liquidation nearby – action recommended immediately.",
+        tooltip="Liquidation 5-10% away. One swift move can trigger liquidation.",
+    ),
+    RiskLevel.EXTREME: RiskDescriptor(
+        level=RiskLevel.EXTREME,
+        name="Extreme",
+        emoji="💀",
+        severity=6,
+        summary="Liquidation imminent – intervene now.",
+        tooltip="<5% to liquidation. Immediate intervention required.",
+    ),
+}
+
 # Emoji mapping for each risk level
 RISK_EMOJIS: Final[dict[RiskLevel, str]] = {
-    RiskLevel.SAFE: "🟢",
-    RiskLevel.LOW: "🟢",
-    RiskLevel.MODERATE: "🟡",
-    RiskLevel.HIGH: "🟠",
-    RiskLevel.CRITICAL: "🔴",
-    RiskLevel.EXTREME: "💀",
+    level: descriptor.emoji for level, descriptor in RISK_DESCRIPTORS.items()
 }
+
+
+def get_risk_descriptor(level: RiskLevel) -> RiskDescriptor:
+    """Return descriptor metadata for a risk level."""
+
+    return RISK_DESCRIPTORS[level]
 
 
 def calculate_risk_level(
@@ -126,49 +181,30 @@ def calculate_risk_level(
 
 
 def get_risk_emoji(level: RiskLevel) -> str:
-    """
-    Get the emoji representation for a risk level.
+    """Return emoji representation for a risk level."""
 
-    Args:
-        level: The risk level.
-
-    Returns:
-        Emoji string (e.g., "🟢", "🔴", "💀").
-
-    Examples:
-        >>> get_risk_emoji(RiskLevel.SAFE)
-        '🟢'
-        >>> get_risk_emoji(RiskLevel.MODERATE)
-        '🟡'
-        >>> get_risk_emoji(RiskLevel.EXTREME)
-        '💀'
-    """
-    return RISK_EMOJIS[level]
+    return RISK_DESCRIPTORS[level].emoji
 
 
 def format_risk_indicator(level: RiskLevel, include_emoji: bool = True) -> str:
-    """
-    Format a complete risk indicator with emoji and text.
+    """Format a risk indicator using descriptor metadata."""
 
-    Args:
-        level: The risk level.
-        include_emoji: Whether to include the emoji (default: True).
-
-    Returns:
-        Formatted string like "MODERATE 🟡" or "EXTREME 💀".
-
-    Examples:
-        >>> format_risk_indicator(RiskLevel.MODERATE)
-        'MODERATE 🟡'
-        >>> format_risk_indicator(RiskLevel.EXTREME)
-        'EXTREME 💀'
-        >>> format_risk_indicator(RiskLevel.SAFE, include_emoji=False)
-        'SAFE'
-    """
-    text = level.value
+    descriptor = get_risk_descriptor(level)
+    text = descriptor.name.upper()
 
     if include_emoji:
-        emoji = get_risk_emoji(level)
-        return f"{text} {emoji}"
+        return f"{text} {descriptor.emoji}"
 
     return text
+
+
+def build_risk_summary(level: RiskLevel) -> str:
+    """Return the short summary string for a risk level."""
+
+    return get_risk_descriptor(level).summary
+
+
+def build_risk_tooltip(level: RiskLevel) -> str:
+    """Return the tooltip string for a risk level."""
+
+    return get_risk_descriptor(level).tooltip

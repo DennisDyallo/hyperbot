@@ -156,6 +156,47 @@ class TestButtonBuilder:
         assert len(rows[0]) == 2  # Confirm + Details
         assert len(rows[1]) == 2  # Back + Cancel
 
+    def test_navigation_back_cancel_helper(self) -> None:
+        """Preset back/cancel helper should add both controls."""
+        buttons = ButtonBuilder().action("Continue", "continue").navigation_back_cancel().build()
+
+        rows = _rows(buttons)
+
+        assert len(rows) == 2
+        assert rows[1][0].text == "🔙 Back"
+        assert rows[1][1].text == "❌ Cancel"
+
+    def test_navigation_main_helper(self) -> None:
+        """Preset main menu helper should flush current row."""
+        buttons = (
+            ButtonBuilder()
+            .action("Continue", "continue")
+            .navigation_main(label="Dashboard", callback_data="menu_dashboard")
+            .build()
+        )
+
+        rows = _rows(buttons)
+
+        assert len(rows) == 2
+        assert rows[1][0].text == "🏠 Dashboard"
+        assert rows[1][0].callback_data == "menu_dashboard"
+
+    def test_next_actions_helper(self) -> None:
+        """Next actions helper should chunk follow-up buttons."""
+        actions = [
+            ("View order", "order:view"),
+            ("Adjust", "order:adjust"),
+            ("Set alert", "order:alert"),
+        ]
+        buttons = ButtonBuilder().next_actions(actions, per_row=2).build()
+
+        rows = _rows(buttons)
+
+        assert len(rows) == 2
+        assert len(rows[0]) == 2
+        assert rows[0][0].text.startswith("📊 View order")
+        assert rows[1][0].text.startswith("📊 Set alert")
+
 
 class TestBuildSingleActionButton:
     """Test convenience function for single action button."""

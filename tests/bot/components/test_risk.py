@@ -1,9 +1,13 @@
 """Tests for risk assessment utilities."""
 
 from src.bot.components.risk import (
+    RiskDescriptor,
     RiskLevel,
+    build_risk_summary,
+    build_risk_tooltip,
     calculate_risk_level,
     format_risk_indicator,
+    get_risk_descriptor,
     get_risk_emoji,
 )
 
@@ -176,3 +180,27 @@ class TestFormatRiskIndicator:
             # Without emoji
             result_without = format_risk_indicator(level, include_emoji=False)
             assert result_without == level.value
+
+
+class TestRiskDescriptors:
+    """Test risk descriptor metadata helpers."""
+
+    def test_descriptor_structure(self) -> None:
+        """All descriptors should map cleanly from the enum."""
+        for level in RiskLevel:
+            descriptor = get_risk_descriptor(level)
+            assert isinstance(descriptor, RiskDescriptor)
+            assert descriptor.level is level
+            assert descriptor.severity in {1, 2, 3, 4, 5, 6}
+            assert descriptor.summary
+            assert descriptor.tooltip
+
+    def test_summary_builder(self) -> None:
+        """Summary helper should return descriptor summary text."""
+        moderate = build_risk_summary(RiskLevel.MODERATE)
+        assert "Balanced risk" in moderate
+
+    def test_tooltip_builder(self) -> None:
+        """Tooltip helper should return descriptor tooltip text."""
+        critical = build_risk_tooltip(RiskLevel.CRITICAL)
+        assert "Liquidation" in critical
