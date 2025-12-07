@@ -10,6 +10,7 @@ from telegram.ext import CommandHandler, ContextTypes
 from src.bot.menus import build_main_menu
 from src.bot.middleware import authorized_only
 from src.config import logger, settings
+from src.services.account_service import account_service
 from src.services.market_data_service import market_data_service
 from src.services.position_service import position_service
 
@@ -234,6 +235,32 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(status_msg, parse_mode="Markdown")
 
 
+@authorized_only
+async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler for /balance command showing margin breakdown."""
+    assert update.message is not None
+
+    try:
+        balance = account_service.get_balance_details()
+
+        message = (
+            "💰 **Balance Overview**\n\n"
+            f"**Total Account Value**: ${balance['total_value']:,.2f}\n"
+            f"**Available (Free)**: ${balance['available']:,.2f}\n"
+            f"**In Positions**: ${balance['in_positions']:,.2f}\n"
+            f"**Margin Used**: ${balance['margin_used']:,.2f}\n"
+            f"**Withdrawable**: ${balance['withdrawable']:,.2f}"
+        )
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    except Exception as e:
+        logger.exception("Balance command failed")
+        await update.message.reply_text(
+            f"❌ Failed to fetch balance details:\n`{str(e)}`", parse_mode="Markdown"
+        )
+
+
 # ============================================================================
 # Handler Registration
 # ============================================================================
@@ -246,5 +273,6 @@ def get_command_handlers() -> list:
         CommandHandler("help", help_command),
         CommandHandler("account", account_command),
         CommandHandler("positions", positions_command),
+        CommandHandler("balance", balance_command),
         CommandHandler("status", status_command),
     ]

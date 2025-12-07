@@ -186,7 +186,7 @@ async def notify_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_notify_handlers() -> list:
     """Return all notification command handlers."""
     return [
-        CommandHandler("notify_status", notify_status),
+        CommandHandler(["notify_status", "notifystatus"], notify_status),
         CommandHandler("notify_test", notify_test),
-        CommandHandler("notify_history", notify_history),
+        CommandHandler(["notify_history", "notifyhistory"], notify_history),
     ]
