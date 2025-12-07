@@ -10,10 +10,10 @@
 Implement a comprehensive component library for Telegram bot interactions to ensure consistency, maintainability, and professional UX across all flows.
 
 **Related Documentation**:
-- [TELEGRAM_UX_COMPONENT_LIBRARY.md](../docs/TELEGRAM_UX_COMPONENT_LIBRARY.md) - Component specifications
-- [COMPONENT_IMPLEMENTATION_GUIDE.md](../docs/COMPONENT_IMPLEMENTATION_GUIDE.md) - Developer guide
-- [UX_DESIGN_SPECIFICATIONS.md](../docs/UX_DESIGN_SPECIFICATIONS.md) - Design specs
-- [UX_IMPROVEMENT_OPPORTUNITIES.md](../docs/UX_IMPROVEMENT_OPPORTUNITIES.md) - Flow analysis
+- [TELEGRAM_UX_COMPONENT_LIBRARY.md](docs/TELEGRAM_UX_COMPONENT_LIBRARY.md) - Component specifications
+- [COMPONENT_IMPLEMENTATION_GUIDE.md](docs/COMPONENT_IMPLEMENTATION_GUIDE.md) - Developer guide
+- [UX_DESIGN_SPECIFICATIONS.md](docs/UX_DESIGN_SPECIFICATIONS.md) - Design specs
+- [UX_IMPROVEMENT_OPPORTUNITIES.md](docs/UX_IMPROVEMENT_OPPORTUNITIES.md) - Flow analysis
 
 ## 🎯 Goals
 
